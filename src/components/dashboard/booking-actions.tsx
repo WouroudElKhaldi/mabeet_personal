@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
-import { useAction } from "./use-action";
+import { useAction } from "@/hooks/use-action";
 
 const METHODS = ["WHISH", "OMT", "CASH", "BANK_TRANSFER", "OTHER"] as const;
 

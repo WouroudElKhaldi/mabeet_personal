@@ -169,6 +169,13 @@ export async function getBooking(ctx: TenantContext, bookingId: string) {
   return presentForStaff(ctx, booking);
 }
 
+export async function getBookingByReference(ctx: TenantContext, reference: string) {
+  requirePermission(ctx, "bookings.read");
+  const booking = await bookings.findBookingByReference(prisma, ctx.businessId, reference.toUpperCase());
+  if (!booking) throw notFound("Booking");
+  return presentForStaff(ctx, booking);
+}
+
 export async function listBookings(ctx: TenantContext, filters: bookings.BookingFilters) {
   requirePermission(ctx, "bookings.read");
   const rows = await bookings.listBookings(prisma, ctx.businessId, filters);

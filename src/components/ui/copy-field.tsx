@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 export function CopyField({ value, label }: { value: string; label: string }) {
-  const t = useTranslations("dashboard");
+  const t = useTranslations("common");
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(value);

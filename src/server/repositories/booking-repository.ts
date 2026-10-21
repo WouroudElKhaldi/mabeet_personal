@@ -77,6 +77,10 @@ export function findBooking(db: Db, businessId: string, bookingId: string) {
   return db.booking.findFirst({ where: { id: bookingId, businessId }, include: { room: true } });
 }
 
+export function findBookingByReference(db: Db, businessId: string, reference: string) {
+  return db.booking.findFirst({ where: { reference, businessId }, include: { room: true } });
+}
+
 export function findBookingByPublicToken(db: Db, publicToken: string) {
   return db.booking.findUnique({
     where: { publicToken },

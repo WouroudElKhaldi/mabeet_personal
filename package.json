@@ -20,6 +20,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "^6.19.3",
     "better-auth": "^1.7.12",
     "clsx": "^2.1.1",

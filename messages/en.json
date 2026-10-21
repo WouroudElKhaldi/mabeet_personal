@@ -340,8 +340,6 @@
     "myAccount": "My account",
     "switchWorkspace": "Switch workspace",
     "newWorkspace": "New workspace",
-    "copy": "Copy",
-    "copied": "Copied",
     "nav": {
       "overview": "Today",
       "bookings": "Bookings",
@@ -534,6 +532,115 @@
       "houseRules": "House rules",
       "cancellationPolicy": "Cancellation policy",
       "save": "Save settings"
+    }
+  },
+  "account": {
+    "eyebrow": "Your account",
+    "hello": "Hello, {name}",
+    "hostDashboard": "Host dashboard",
+    "admin": "Platform admin",
+    "signOut": "Sign out",
+    "tabs": {
+      "label": "Account sections",
+      "trips": "Trips",
+      "favorites": "Favourites",
+      "activity": "Activity"
+    },
+    "noTrips": "No trips yet. Where to first?",
+    "explore": "Explore places",
+    "upcoming": "Upcoming",
+    "past": "Past stays",
+    "status": {
+      "HELD": "Waiting for the host",
+      "CONFIRMED": "Confirmed",
+      "DECLINED": "Declined",
+      "EXPIRED": "Expired",
+      "CANCELLED": "Cancelled"
+    },
+    "noFavorites": "Nothing saved yet",
+    "noFavoritesHint": "Tap the heart on any place to keep it here.",
+    "review": {
+      "title": "How was your stay?",
+      "stars": "{count, plural, one {# star} other {# stars}}",
+      "comment": "Your review",
+      "placeholder": "What did you love? What should the next guest know?",
+      "submit": "Post review"
+    },
+    "activity": {
+      "empty": "Nothing here yet.",
+      "booking": {
+        "requested": "You requested a booking"
+      },
+      "favorite": {
+        "added": "You saved a place",
+        "removed": "You removed a saved place"
+      },
+      "review": {
+        "submitted": "You posted a review"
+      }
+    }
+  },
+  "common": {
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "assistant": {
+    "placeholder": "Ask anything…",
+    "send": "Send",
+    "thinking": "Looking it up…",
+    "noAnswer": "I couldn't find an answer to that. Could you rephrase?",
+    "error": "The assistant didn't answer. Please try again.",
+    "guest": {
+      "title": "Trip concierge",
+      "subtitle": "Describe the weekend you imagine. It only suggests places that are really free, with real prices.",
+      "greeting": "Ahla! Where would you like to wake up, and when? Tell me who's coming and what you feel like doing.",
+      "suggestions": {
+        "mountain": "A quiet mountain weekend for two with hiking, under $120 a night",
+        "sea": "Something by the sea in Batroun for 4 people next weekend",
+        "arabizi": "badde chalet bl jabal la 2 layele, fi fireplace?"
+      },
+      "mcpTitle": "Use it from Claude or ChatGPT",
+      "mcpBody": "Add this address as a connector in any AI app that supports MCP, and ask it about places and dates directly.",
+      "privacy": "We send only your message and public listing data to the AI provider. Never your phone, email or bookings."
+    },
+    "team": {
+      "title": "Assistant",
+      "subtitle": "Ask about your bookings, calendar and numbers. It only sees what your role lets you see.",
+      "greeting": "Hi! Ask me what's booked, what's free, or how the month is going.",
+      "suggestions": {
+        "weekend": "Which rooms are free this weekend?",
+        "month": "How much did direct bookings save us this month?",
+        "requests": "Any requests waiting for me?"
+      }
+    },
+    "keys": {
+      "title": "Connect your AI",
+      "intro": "Create a key and connect Claude, ChatGPT or any MCP app to your place. The AI sees exactly what you can see, nothing more. Revoke a key any time.",
+      "create": "New key",
+      "name": "Key name",
+      "namePlaceholder": "e.g. Claude on my laptop",
+      "expires": "Expires after",
+      "days": "{count} days",
+      "never": "Never",
+      "allowWrite": "Allow changes",
+      "allowWriteHint": "Lets the AI confirm or decline bookings and close dates, if your role allows. Your AI app asks you before each change.",
+      "generate": "Create key",
+      "copyNow": "Copy this key now. For your safety it won't be shown again.",
+      "secret": "Your key",
+      "claudeCode": "Claude Code",
+      "desktop": "Claude Desktop or Cursor (config)",
+      "done": "I've copied it",
+      "yourKeys": "Your keys",
+      "noKeys": "No keys yet.",
+      "readOnly": "Read only",
+      "readWrite": "Read and change",
+      "lastUsed": "Last used {when}",
+      "neverUsed": "Never used",
+      "revoke": "Revoke",
+      "auditTitle": "What the AI looked at",
+      "auditHint": "Every tool call from a key or the assistant, newest first.",
+      "noCalls": "No calls yet.",
+      "ok": "ok"
     }
   }
 }

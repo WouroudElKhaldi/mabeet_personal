@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { addDays, parseIsoDate, toIsoDate } from "@/lib/dates";
 import { api } from "@/lib/api-client";
-import { useAction } from "./use-action";
+import { useAction } from "@/hooks/use-action";
 
 export interface CalendarEntry {
   id: string;

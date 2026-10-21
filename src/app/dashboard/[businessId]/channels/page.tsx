@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { CopyField } from "@/components/dashboard/copy-field";
+import { CopyField } from "@/components/ui/copy-field";
 import { AddFeedForm, FeedButtons } from "@/components/dashboard/feed-controls";
 import { env } from "@/server/env";
 import { requirePageTenant } from "@/server/http/session";

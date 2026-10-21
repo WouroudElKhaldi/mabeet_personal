@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
-import { useAction } from "./use-action";
+import { useAction } from "@/hooks/use-action";
 
 export interface BusinessSettings {
   name: string;

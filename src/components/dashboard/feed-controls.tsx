@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
-import { useAction } from "./use-action";
+import { useAction } from "@/hooks/use-action";
 
 const SOURCES = ["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"] as const;
 

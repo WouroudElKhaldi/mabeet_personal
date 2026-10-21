@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import type { Permission } from "@/server/auth/permissions";
-import { useAction } from "./use-action";
+import { useAction } from "@/hooks/use-action";
 
 export interface EditableRole {
   id: string;

@@ -1,0 +1,45 @@
+"use client";
+
+import { clsx } from "clsx";
+import { motion } from "motion/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+
+const TABS = [
+  { key: "trips", href: "/account" },
+  { key: "favorites", href: "/account/favorites" },
+  { key: "activity", href: "/account/activity" },
+] as const;
+
+export function AccountTabs() {
+  const t = useTranslations("account.tabs");
+  const pathname = usePathname();
+  return (
+    <nav className="flex gap-1 border-b border-line" aria-label={t("label")}>
+      {TABS.map(({ key, href }) => {
+        const active = pathname === href;
+        return (
+          <Link
+            key={key}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={clsx(
+              "relative px-4 pb-3 text-sm font-semibold transition-colors",
+              active ? "text-ink" : "text-muted hover:text-ink",
+            )}
+          >
+            {t(key)}
+            {active && (
+              <motion.span
+                layoutId="account-tab"
+                className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent"
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

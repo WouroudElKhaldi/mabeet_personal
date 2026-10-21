@@ -167,3 +167,21 @@ export const reviewInput = z.object({
   value: z.number().int().min(1).max(5).optional(),
   comment: z.string().trim().min(10).max(2000),
 });
+
+export const chatInput = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().trim().min(1).max(2000) }))
+    .min(1)
+    .max(20)
+    .refine((messages) => messages.at(-1)?.role === "user", {
+      message: "The last message must be from the user",
+    }),
+});
+
+export const keyInput = z.object({
+  name: z.string().trim().min(2).max(60),
+  canWrite: z.boolean().default(false),
+  expiresInDays: z.number().int().min(1).max(365).nullable().default(90),
+});
+
+export const keyParams = workspaceParams.extend({ keyId: id });
