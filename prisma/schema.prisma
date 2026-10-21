@@ -1,0 +1,492 @@
+// SE-NEXT Stays: direct bookings for guesthouses.
+// Every tenant-owned table carries businessId. Repositories always filter by it.
+// The no-overlap guarantee lives in a raw SQL migration (see prisma/migrations/*_occupancy_constraint).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Identity (Better Auth tables + platform role) ----------
+
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  phone         String?
+  locale        String       @default("en")
+  platformRole  PlatformRole @default(USER)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  memberships   Membership[]
+  bookings      Booking[]    @relation("GuestBookings")
+  favorites     Favorite[]
+  reviews       Review[]
+  activities    ActivityLog[]
+  apiKeys       ApiKey[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------- Tenancy and dynamic roles ----------
+
+enum BusinessStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Business {
+  id                  String         @id @default(cuid())
+  name                String
+  slug                String         @unique
+  description         String?
+  area                String?
+  address             String?
+  latitude            Float?
+  longitude           Float?
+  phone               String?
+  whatsapp            String?
+  timezone            String         @default("Asia/Beirut")
+  currency            String         @default("USD")
+  lbpRate             Int?
+  commissionRateBps   Int            @default(1500) // 15.00%, the platform commission a direct booking saves
+  depositPercent      Int            @default(30)
+  holdHours           Int            @default(24)
+  depositInstructions String?
+  checkInTime         String         @default("14:00")
+  checkOutTime        String         @default("11:00")
+  houseRules          String?
+  cancellationPolicy  String?
+  listedPublicly      Boolean        @default(false)
+  status              BusinessStatus @default(ACTIVE)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  roles         Role[]
+  memberships   Membership[]
+  rooms         Room[]
+  bookings      Booking[]
+  occupancies   Occupancy[]
+  feeds         CalendarFeed[]
+  payments      Payment[]
+  reviews       Review[]
+  categories    BusinessCategory[]
+  favorites     Favorite[]
+  apiKeys       ApiKey[]
+  mcpAuditLogs  McpAuditLog[]
+  activities    ActivityLog[]
+  photos        Photo[]
+}
+
+// A role is created by an owner or manager and holds a list of permission keys
+// (see src/server/auth/permissions.ts). isOwner marks the undeletable owner role, which holds every permission.
+model Role {
+  id          String       @id @default(cuid())
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  permissions String[]
+  isOwner     Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+
+  @@unique([businessId, name])
+  @@index([businessId])
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  REMOVED
+}
+
+model Membership {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roleId     String
+  role       Role             @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  status     MembershipStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  apiKeys    ApiKey[]
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+}
+
+// ---------- Catalogue ----------
+
+model Room {
+  id            String         @id @default(cuid())
+  businessId    String
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  capacity      Int            @default(2)
+  bedrooms      Int            @default(1)
+  beds          Int            @default(1)
+  bathrooms     Int            @default(1)
+  baseRateCents Int
+  minNights     Int            @default(1)
+  amenities     String[]
+  exportToken   String         @unique
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  rateOverrides RateOverride[]
+  feeds         CalendarFeed[]
+  bookings      Booking[]
+  occupancies   Occupancy[]
+  reviews       Review[]
+  photos        Photo[]
+
+  @@index([businessId])
+}
+
+model Photo {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roomId     String?
+  room       Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  url        String
+  alt        String?
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model RateOverride {
+  id         String   @id @default(cuid())
+  businessId String
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  rateCents  Int
+
+  @@unique([roomId, date])
+  @@index([businessId])
+}
+
+model Category {
+  slug       String             @id
+  nameEn     String
+  nameAr     String
+  icon       String
+  businesses BusinessCategory[]
+}
+
+model BusinessCategory {
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categorySlug String
+  category     Category @relation(fields: [categorySlug], references: [slug], onDelete: Cascade)
+
+  @@id([businessId, categorySlug])
+}
+
+// ---------- Calendar ----------
+
+enum FeedSource {
+  AIRBNB
+  BOOKING
+  KAZDERNI
+  OTHER
+}
+
+model CalendarFeed {
+  id           String      @id @default(cuid())
+  businessId   String
+  business     Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roomId       String
+  room         Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  url          String
+  source       FeedSource
+  lastSyncedAt DateTime?
+  lastError    String?
+  createdAt    DateTime    @default(now())
+  occupancies  Occupancy[]
+
+  @@index([businessId])
+  @@index([roomId])
+}
+
+enum BookingStatus {
+  HELD
+  CONFIRMED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  reference     String        @unique
+  businessId    String
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roomId        String
+  room          Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  guestUserId   String?
+  guestUser     User?         @relation("GuestBookings", fields: [guestUserId], references: [id], onDelete: SetNull)
+  guestName     String
+  guestPhone    String
+  guestEmail    String?
+  guestCount    Int
+  guestNote     String?
+  checkIn       DateTime      @db.Date
+  checkOut      DateTime      @db.Date
+  totalCents    Int
+  depositCents  Int
+  currency      String
+  status        BookingStatus @default(HELD)
+  publicToken   String        @unique
+  holdExpiresAt DateTime?
+  decidedById   String?
+  decidedAt     DateTime?
+  cancelReason  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  occupancy Occupancy?
+  payments  Payment[]
+  review    Review?
+
+  @@index([businessId, status])
+  @@index([roomId])
+  @@index([guestUserId])
+}
+
+enum OccupancyKind {
+  DIRECT
+  MANUAL
+  IMPORTED
+}
+
+// One row per taken night range, whatever the source. The exclusion constraint lives here.
+model Occupancy {
+  id          String        @id @default(cuid())
+  businessId  String
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roomId      String
+  room        Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  checkIn     DateTime      @db.Date
+  checkOut    DateTime      @db.Date
+  kind        OccupancyKind
+  active      Boolean       @default(true)
+  source      FeedSource?
+  note        String?
+  conflict    Boolean       @default(false)
+  bookingId   String?       @unique
+  booking     Booking?      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  feedId      String?
+  feed        CalendarFeed? @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  externalUid String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([feedId, externalUid])
+  @@index([businessId])
+  @@index([roomId, active])
+}
+
+// ---------- Money ----------
+
+enum PaymentMethod {
+  CASH
+  WHISH
+  OMT
+  BANK_TRANSFER
+  STRIPE
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  businessId  String
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookingId   String
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amountCents Int
+  currency    String
+  method      PaymentMethod
+  status      PaymentStatus @default(PAID)
+  providerRef String?       @unique
+  note        String?
+  recordedById String?
+  createdAt   DateTime      @default(now())
+
+  @@index([businessId])
+}
+
+model WebhookEvent {
+  id         String   @id @default(cuid())
+  provider   String
+  eventId    String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+}
+
+// ---------- Guests: favourites, reviews, activity ----------
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, businessId])
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roomId       String
+  room         Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bookingId    String       @unique
+  booking      Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  authorId     String?
+  author       User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  rating       Int
+  cleanliness  Int?
+  location     Int?
+  value        Int?
+  comment      String
+  ownerReply   String?
+  status       ReviewStatus @default(PUBLISHED)
+  hiddenReason String?
+  createdAt    DateTime     @default(now())
+
+  @@index([businessId, status])
+}
+
+model ActivityLog {
+  id         String    @id @default(cuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  action     String
+  entity     String
+  entityId   String?
+  meta       Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([businessId, createdAt])
+}
+
+// ---------- MCP and AI ----------
+
+// A key belongs to one membership, so an AI using it sees exactly what that member is allowed to see.
+model ApiKey {
+  id           String     @id @default(cuid())
+  businessId   String
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  membershipId String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  name         String
+  prefix       String
+  hash         String     @unique
+  canWrite     Boolean    @default(false)
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([businessId])
+}
+
+model McpAuditLog {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  apiKeyId   String?
+  userId     String?
+  channel    String // mcp | chat
+  tool       String
+  outcome    String
+  latencyMs  Int
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+}

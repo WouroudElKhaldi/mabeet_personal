@@ -1,0 +1,146 @@
+import type { BookingStatus, Prisma } from "@prisma/client";
+import type { DateRange } from "@/lib/dates";
+import type { Db } from "@/server/db/client";
+
+const ACTIVE_STATUSES: readonly BookingStatus[] = ["HELD", "CONFIRMED"];
+
+function isActiveStatus(status: BookingStatus): boolean {
+  return ACTIVE_STATUSES.includes(status);
+}
+
+export interface NewHeldBooking {
+  businessId: string;
+  roomId: string;
+  guestUserId: string | null;
+  guestName: string;
+  guestPhone: string;
+  guestEmail: string | null;
+  guestCount: number;
+  guestNote: string | null;
+  range: DateRange;
+  totalCents: number;
+  depositCents: number;
+  currency: string;
+  reference: string;
+  publicToken: string;
+  holdExpiresAt: Date;
+}
+
+/** Inserts the booking and its DIRECT occupancy row. The exclusion constraint rejects overlaps here. */
+export function createHeldBooking(tx: Prisma.TransactionClient, booking: NewHeldBooking) {
+  const { range, ...fields } = booking;
+  return tx.booking.create({
+    data: {
+      ...fields,
+      checkIn: range.checkIn,
+      checkOut: range.checkOut,
+      status: "HELD",
+      occupancy: {
+        create: {
+          businessId: booking.businessId,
+          roomId: booking.roomId,
+          checkIn: range.checkIn,
+          checkOut: range.checkOut,
+          kind: "DIRECT",
+        },
+      },
+    },
+  });
+}
+
+/** Expires holds the owner never answered and frees their nights. Returns how many expired. */
+export async function expireStaleHolds(db: Db, now: Date, roomId?: string) {
+  const stale = await db.booking.findMany({
+    where: { status: "HELD", holdExpiresAt: { lt: now }, ...(roomId && { roomId }) },
+    select: { id: true },
+  });
+  const ids = stale.map((booking) => booking.id);
+  if (ids.length === 0) return 0;
+  await db.booking.updateMany({ where: { id: { in: ids } }, data: { status: "EXPIRED" } });
+  await db.occupancy.updateMany({ where: { bookingId: { in: ids } }, data: { active: false } });
+  return ids.length;
+}
+
+export function findOverlappingImported(db: Db, roomId: string, range: DateRange) {
+  return db.occupancy.findFirst({
+    where: {
+      roomId,
+      kind: "IMPORTED",
+      active: true,
+      checkIn: { lt: range.checkOut },
+      checkOut: { gt: range.checkIn },
+    },
+  });
+}
+
+export function findBooking(db: Db, businessId: string, bookingId: string) {
+  return db.booking.findFirst({ where: { id: bookingId, businessId }, include: { room: true } });
+}
+
+export function findBookingByPublicToken(db: Db, publicToken: string) {
+  return db.booking.findUnique({
+    where: { publicToken },
+    include: { room: true, business: true, payments: true },
+  });
+}
+
+export interface BookingFilters {
+  status?: BookingStatus;
+  roomId?: string;
+  from?: Date;
+  to?: Date;
+  take: number;
+  skip: number;
+}
+
+export function listBookings(db: Db, businessId: string, filters: BookingFilters) {
+  return db.booking.findMany({
+    where: {
+      businessId,
+      status: filters.status,
+      roomId: filters.roomId,
+      checkOut: filters.from && { gt: filters.from },
+      checkIn: filters.to && { lt: filters.to },
+    },
+    orderBy: { checkIn: "asc" },
+    take: filters.take,
+    skip: filters.skip,
+    include: { room: { select: { id: true, name: true } } },
+  });
+}
+
+export function listGuestBookings(db: Db, guestUserId: string) {
+  return db.booking.findMany({
+    where: { guestUserId },
+    orderBy: { checkIn: "desc" },
+    include: {
+      room: { select: { name: true } },
+      business: { select: { name: true, slug: true } },
+      review: { select: { id: true } },
+    },
+  });
+}
+
+export interface StatusChange {
+  status: BookingStatus;
+  decidedById?: string;
+  cancelReason?: string;
+}
+
+/** Moves a booking to a new status and keeps its occupancy row's `active` flag in step. */
+export async function changeStatus(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  bookingId: string,
+  change: StatusChange,
+) {
+  const booking = await tx.booking.update({
+    where: { id: bookingId, businessId },
+    data: { ...change, decidedAt: change.decidedById ? new Date() : undefined },
+  });
+  await tx.occupancy.updateMany({
+    where: { bookingId, businessId },
+    data: { active: isActiveStatus(change.status) },
+  });
+  return booking;
+}

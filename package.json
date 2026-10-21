@@ -4,24 +4,52 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "knip": "knip",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "better-auth": "^1.7.12",
+    "ical-generator": "^11.1.2",
+    "next": "15.5.28",
+    "node-ical": "^0.27.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.28"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
+    "@vitest/coverage-v8": "^5.0.5",
+    "dotenv": "^18.0.8",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
-    "@eslint/eslintrc": "^3"
+    "eslint-config-prettier": "^10.1.8",
+    "knip": "^6.42.1",
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
