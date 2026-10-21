@@ -1,0 +1,220 @@
+{
+  "nav": {
+    "explore": "Explore",
+    "host": "List your place",
+    "signIn": "Sign in"
+  },
+  "footer": {
+    "about": "Guesthouses, B&Bs and mountain cabins across Lebanon, booked straight from the people who run them.",
+    "guests": "Guests",
+    "explore": "Explore stays",
+    "trips": "Your trips",
+    "assistant": "Trip concierge",
+    "hosts": "Hosts",
+    "listPlace": "List your place",
+    "dashboard": "Host dashboard",
+    "privacy": "Privacy",
+    "madeIn": "Made in Beirut"
+  },
+  "appearance": {
+    "open": "Appearance and language",
+    "title": "Appearance",
+    "mode": "Mode",
+    "system": "Auto",
+    "light": "Light",
+    "dark": "Dark",
+    "palette": "Colour",
+    "language": "Language",
+    "palettes": {
+      "cedar": "Cedar",
+      "terracotta": "Terracotta",
+      "sea": "Mediterranean",
+      "olive": "Olive grove",
+      "jacaranda": "Jacaranda"
+    }
+  },
+  "search": {
+    "where": "Where",
+    "wherePlaceholder": "Batroun, Chouf, Ehden…",
+    "when": "When",
+    "anyDates": "Add dates",
+    "who": "Guests",
+    "guests": "{count, plural, one {# guest} other {# guests}}",
+    "guestsLabel": "Guests",
+    "guestsHint": "Including children",
+    "submit": "Search",
+    "popular": "Popular right now"
+  },
+  "dates": {
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "chooseCheckIn": "Choose check-in",
+    "chooseCheckOut": "Now choose check-out"
+  },
+  "place": {
+    "save": "Save to favourites",
+    "unsave": "Remove from favourites",
+    "new": "New",
+    "from": "from",
+    "perNight": "night",
+    "total": "total"
+  },
+  "home": {
+    "eyebrow": "No platform fees. Ever.",
+    "title": "Lebanon's guesthouses, <em>booked direct.</em>",
+    "subtitle": "Stone houses in the Chouf, sea-view rooms in Batroun, cabins under the cedars. Book with the host, pay them directly, and keep the commission in Lebanon.",
+    "featured": "Places hosts love to share",
+    "seeAll": "See all",
+    "empty": "The first hosts are joining now. Check back soon.",
+    "directTitle": "Booking direct is <em>simpler</em> than you think",
+    "directBody": "You talk to the people whose home it is. They see your request instantly and the room is held for you while they confirm.",
+    "steps": {
+      "noFees": {
+        "title": "No booking fees",
+        "body": "Prices are the host's own. Nothing is added on top, for you or for them."
+      },
+      "held": {
+        "title": "Your room is held",
+        "body": "The moment you request dates, nobody else can take them while the host confirms."
+      },
+      "deposit": {
+        "title": "Pay the way you already do",
+        "body": "Whish, OMT, a bank transfer or cash. The host confirms once your deposit arrives."
+      }
+    },
+    "concierge": {
+      "eyebrow": "Trip concierge",
+      "title": "Describe the weekend. We'll find the place.",
+      "body": "Tell our concierge what you imagine, in English, Arabic or Arabizi. It only suggests places that are really free on your dates.",
+      "cta": "Ask the concierge",
+      "sampleQuestion": "Quiet mountain weekend for two, hiking nearby, under $120 a night, 7 to 9 November",
+      "sampleAnswer": "Three places are free those nights. Beit Ghazir in Ehden is closest to the trails, at $95 a night."
+    }
+  },
+  "searchPage": {
+    "title": "Explore stays",
+    "heading": "{count, plural, =0 {No places match yet} one {# place to stay} other {# places to stay}}",
+    "freeHeading": "{count, plural, =0 {Nothing free on those dates} one {# place free on your dates} other {# places free on your dates}}",
+    "emptyTitle": "Nothing matches, yet",
+    "emptyBody": "Try other dates or fewer filters. Or describe your trip to the concierge and it will look for you.",
+    "askConcierge": "Ask the concierge"
+  },
+  "placePage": {
+    "newListing": "New listing",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "after": "After {time}",
+    "before": "Before {time}",
+    "deposit": "Deposit",
+    "depositValue": "{percent}% to confirm",
+    "rooms": "Rooms",
+    "perNight": "night",
+    "sleeps": "{count, plural, one {Sleeps #} other {Sleeps #}}",
+    "beds": "{count, plural, one {# bed} other {# beds}}",
+    "minNights": "{count, plural, one {Minimum # night} other {Minimum # nights}}",
+    "amenities": "What this place offers",
+    "amenity": {
+      "wifi": "Wi-Fi",
+      "parking": "Free parking",
+      "breakfast": "Breakfast included",
+      "ac": "Air conditioning",
+      "heating": "Heating",
+      "fireplace": "Fireplace",
+      "pool": "Pool",
+      "kitchen": "Kitchen",
+      "view": "Mountain or sea view",
+      "garden": "Garden",
+      "pets": "Pets welcome",
+      "generator": "24/7 electricity"
+    },
+    "houseRules": "House rules",
+    "cancellation": "Cancellation",
+    "reviews": "What guests say",
+    "noReviews": "No reviews yet. Guests can review after their stay.",
+    "guest": "Guest",
+    "hostReply": "Host reply:",
+    "noRooms": "This place is not taking bookings right now."
+  },
+  "booking": {
+    "perNight": "a night",
+    "room": "Room",
+    "sleeps": "{count, plural, one {Sleeps #} other {Sleeps #}}",
+    "dates": "Dates",
+    "addDates": "Add your dates",
+    "guests": "Guests",
+    "nightsTimesRate": "{count, plural, one {# night} other {# nights}} × {rate}",
+    "total": "Total",
+    "depositNow": "Deposit to confirm",
+    "justTaken": "Those nights are taken. Please pick other dates.",
+    "request": "Request to book",
+    "pickDatesFirst": "Pick your dates",
+    "noChargeYet": "Nothing is charged now. Your room is held while the host confirms."
+  },
+  "bookPage": {
+    "title": "Request to book",
+    "name": "Full name",
+    "phone": "Mobile number",
+    "phoneHint": "The host will reach you here, usually on WhatsApp.",
+    "email": "Email (optional)",
+    "emailHint": "For your confirmation link.",
+    "note": "Message to the host (optional)",
+    "notePlaceholder": "Arriving late? Travelling with children? Let them know.",
+    "submit": "Send request",
+    "terms": "Your room is held for you right away. The host confirms, then you pay the deposit directly to them.",
+    "genericError": "We could not send your request. Please try again.",
+    "taken": "Someone just took those nights.",
+    "pickOther": "Pick other dates",
+    "dates": "Dates",
+    "guests": "Guests",
+    "nights": "Nights",
+    "total": "Total",
+    "depositNote": "After the host confirms, you pay a deposit of <strong>{amount}</strong> directly to them."
+  },
+  "confirmation": {
+    "title": "Your booking",
+    "reference": "Booking",
+    "heading": {
+      "HELD": "Your room at {place} is held",
+      "CONFIRMED": "You're going to {place}",
+      "DECLINED": "{place} couldn't take this booking",
+      "EXPIRED": "This request to {place} expired",
+      "CANCELLED": "This booking at {place} was cancelled"
+    },
+    "guests": "{count, plural, one {# guest} other {# guests}}",
+    "steps": {
+      "requested": "Request sent",
+      "confirmed": "Host confirmed",
+      "deposit": "Deposit received"
+    },
+    "holdIntro": "Nobody else can book these nights while the host decides. Time left:",
+    "holdLeft": "{hours}h {minutes}m",
+    "holdOver": "The hold has ended",
+    "depositTitle": "Deposit: {amount}",
+    "depositFallback": "The host will send you how to pay the deposit (Whish, OMT, bank transfer or cash).",
+    "whatsapp": "Message the host on WhatsApp",
+    "whatsappMessage": "Hi! I just requested booking {reference} for {name}. Looking forward to staying with you.",
+    "total": "Total",
+    "checkInFrom": "Check-in from",
+    "keepLink": "Keep this page's link. It always shows your booking's latest status."
+  },
+  "auth": {
+    "name": "Full name",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "At least 10 characters.",
+    "wrongCredentials": "That email and password don't match.",
+    "genericError": "Something went wrong. Please try again.",
+    "sign-in": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to see your trips, favourites and your place.",
+      "submit": "Sign in",
+      "switchPrompt": "New here?"
+    },
+    "sign-up": {
+      "title": "Create your account",
+      "subtitle": "Save places, keep your trips in one place, or list your own.",
+      "submit": "Create account",
+      "switchPrompt": "Already have an account?"
+    }
+  }
+}

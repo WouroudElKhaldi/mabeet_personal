@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { AMENITIES } from "@/config/amenities";
 import { ALL_PERMISSIONS, type Permission } from "@/server/auth/permissions";
 
 const id = z.string().min(1).max(64);
 
 const isoDate = z.iso.date();
 
-const stayDates = z
+export const stayDates = z
   .object({ checkIn: isoDate, checkOut: isoDate })
   .refine(({ checkIn, checkOut }) => checkOut > checkIn, {
     message: "Check-out must be after check-in",
@@ -48,7 +49,7 @@ export const roomInput = z.object({
   bathrooms: z.number().int().min(0).max(30).default(1),
   baseRateCents: cents,
   minNights: z.number().int().min(1).max(60).default(1),
-  amenities: z.array(z.string().trim().min(1).max(40)).max(60).default([]),
+  amenities: z.array(z.enum(AMENITIES)).max(AMENITIES.length).default([]),
 });
 
 export const roomUpdate = roomInput.partial().extend({ active: z.boolean().optional() });
@@ -68,6 +69,25 @@ export const roleInput = z.object({
 export const memberInput = z.object({ email: z.email(), roleId: id });
 
 export const memberUpdate = z.object({ roleId: id });
+
+export const publicRoomParams = z.object({ slug: z.string().min(1).max(64), roomId: id });
+
+export const availabilityQuery = z
+  .object({ from: isoDate, to: isoDate })
+  .refine(({ from, to }) => to > from && Date.parse(to) - Date.parse(from) <= 400 * 86_400_000, {
+    message: "Ask for at most 400 days at a time",
+  });
+
+/** Public search; anything malformed is dropped rather than failing the page. */
+export const searchParams = z.object({
+  area: z.string().trim().max(60).optional().catch(undefined),
+  q: z.string().trim().max(120).optional().catch(undefined),
+  category: z.string().max(40).optional().catch(undefined),
+  guests: z.coerce.number().int().min(1).max(30).catch(1),
+  maxPrice: z.coerce.number().int().min(1).max(100_000).optional().catch(undefined),
+  checkIn: isoDate.optional().catch(undefined),
+  checkOut: isoDate.optional().catch(undefined),
+});
 
 const feedSource = z.enum(["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"]);
 

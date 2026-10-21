@@ -22,6 +22,11 @@ export function toDateRange({ checkIn, checkOut }: { checkIn: string; checkOut: 
   return { checkIn: parseIsoDate(checkIn), checkOut: parseIsoDate(checkOut) };
 }
 
+/** A range only when both dates are present and in order; otherwise undefined ("any dates"). */
+export function optionalDateRange(checkIn?: string, checkOut?: string): DateRange | undefined {
+  return checkIn && checkOut && checkOut > checkIn ? toDateRange({ checkIn, checkOut }) : undefined;
+}
+
 export function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

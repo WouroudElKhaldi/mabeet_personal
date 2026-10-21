@@ -1,26 +1,282 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+/* ----------------------------------------------------------------------------
+   Design tokens. Components only ever use these names, never raw colours,
+   so light/dark and every palette come for free.
+   ------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f5f1e8;
+  --surface: #fffdf8;
+  --surface-2: #efe9dd;
+  --ink: #1c1a16;
+  --ink-muted: #6b655a;
+  --ink-faint: #9a9385;
+  --line: #e3dccd;
+  --line-strong: #cfc6b4;
+  --shadow-color: 40 30 10;
+  --success: #2f7a4f;
+  --warning: #a86a12;
+  --danger: #b33a2b;
+
+  /* cedar is the default palette */
+  --accent: #245c45;
+  --accent-strong: #1a4634;
+  --accent-ink: #f7f3ea;
+  --glow: #d9a441;
+
+  --accent-soft: color-mix(in oklab, var(--accent) 11%, var(--surface));
+  --accent-line: color-mix(in oklab, var(--accent) 30%, var(--line));
+
+  --radius-sm: 0.5rem;
+  --radius: 0.875rem;
+  --radius-lg: 1.375rem;
+  --radius-xl: 2rem;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  color-scheme: light;
+}
+
+[data-mode="dark"] {
+  --paper: #11100e;
+  --surface: #1a1916;
+  --surface-2: #23211d;
+  --ink: #f2ede3;
+  --ink-muted: #a59e91;
+  --ink-faint: #756f64;
+  --line: #2f2c27;
+  --line-strong: #45413a;
+  --shadow-color: 0 0 0;
+  --success: #6cc08d;
+  --warning: #e0a548;
+  --danger: #ef7f6e;
+  color-scheme: dark;
+}
+
+[data-palette="terracotta"] {
+  --accent: #b4532f;
+  --accent-strong: #8f3f22;
+  --glow: #e3b36a;
+}
+[data-palette="sea"] {
+  --accent: #1f5f86;
+  --accent-strong: #164866;
+  --glow: #79c2d0;
+}
+[data-palette="olive"] {
+  --accent: #6d6a2c;
+  --accent-strong: #54521f;
+  --glow: #c9b458;
+}
+[data-palette="jacaranda"] {
+  --accent: #6b4b93;
+  --accent-strong: #523873;
+  --glow: #d6a0c7;
+}
+
+[data-mode="dark"][data-palette="cedar"],
+[data-mode="dark"]:not([data-palette]) {
+  --accent: #6fbf98;
+  --accent-strong: #8fd3b1;
+  --accent-ink: #0d1f17;
+}
+[data-mode="dark"][data-palette="terracotta"] {
+  --accent: #e88b62;
+  --accent-strong: #f2a582;
+  --accent-ink: #2a1208;
+}
+[data-mode="dark"][data-palette="sea"] {
+  --accent: #6db6dd;
+  --accent-strong: #92cbe8;
+  --accent-ink: #08202e;
+}
+[data-mode="dark"][data-palette="olive"] {
+  --accent: #c8c26a;
+  --accent-strong: #dad58c;
+  --accent-ink: #1f1e08;
+}
+[data-mode="dark"][data-palette="jacaranda"] {
+  --accent: #b498e0;
+  --accent-strong: #c8b3ea;
+  --accent-ink: #1d1230;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-glow: var(--glow);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --font-display: var(--font-fraunces), var(--font-readex), ui-serif, Georgia, serif;
+  --font-sans: var(--font-manrope), var(--font-readex), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --shadow-soft: 0 1px 2px rgb(var(--shadow-color) / 0.06), 0 8px 24px -12px rgb(var(--shadow-color) / 0.18);
+  --shadow-lift: 0 2px 4px rgb(var(--shadow-color) / 0.06), 0 24px 48px -20px rgb(var(--shadow-color) / 0.35);
+
+  --ease-out: var(--ease-out);
+  --ease-spring: var(--ease-spring);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ----------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------- */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 400ms var(--ease-out),
+    color 400ms var(--ease-out);
+}
+
+/* A whisper of paper grain, so flat colour never looks synthetic. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+[data-mode="dark"] body::before {
+  opacity: 0.06;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] .font-display {
+  letter-spacing: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Motion. Everything respects reduced motion.
+   ------------------------------------------------------------------------- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0) scale(1.04);
+  }
+}
+
+.rise-in {
+  animation: rise-in 700ms var(--ease-out) both;
+  animation-delay: calc(var(--stagger, 0) * 70ms);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.6s ease infinite;
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  @view-transition {
+    navigation: none;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
