@@ -11,6 +11,7 @@ import { findActiveBusinessBySlug } from "@/server/repositories/business-reposit
 import { findRateOverrides, findRoom, lockActiveRoom } from "@/server/repositories/room-repository";
 import { assertTransition } from "./booking-status";
 import { recordAction } from "./audit";
+import { refreshRoomFeeds } from "./calendar-service";
 import { quoteStay } from "./pricing";
 
 const MAX_NIGHTS = 60;
@@ -114,7 +115,11 @@ export interface Decision {
   reason?: string;
 }
 
-export function confirmBooking(ctx: TenantContext, { bookingId }: Decision, now = new Date()) {
+/** Refreshes the room's platform calendars first, so a booking that just landed on Airbnb is caught. */
+export async function confirmBooking(ctx: TenantContext, { bookingId }: Decision, now = new Date()) {
+  requirePermission(ctx, "bookings.decide");
+  const booking = await bookings.findBooking(prisma, ctx.businessId, bookingId);
+  if (booking) await refreshRoomFeeds(ctx.businessId, booking.roomId);
   return decide(ctx, bookingId, "CONFIRMED", now);
 }
 

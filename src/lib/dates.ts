@@ -18,6 +18,10 @@ export function parseIsoDate(value: string): Date {
   return date;
 }
 
+export function toDateRange({ checkIn, checkOut }: { checkIn: string; checkOut: string }): DateRange {
+  return { checkIn: parseIsoDate(checkIn), checkOut: parseIsoDate(checkOut) };
+}
+
 export function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

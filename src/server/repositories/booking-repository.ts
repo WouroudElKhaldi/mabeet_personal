@@ -1,6 +1,7 @@
 import type { BookingStatus, Prisma } from "@prisma/client";
 import type { DateRange } from "@/lib/dates";
 import type { Db } from "@/server/db/client";
+import { overlapsRange } from "./filters";
 
 const ACTIVE_STATUSES: readonly BookingStatus[] = ["HELD", "CONFIRMED"];
 
@@ -67,8 +68,7 @@ export function findOverlappingImported(db: Db, roomId: string, range: DateRange
       roomId,
       kind: "IMPORTED",
       active: true,
-      checkIn: { lt: range.checkOut },
-      checkOut: { gt: range.checkIn },
+      ...overlapsRange(range),
     },
   });
 }

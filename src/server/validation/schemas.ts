@@ -69,7 +69,25 @@ export const memberInput = z.object({ email: z.email(), roleId: id });
 
 export const memberUpdate = z.object({ roleId: id });
 
+const feedSource = z.enum(["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"]);
+
+export const calendarQuery = z
+  .object({ from: isoDate, to: isoDate, roomId: id.optional() })
+  .refine(({ from, to }) => to > from, { message: "`to` must be after `from`", path: ["to"] });
+
+export const blockInput = z
+  .object({
+    roomId: id,
+    source: feedSource.nullish(),
+    note: z.string().trim().max(200).nullish(),
+  })
+  .and(stayDates);
+
+export const feedInput = z.object({ roomId: id, url: z.url().max(2000), source: feedSource });
+
 export const workspaceParams = z.object({ businessId: id });
+export const blockParams = workspaceParams.extend({ blockId: id });
+export const feedParams = workspaceParams.extend({ feedId: id });
 export const roomParams = workspaceParams.extend({ roomId: id });
 export const bookingParams = workspaceParams.extend({ bookingId: id });
 export const roleParams = workspaceParams.extend({ roleId: id });

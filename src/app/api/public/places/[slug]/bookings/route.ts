@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseIsoDate } from "@/lib/dates";
+import { toDateRange } from "@/lib/dates";
 import { json, optionalUser, parseBody, parseParams, route } from "@/server/http/route";
 import { requestBooking } from "@/server/services/booking-service";
 import { bookingRequest } from "@/server/validation/schemas";
@@ -13,7 +13,7 @@ export const POST = route(async (request, context) => {
   const booking = await requestBooking({
     businessSlug: slug,
     roomId: input.roomId,
-    range: { checkIn: parseIsoDate(input.checkIn), checkOut: parseIsoDate(input.checkOut) },
+    range: toDateRange(input),
     guestCount: input.guestCount,
     guestName: input.guestName,
     guestPhone: input.guestPhone,
