@@ -216,5 +216,324 @@
       "submit": "Create account",
       "switchPrompt": "Already have an account?"
     }
+  },
+  "host": {
+    "title": "List your place",
+    "headline": "Your guests, <em>your bookings.</em> No commission.",
+    "intro": "One calendar that stays in sync with Airbnb and Booking.com, a booking page for your Instagram bio, and a database that makes double bookings impossible.",
+    "points": {
+      "sync": {
+        "title": "Synced with the platforms",
+        "body": "Paste your Airbnb and Booking.com calendar links. We keep every room in step, both ways."
+      },
+      "noDouble": {
+        "title": "Never double-booked",
+        "body": "The database itself refuses two bookings on the same night. Not a promise, a rule."
+      },
+      "instagram": {
+        "title": "Made for Instagram and WhatsApp",
+        "body": "One link for your bio. Guests request, you confirm from your phone, they pay you directly."
+      },
+      "ai": {
+        "title": "Ask your own assistant",
+        "body": "Connect Claude or ChatGPT to your place and ask what's booked, what's free and what you earned."
+      }
+    },
+    "formTitle": "Create your workspace",
+    "formSubtitle": "Free during the pilot. You can add rooms right after.",
+    "placeName": "Name of your place",
+    "area": "Town or area",
+    "create": "Create workspace",
+    "error": "We could not create your workspace. Please try again.",
+    "signUpFirst": "Create an account to start",
+    "haveAccount": "I already have an account"
+  },
+  "permissions": {
+    "rooms": {
+      "read": {
+        "title": "See rooms",
+        "description": "Rooms, rates and photos"
+      },
+      "manage": {
+        "title": "Manage rooms",
+        "description": "Create and edit rooms, rates and photos"
+      }
+    },
+    "calendar": {
+      "read": {
+        "title": "See the calendar",
+        "description": "Who is staying when, from every channel"
+      }
+    },
+    "blocks": {
+      "manage": {
+        "title": "Close dates",
+        "description": "Block and reopen nights, record Kazderni or phone bookings"
+      }
+    },
+    "feeds": {
+      "manage": {
+        "title": "Manage channels",
+        "description": "Airbnb, Booking.com and Kazderni calendar links"
+      }
+    },
+    "bookings": {
+      "read": {
+        "title": "See bookings",
+        "description": "Requests and confirmed stays"
+      },
+      "decide": {
+        "title": "Confirm bookings",
+        "description": "Confirm, decline and cancel"
+      }
+    },
+    "guests": {
+      "contact": {
+        "title": "See guest contacts",
+        "description": "Phone numbers and emails"
+      }
+    },
+    "payments": {
+      "record": {
+        "title": "Record payments",
+        "description": "Mark deposits as received"
+      }
+    },
+    "reviews": {
+      "reply": {
+        "title": "Handle reviews",
+        "description": "Reply to and hide reviews"
+      }
+    },
+    "analytics": {
+      "read": {
+        "title": "See analytics",
+        "description": "Revenue, occupancy and savings"
+      }
+    },
+    "team": {
+      "manage": {
+        "title": "Manage the team",
+        "description": "Add and remove members"
+      }
+    },
+    "roles": {
+      "manage": {
+        "title": "Manage roles",
+        "description": "Create roles and choose their permissions"
+      }
+    },
+    "settings": {
+      "manage": {
+        "title": "Business settings",
+        "description": "Profile, deposit rules and policies"
+      }
+    },
+    "ai": {
+      "use": {
+        "title": "Use the AI assistant",
+        "description": "Chat and MCP keys, limited to this member's own permissions"
+      }
+    }
+  },
+  "dashboard": {
+    "myAccount": "My account",
+    "switchWorkspace": "Switch workspace",
+    "newWorkspace": "New workspace",
+    "copy": "Copy",
+    "copied": "Copied",
+    "nav": {
+      "overview": "Today",
+      "bookings": "Bookings",
+      "calendar": "Calendar",
+      "rooms": "Rooms",
+      "channels": "Channels",
+      "reviews": "Reviews",
+      "team": "Team",
+      "assistant": "Assistant",
+      "keys": "Connect AI",
+      "settings": "Settings"
+    },
+    "overview": {
+      "title": "Today",
+      "subtitle": "Requests waiting for you, and how your place is doing.",
+      "kpis": "Key numbers",
+      "occupancy": "Occupancy",
+      "last90": "Last 90 days",
+      "directRevenue": "Direct revenue",
+      "commissionSaved": "Commission saved",
+      "vsPlatforms": "Versus booking through platforms",
+      "nightsSold": "Nights sold",
+      "requests": "{count, plural, =0 {No requests waiting} one {# request waiting} other {# requests waiting}}",
+      "noRequests": "You're all caught up.",
+      "nightsByMonth": "Nights sold by month",
+      "nightsTitle": "{month}: {count} nights",
+      "channels": "Where bookings come from",
+      "channelsHint": "Nights in the last 90 days, by channel.",
+      "channel": {
+        "DIRECT": "Direct",
+        "AIRBNB": "Airbnb",
+        "BOOKING": "Booking.com",
+        "KAZDERNI": "Kazderni",
+        "OTHER": "Other",
+        "MANUAL": "Blocked"
+      }
+    },
+    "bookings": {
+      "title": "Bookings",
+      "tabs": {
+        "requests": "Requests",
+        "upcoming": "Upcoming",
+        "past": "Past",
+        "all": "All"
+      },
+      "empty": "Nothing here yet.",
+      "guests": "{count, plural, one {# guest} other {# guests}}",
+      "status": {
+        "HELD": "Waiting for you",
+        "CONFIRMED": "Confirmed",
+        "DECLINED": "Declined",
+        "EXPIRED": "Expired",
+        "CANCELLED": "Cancelled"
+      },
+      "confirm": "Confirm",
+      "decline": "Decline",
+      "cancel": "Cancel booking",
+      "recordDeposit": "Deposit received",
+      "amount": "Amount",
+      "method": "Method",
+      "save": "Save",
+      "methods": {
+        "WHISH": "Whish",
+        "OMT": "OMT",
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank transfer",
+        "OTHER": "Other"
+      }
+    },
+    "calendar": {
+      "title": "Calendar",
+      "previous": "Previous month",
+      "next": "Next month",
+      "removeBlock": "Reopen these dates",
+      "legend": {
+        "DIRECT": "Direct booking",
+        "MANUAL": "Blocked by you",
+        "IMPORTED": "From a platform",
+        "conflict": "Clash to check"
+      },
+      "blockTitle": "Close dates",
+      "room": "Room",
+      "from": "From",
+      "to": "Until",
+      "source": "Booked on",
+      "note": "Note",
+      "block": "Close these dates",
+      "sources": {
+        "NONE": "Closed",
+        "KAZDERNI": "Kazderni",
+        "OTHER": "Phone or walk-in",
+        "AIRBNB": "Airbnb",
+        "BOOKING": "Booking.com"
+      }
+    },
+    "rooms": {
+      "title": "Rooms",
+      "live": "Bookable",
+      "hidden": "Hidden",
+      "new": "Add a room",
+      "name": "Room name",
+      "rate": "Nightly rate",
+      "description": "Description",
+      "capacity": "Guests",
+      "bedrooms": "Bedrooms",
+      "beds": "Beds",
+      "bathrooms": "Bathrooms",
+      "minNights": "Min. nights",
+      "amenities": "Amenities",
+      "active": "Bookable by guests",
+      "save": "Save room",
+      "create": "Add room"
+    },
+    "channels": {
+      "title": "Channels",
+      "intro": "Keep Airbnb, Booking.com and Kazderni in step with your direct bookings. Platforms refresh on their own schedule, often every few hours.",
+      "exportTitle": "Your calendar link for the platforms",
+      "exportHint": "Paste this into Airbnb and Booking.com under \"Import calendar\". It shows dates as taken, never guest details.",
+      "importTitle": "Calendars we read from",
+      "lastSynced": "Last synced {when}",
+      "neverSynced": "Not synced yet",
+      "syncNow": "Sync now",
+      "remove": "Remove",
+      "source": "Platform",
+      "url": "Calendar link (.ics)",
+      "add": "Add calendar",
+      "sources": {
+        "AIRBNB": "Airbnb",
+        "BOOKING": "Booking.com",
+        "KAZDERNI": "Kazderni",
+        "OTHER": "Other"
+      }
+    },
+    "team": {
+      "title": "Team",
+      "members": "Members",
+      "you": "you",
+      "role": "Role",
+      "remove": "Remove member",
+      "email": "Email",
+      "emailPlaceholder": "Their email (they need an account)",
+      "add": "Add member",
+      "roles": "Roles",
+      "rolesIntro": "Build roles that match how your place runs. Each switch is one thing a member can do. You can only give permissions you have yourself.",
+      "memberCount": "{count, plural, =0 {No members} one {# member} other {# members}}",
+      "newRole": "New role",
+      "roleName": "Role name",
+      "roleDescription": "What it's for",
+      "permissions": "Permissions",
+      "saveRole": "Save role",
+      "createRole": "Create role",
+      "deleteRole": "Delete role"
+    },
+    "reviews": {
+      "title": "Reviews",
+      "empty": "No reviews yet. Guests are invited to review after they check out.",
+      "rating": "{rating} out of 5",
+      "reply": "Reply",
+      "updateReply": "Update reply",
+      "replyPlaceholder": "Thank the guest or answer publicly",
+      "hide": "Hide",
+      "show": "Show again",
+      "hideReason": "Why hide this review? Guests won't see it, and the reason is logged.",
+      "hiddenBecause": "Hidden: {reason}"
+    },
+    "settings": {
+      "title": "Settings",
+      "publicLink": "Your booking page: {url}",
+      "profile": "Profile",
+      "name": "Name",
+      "area": "Area",
+      "address": "Address",
+      "description": "Description",
+      "categories": "Categories",
+      "listedPublicly": "Show my place in public search and to the trip concierge",
+      "contact": "Contact",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp number",
+      "bookingRules": "Booking rules",
+      "currency": "Currency",
+      "commission": "Platform commission you avoid (%)",
+      "commissionHint": "Used to show how much direct bookings save you.",
+      "depositPercent": "Deposit (% of total)",
+      "holdHours": "Hold a request for (hours)",
+      "holdHint": "After this, an unanswered request frees the room.",
+      "checkInTime": "Check-in from",
+      "checkOutTime": "Check-out by",
+      "depositInstructions": "How guests pay the deposit",
+      "depositPlaceholder": "e.g. Whish to 70 123 456, with the booking reference",
+      "houseRules": "House rules",
+      "cancellationPolicy": "Cancellation policy",
+      "save": "Save settings"
+    }
   }
 }

@@ -59,6 +59,7 @@ const eslintConfig = [
     },
   },
   onlyRepositoriesTouchTheDatabase,
+  { files: ["prisma/**", "scripts/**"], rules: { "no-console": "off" } },
   routesCallServicesNotRepositories,
   {
     ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"],

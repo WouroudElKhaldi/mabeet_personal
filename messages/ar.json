@@ -216,5 +216,324 @@
       "submit": "إنشاء حساب",
       "switchPrompt": "لديك حساب؟"
     }
+  },
+  "host": {
+    "title": "أضف مكانك",
+    "headline": "ضيوفك، <em>حجوزاتك.</em> بلا عمولة.",
+    "intro": "روزنامة واحدة متزامنة مع Airbnb وBooking.com، صفحة حجز لرابط إنستغرام، وقاعدة بيانات تجعل الحجز المزدوج مستحيلًا.",
+    "points": {
+      "sync": {
+        "title": "متزامن مع المنصّات",
+        "body": "الصق روابط روزنامة Airbnb وBooking.com. نبقي كل غرفة متّسقة في الاتجاهين."
+      },
+      "noDouble": {
+        "title": "لا حجز مزدوج أبدًا",
+        "body": "قاعدة البيانات نفسها ترفض حجزين في الليلة نفسها. ليس وعدًا، بل قاعدة."
+      },
+      "instagram": {
+        "title": "مصمَّم لإنستغرام وواتساب",
+        "body": "رابط واحد لصفحتك. يطلب الضيوف، تؤكّد من هاتفك، ويدفعون لك مباشرة."
+      },
+      "ai": {
+        "title": "اسأل مساعدك الخاص",
+        "body": "اربط Claude أو ChatGPT بمكانك واسأل عمّا هو محجوز ومتاح وكم ربحت."
+      }
+    },
+    "formTitle": "أنشئ مساحة عملك",
+    "formSubtitle": "مجانًا خلال التجربة. تضيف الغرف مباشرة بعدها.",
+    "placeName": "اسم مكانك",
+    "area": "البلدة أو المنطقة",
+    "create": "أنشئ مساحة العمل",
+    "error": "لم نتمكّن من إنشاء مساحة العمل. حاول مجددًا.",
+    "signUpFirst": "أنشئ حسابًا للبدء",
+    "haveAccount": "لديّ حساب"
+  },
+  "permissions": {
+    "rooms": {
+      "read": {
+        "title": "رؤية الغرف",
+        "description": "الغرف والأسعار والصور"
+      },
+      "manage": {
+        "title": "إدارة الغرف",
+        "description": "إضافة الغرف والأسعار والصور وتعديلها"
+      }
+    },
+    "calendar": {
+      "read": {
+        "title": "رؤية الروزنامة",
+        "description": "من يقيم ومتى، من كل القنوات"
+      }
+    },
+    "blocks": {
+      "manage": {
+        "title": "إغلاق التواريخ",
+        "description": "إغلاق الليالي وإعادة فتحها، وتسجيل حجوزات كازدرني أو الهاتف"
+      }
+    },
+    "feeds": {
+      "manage": {
+        "title": "إدارة القنوات",
+        "description": "روابط روزنامة Airbnb وBooking.com وكازدرني"
+      }
+    },
+    "bookings": {
+      "read": {
+        "title": "رؤية الحجوزات",
+        "description": "الطلبات والإقامات المؤكّدة"
+      },
+      "decide": {
+        "title": "تأكيد الحجوزات",
+        "description": "التأكيد والرفض والإلغاء"
+      }
+    },
+    "guests": {
+      "contact": {
+        "title": "رؤية بيانات الضيوف",
+        "description": "أرقام الهاتف والبريد"
+      }
+    },
+    "payments": {
+      "record": {
+        "title": "تسجيل الدفعات",
+        "description": "تأكيد وصول العربون"
+      }
+    },
+    "reviews": {
+      "reply": {
+        "title": "إدارة التقييمات",
+        "description": "الردّ على التقييمات وإخفاؤها"
+      }
+    },
+    "analytics": {
+      "read": {
+        "title": "رؤية التحليلات",
+        "description": "الإيرادات والإشغال والتوفير"
+      }
+    },
+    "team": {
+      "manage": {
+        "title": "إدارة الفريق",
+        "description": "إضافة الأعضاء وإزالتهم"
+      }
+    },
+    "roles": {
+      "manage": {
+        "title": "إدارة الأدوار",
+        "description": "إنشاء الأدوار واختيار صلاحياتها"
+      }
+    },
+    "settings": {
+      "manage": {
+        "title": "إعدادات العمل",
+        "description": "الملف الشخصي وقواعد العربون والسياسات"
+      }
+    },
+    "ai": {
+      "use": {
+        "title": "استخدام المساعد الذكي",
+        "description": "المحادثة ومفاتيح MCP، ضمن صلاحيات هذا العضو فقط"
+      }
+    }
+  },
+  "dashboard": {
+    "myAccount": "حسابي",
+    "switchWorkspace": "تبديل مساحة العمل",
+    "newWorkspace": "مساحة عمل جديدة",
+    "copy": "نسخ",
+    "copied": "نُسخ",
+    "nav": {
+      "overview": "اليوم",
+      "bookings": "الحجوزات",
+      "calendar": "الروزنامة",
+      "rooms": "الغرف",
+      "channels": "القنوات",
+      "reviews": "التقييمات",
+      "team": "الفريق",
+      "assistant": "المساعد",
+      "keys": "اربط الذكاء",
+      "settings": "الإعدادات"
+    },
+    "overview": {
+      "title": "اليوم",
+      "subtitle": "طلبات بانتظارك، وأداء مكانك.",
+      "kpis": "الأرقام الأساسية",
+      "occupancy": "الإشغال",
+      "last90": "آخر ٩٠ يومًا",
+      "directRevenue": "الإيراد المباشر",
+      "commissionSaved": "العمولة الموفَّرة",
+      "vsPlatforms": "مقارنة بالحجز عبر المنصّات",
+      "nightsSold": "الليالي المباعة",
+      "requests": "{count, plural, =0 {لا طلبات بانتظارك} one {طلب واحد بانتظارك} two {طلبان بانتظارك} few {# طلبات بانتظارك} many {# طلبًا بانتظارك} other {# طلب بانتظارك}}",
+      "noRequests": "لا شيء بانتظارك.",
+      "nightsByMonth": "الليالي المباعة شهريًا",
+      "nightsTitle": "{month}: {count} ليلة",
+      "channels": "من أين تأتي الحجوزات",
+      "channelsHint": "الليالي في آخر ٩٠ يومًا حسب القناة.",
+      "channel": {
+        "DIRECT": "مباشر",
+        "AIRBNB": "Airbnb",
+        "BOOKING": "Booking.com",
+        "KAZDERNI": "كازدرني",
+        "OTHER": "أخرى",
+        "MANUAL": "مغلق"
+      }
+    },
+    "bookings": {
+      "title": "الحجوزات",
+      "tabs": {
+        "requests": "الطلبات",
+        "upcoming": "القادمة",
+        "past": "السابقة",
+        "all": "الكل"
+      },
+      "empty": "لا شيء هنا بعد.",
+      "guests": "{count, plural, one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
+      "status": {
+        "HELD": "بانتظارك",
+        "CONFIRMED": "مؤكّد",
+        "DECLINED": "مرفوض",
+        "EXPIRED": "منتهي",
+        "CANCELLED": "ملغى"
+      },
+      "confirm": "أكّد",
+      "decline": "ارفض",
+      "cancel": "ألغِ الحجز",
+      "recordDeposit": "وصل العربون",
+      "amount": "المبلغ",
+      "method": "الطريقة",
+      "save": "احفظ",
+      "methods": {
+        "WHISH": "ويش",
+        "OMT": "OMT",
+        "CASH": "نقدًا",
+        "BANK_TRANSFER": "تحويل مصرفي",
+        "OTHER": "أخرى"
+      }
+    },
+    "calendar": {
+      "title": "الروزنامة",
+      "previous": "الشهر السابق",
+      "next": "الشهر التالي",
+      "removeBlock": "أعد فتح هذه التواريخ",
+      "legend": {
+        "DIRECT": "حجز مباشر",
+        "MANUAL": "أغلقته أنت",
+        "IMPORTED": "من منصّة",
+        "conflict": "تضارب للتحقق"
+      },
+      "blockTitle": "أغلق تواريخ",
+      "room": "الغرفة",
+      "from": "من",
+      "to": "حتى",
+      "source": "محجوز عبر",
+      "note": "ملاحظة",
+      "block": "أغلق هذه التواريخ",
+      "sources": {
+        "NONE": "مغلق",
+        "KAZDERNI": "كازدرني",
+        "OTHER": "هاتف أو حضوري",
+        "AIRBNB": "Airbnb",
+        "BOOKING": "Booking.com"
+      }
+    },
+    "rooms": {
+      "title": "الغرف",
+      "live": "متاحة للحجز",
+      "hidden": "مخفيّة",
+      "new": "أضف غرفة",
+      "name": "اسم الغرفة",
+      "rate": "سعر الليلة",
+      "description": "الوصف",
+      "capacity": "الضيوف",
+      "bedrooms": "غرف النوم",
+      "beds": "الأسرّة",
+      "bathrooms": "الحمّامات",
+      "minNights": "أقل عدد ليالٍ",
+      "amenities": "المرافق",
+      "active": "متاحة لحجز الضيوف",
+      "save": "احفظ الغرفة",
+      "create": "أضف الغرفة"
+    },
+    "channels": {
+      "title": "القنوات",
+      "intro": "أبقِ Airbnb وBooking.com وكازدرني متّسقة مع حجوزاتك المباشرة. المنصّات تحدّث وفق جدولها، غالبًا كل بضع ساعات.",
+      "exportTitle": "رابط روزنامتك للمنصّات",
+      "exportHint": "الصقه في Airbnb وBooking.com تحت \"استيراد روزنامة\". يُظهر التواريخ محجوزة، ولا يُظهر بيانات الضيوف أبدًا.",
+      "importTitle": "روزنامات نقرأ منها",
+      "lastSynced": "آخر مزامنة {when}",
+      "neverSynced": "لم تتمّ المزامنة بعد",
+      "syncNow": "زامن الآن",
+      "remove": "أزل",
+      "source": "المنصّة",
+      "url": "رابط الروزنامة (.ics)",
+      "add": "أضف روزنامة",
+      "sources": {
+        "AIRBNB": "Airbnb",
+        "BOOKING": "Booking.com",
+        "KAZDERNI": "كازدرني",
+        "OTHER": "أخرى"
+      }
+    },
+    "team": {
+      "title": "الفريق",
+      "members": "الأعضاء",
+      "you": "أنت",
+      "role": "الدور",
+      "remove": "أزل العضو",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "بريده (يحتاج إلى حساب)",
+      "add": "أضف عضوًا",
+      "roles": "الأدوار",
+      "rolesIntro": "ابنِ أدوارًا تناسب طريقة عمل مكانك. كل مفتاح هو شيء يستطيع العضو فعله. لا يمكنك منح صلاحيات لا تملكها.",
+      "memberCount": "{count, plural, =0 {لا أعضاء} one {عضو واحد} two {عضوان} few {# أعضاء} many {# عضوًا} other {# عضو}}",
+      "newRole": "دور جديد",
+      "roleName": "اسم الدور",
+      "roleDescription": "الغرض منه",
+      "permissions": "الصلاحيات",
+      "saveRole": "احفظ الدور",
+      "createRole": "أنشئ الدور",
+      "deleteRole": "احذف الدور"
+    },
+    "reviews": {
+      "title": "التقييمات",
+      "empty": "لا تقييمات بعد. يُدعى الضيوف للتقييم بعد المغادرة.",
+      "rating": "{rating} من ٥",
+      "reply": "ردّ",
+      "updateReply": "حدّث الردّ",
+      "replyPlaceholder": "اشكر الضيف أو أجب علنًا",
+      "hide": "أخفِ",
+      "show": "أظهِر مجددًا",
+      "hideReason": "لماذا تخفي هذا التقييم؟ لن يراه الضيوف، والسبب يُسجَّل.",
+      "hiddenBecause": "مخفي: {reason}"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "publicLink": "صفحة الحجز الخاصة بك: {url}",
+      "profile": "الملف",
+      "name": "الاسم",
+      "area": "المنطقة",
+      "address": "العنوان",
+      "description": "الوصف",
+      "categories": "الفئات",
+      "listedPublicly": "أظهِر مكاني في البحث العام ولمساعد الرحلات",
+      "contact": "التواصل",
+      "phone": "الهاتف",
+      "whatsapp": "رقم واتساب",
+      "bookingRules": "قواعد الحجز",
+      "currency": "العملة",
+      "commission": "عمولة المنصّات التي تتجنّبها (٪)",
+      "commissionHint": "لنُظهر كم يوفّر لك الحجز المباشر.",
+      "depositPercent": "العربون (٪ من المجموع)",
+      "holdHours": "مدّة حجز الطلب (ساعات)",
+      "holdHint": "بعدها، الطلب غير المُجاب يُحرّر الغرفة.",
+      "checkInTime": "الوصول من",
+      "checkOutTime": "المغادرة قبل",
+      "depositInstructions": "كيف يدفع الضيوف العربون",
+      "depositPlaceholder": "مثلًا: ويش إلى ٧٠١٢٣٤٥٦ مع رقم الحجز",
+      "houseRules": "قواعد المكان",
+      "cancellationPolicy": "سياسة الإلغاء",
+      "save": "احفظ الإعدادات"
+    }
   }
 }

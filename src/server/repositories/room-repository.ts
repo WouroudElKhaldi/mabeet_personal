@@ -43,3 +43,19 @@ export async function findRateOverrides(db: Db, roomId: string, range: DateRange
   });
   return new Map(overrides.map((override) => [toIsoDate(override.date), override.rateCents]));
 }
+
+export function listRoomNames(db: Db, businessId: string) {
+  return db.room.findMany({
+    where: { businessId, active: true },
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export function listRoomExports(db: Db, businessId: string) {
+  return db.room.findMany({
+    where: { businessId },
+    select: { id: true, name: true, exportToken: true },
+    orderBy: { createdAt: "asc" },
+  });
+}

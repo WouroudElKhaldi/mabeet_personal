@@ -34,3 +34,27 @@ export async function createBusinessWithOwner(tx: Prisma.TransactionClient, inpu
   });
   return business;
 }
+
+export function findBusinessSettings(db: Db, businessId: string) {
+  return db.business.findUniqueOrThrow({
+    where: { id: businessId },
+    include: { categories: { select: { categorySlug: true } } },
+  });
+}
+
+export function updateBusinessSettings(
+  db: Db,
+  businessId: string,
+  data: Prisma.BusinessUpdateInput,
+  categorySlugs?: string[],
+) {
+  return db.business.update({
+    where: { id: businessId },
+    data: {
+      ...data,
+      ...(categorySlugs && {
+        categories: { deleteMany: {}, create: categorySlugs.map((categorySlug) => ({ categorySlug })) },
+      }),
+    },
+  });
+}

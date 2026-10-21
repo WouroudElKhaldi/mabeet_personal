@@ -7,7 +7,12 @@ import { buildExportFeed } from "@/server/ical/build-feed";
 import { parseFeed } from "@/server/ical/parse-feed";
 import { assertPublicHttpsUrl, fetchCalendarText } from "@/server/ical/safe-fetch";
 import * as calendar from "@/server/repositories/calendar-repository";
-import { findRoom, lockActiveRoom } from "@/server/repositories/room-repository";
+import {
+  findRoom,
+  listRoomExports,
+  listRoomNames,
+  lockActiveRoom,
+} from "@/server/repositories/room-repository";
 import { recordAction } from "./audit";
 
 const IMPORT_HORIZON_DAYS = 540;
@@ -23,6 +28,15 @@ async function requireRoom(ctx: TenantContext, roomId: string) {
 export function getCalendar(ctx: TenantContext, range: DateRange, roomId?: string) {
   requirePermission(ctx, "calendar.read");
   return calendar.listOccupancy(prisma, ctx.businessId, range, roomId);
+}
+
+/** Rooms and their taken nights for the dashboard calendar; needs only calendar.read. */
+export async function getCalendarBoard(ctx: TenantContext, range: DateRange) {
+  const [rooms, occupancy] = await Promise.all([
+    listRoomNames(prisma, ctx.businessId),
+    getCalendar(ctx, range),
+  ]);
+  return { rooms, occupancy };
 }
 
 // ---------- Manual blocks (also how Kazderni or walk-in bookings are recorded) ----------
@@ -55,9 +69,14 @@ export async function removeBlock(ctx: TenantContext, blockId: string) {
 
 // ---------- Feeds from Airbnb, Booking.com, Kazderni ----------
 
-export function listFeeds(ctx: TenantContext, roomId?: string) {
+/** Everything the channels screen needs: each room's export link and its imported feeds. */
+export async function getChannelSetup(ctx: TenantContext) {
   requirePermission(ctx, "feeds.manage");
-  return calendar.listFeeds(prisma, ctx.businessId, roomId);
+  const [rooms, feeds] = await Promise.all([
+    listRoomExports(prisma, ctx.businessId),
+    calendar.listFeeds(prisma, ctx.businessId),
+  ]);
+  return rooms.map((room) => ({ ...room, feeds: feeds.filter((feed) => feed.roomId === room.id) }));
 }
 
 export async function addFeed(

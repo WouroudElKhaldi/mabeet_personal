@@ -58,6 +58,13 @@ function assertCanGrant(ctx: TenantContext, permissions: readonly Permission[]):
     throw forbidden(`You cannot grant permissions you do not have: ${missing.join(", ")}`);
 }
 
+/** Role names for the "assign a role" picker; needs only team.manage. */
+export async function listRoleOptions(ctx: TenantContext) {
+  requirePermission(ctx, "team.manage");
+  const roles = await team.listRoles(prisma, ctx.businessId);
+  return roles.map((role) => ({ id: role.id, name: role.name }));
+}
+
 export function listRoles(ctx: TenantContext) {
   requirePermission(ctx, "roles.manage");
   return team.listRoles(prisma, ctx.businessId);

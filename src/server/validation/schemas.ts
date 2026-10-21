@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AMENITIES } from "@/config/amenities";
+import { toDateRange } from "@/lib/dates";
 import { ALL_PERMISSIONS, type Permission } from "@/server/auth/permissions";
 
 const id = z.string().min(1).max(64);
@@ -72,11 +73,18 @@ export const memberUpdate = z.object({ roleId: id });
 
 export const publicRoomParams = z.object({ slug: z.string().min(1).max(64), roomId: id });
 
-export const availabilityQuery = z
+const MAX_WINDOW_DAYS = 400;
+
+const windowFields = z
   .object({ from: isoDate, to: isoDate })
-  .refine(({ from, to }) => to > from && Date.parse(to) - Date.parse(from) <= 400 * 86_400_000, {
-    message: "Ask for at most 400 days at a time",
+  .refine(({ from, to }) => to > from && Date.parse(to) - Date.parse(from) <= MAX_WINDOW_DAYS * 86_400_000, {
+    message: `"to" must be after "from" and within ${MAX_WINDOW_DAYS} days`,
   });
+
+/** A ?from=&to= reporting or calendar window, parsed straight into a DateRange. */
+export const dateWindow = windowFields.transform(({ from, to }) =>
+  toDateRange({ checkIn: from, checkOut: to }),
+);
 
 /** Public search; anything malformed is dropped rather than failing the page. */
 export const searchParams = z.object({
@@ -91,9 +99,9 @@ export const searchParams = z.object({
 
 const feedSource = z.enum(["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"]);
 
-export const calendarQuery = z
-  .object({ from: isoDate, to: isoDate, roomId: id.optional() })
-  .refine(({ from, to }) => to > from, { message: "`to` must be after `from`", path: ["to"] });
+export const calendarQuery = windowFields
+  .and(z.object({ roomId: id.optional() }))
+  .transform(({ from, to, roomId }) => ({ range: toDateRange({ checkIn: from, checkOut: to }), roomId }));
 
 export const blockInput = z
   .object({
@@ -105,6 +113,37 @@ export const blockInput = z
 
 export const feedInput = z.object({ roomId: id, url: z.url().max(2000), source: feedSource });
 
+const optionalText = (max: number) => z.string().trim().max(max).nullish();
+
+export const settingsInput = z
+  .object({
+    name: z.string().trim().min(2).max(80),
+    description: optionalText(4000),
+    area: optionalText(80),
+    address: optionalText(200),
+    phone: phone.nullish(),
+    whatsapp: phone.nullish(),
+    currency: z.enum(["USD", "LBP", "EUR"]),
+    lbpRate: z.number().int().min(1).max(10_000_000).nullish(),
+    commissionRateBps: z.number().int().min(0).max(5_000),
+    depositPercent: z.number().int().min(0).max(100),
+    holdHours: z.number().int().min(1).max(168),
+    depositInstructions: optionalText(1000),
+    checkInTime: z.string().regex(/^\d{2}:\d{2}$/),
+    checkOutTime: z.string().regex(/^\d{2}:\d{2}$/),
+    houseRules: optionalText(2000),
+    cancellationPolicy: optionalText(2000),
+    listedPublicly: z.boolean(),
+    categories: z.array(z.string().min(1).max(40)).max(6),
+  })
+  .partial();
+
+export const paymentInput = z.object({
+  amountCents: z.number().int().min(1).max(100_000_000),
+  method: z.enum(["CASH", "WHISH", "OMT", "BANK_TRANSFER", "OTHER"]),
+  note: z.string().trim().max(300).nullish(),
+});
+
 export const workspaceParams = z.object({ businessId: id });
 export const blockParams = workspaceParams.extend({ blockId: id });
 export const feedParams = workspaceParams.extend({ feedId: id });
@@ -112,3 +151,19 @@ export const roomParams = workspaceParams.extend({ roomId: id });
 export const bookingParams = workspaceParams.extend({ bookingId: id });
 export const roleParams = workspaceParams.extend({ roleId: id });
 export const memberParams = workspaceParams.extend({ membershipId: id });
+
+export const reviewParams = workspaceParams.extend({ reviewId: id });
+
+export const reviewUpdate = z.union([
+  z.object({ reply: z.string().trim().min(1).max(1000) }),
+  z.object({ hiddenReason: z.string().trim().min(3).max(300).nullable() }),
+]);
+
+export const reviewInput = z.object({
+  bookingId: id,
+  rating: z.number().int().min(1).max(5),
+  cleanliness: z.number().int().min(1).max(5).optional(),
+  location: z.number().int().min(1).max(5).optional(),
+  value: z.number().int().min(1).max(5).optional(),
+  comment: z.string().trim().min(10).max(2000),
+});
