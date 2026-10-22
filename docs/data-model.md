@@ -13,6 +13,7 @@ erDiagram
   Business ||--o{ Role : defines
 
   Business ||--o{ Room : has
+  Room ||--o{ RateOverride : "special prices"
   Room ||--o{ CalendarFeed : "reads (Airbnb, Booking.com, Kazderni)"
   Room ||--o{ Occupancy : "taken nights"
   Booking ||--o| Occupancy : "holds nights"
@@ -33,6 +34,15 @@ erDiagram
   Membership ||--o{ ApiKey : "AI keys"
   Business ||--o{ McpAuditLog : "AI calls logged"
 ```
+
+## Booking and Occupancy are different things
+
+A `Booking` is the guest's request and what happens to it: held, confirmed, declined, expired or cancelled.
+An `Occupancy` row says only "this room is taken on these nights". It comes from a booking (`DIRECT`), from
+the host closing nights (`MANUAL`), or from an Airbnb or Booking.com calendar (`IMPORTED`). Availability, the
+calendar, the exported iCal link and the double-booking rule all read `Occupancy`. When a booking ends, its
+occupancy row goes inactive and the nights are free again. The [architecture](architecture.md#booking-vs-occupancy)
+has the full picture.
 
 ## What each table is for
 
@@ -75,6 +85,9 @@ erDiagram
 | `McpAuditLog` | Every tool call an AI made, so owners can see what it looked at        |
 | `AiUsage`     | AI spending per month, for the budget cap                              |
 
+`PushSubscription` holds the phones and browsers that turned on notifications, each following a person or one
+booking.
+
 The remaining tables (`Session`, `Account`, `Verification`, `Oauth*`, `Jwks`) belong to sign-in and are managed by
 Better Auth. `Category`, `Photo`, `StoredImage`, `RateLimitWindow`, `SiteSetting` and `WebhookEvent` are
 supporting tables.
@@ -83,9 +96,13 @@ supporting tables.
 
 Prisma can't describe these, so they live in hand-written SQL migrations, and tests fail if one goes missing.
 
-- **No overlapping stays.** For the same room, two active `Occupancy` rows can't share a night. Check-out day
-  and the next check-in day don't clash.
-- **No overselling seats.** A session never sells more seats than it has, even under many requests at once.
-- **Sane values.** Check-out after check-in, at least one guest, ratings from 1 to 5, positive payments.
+- **No overlapping stays** (`occupancy_no_overlap`). For the same room, two active `Occupancy` rows can't share
+  a night. Check-out day and the next check-in day don't clash.
+- **No overselling seats** (`session_seats_guard`, `session_capacity_guard`). A session never sells more seats
+  than it has, even under many requests at once, and its capacity can't drop below what is sold.
+- **Sane values.** Check-out after check-in (`occupancy_valid_range`, `booking_valid_range`,
+  `session_valid_range`), at least one guest (`booking_positive_guests`), ratings from 1 to 5
+  (`review_rating_range`), at least one seat, positive payments (`payment_positive_amount`), and each payment
+  and push subscription belonging to exactly one thing.
 - **Platform nights may overlap each other** (Airbnb and Booking.com sometimes do), so imported rows are left out
   of the overlap rule. Direct requests are still checked against them, in code, while the room is locked.

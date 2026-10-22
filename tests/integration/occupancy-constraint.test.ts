@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { isOverlapError } from "@/server/db/client";
-import { createPlace, prisma, resetDatabase, stay } from "./helpers";
+import { requestBooking } from "@/server/services/booking-service";
+import { createPlace, guestRequest, prisma, resetDatabase, stay } from "./helpers";
 
 /** Guards the hand-written EXCLUDE constraint: if a migration ever drops it, this fails. */
 describe("occupancy no-overlap constraint (database level)", () => {
@@ -49,5 +50,30 @@ describe("occupancy no-overlap constraint (database level)", () => {
 
   it("rejects an empty or reversed range", async () => {
     await expect(occupy(10, 0)).rejects.toThrow();
+  });
+});
+
+/** Guards the hand-written CHECK constraints that back up the route validation. */
+describe("sane values (database level)", () => {
+  beforeEach(resetDatabase);
+
+  it("refuses a booking for no guests, or a payment of zero", async () => {
+    const { business, room } = await createPlace();
+    const booking = await requestBooking(guestRequest(business.slug, room.id, 10, 2));
+
+    await expect(
+      prisma.booking.update({ where: { id: booking.id }, data: { guestCount: 0 } }),
+    ).rejects.toThrow(/booking_positive_guests/);
+    await expect(
+      prisma.payment.create({
+        data: {
+          businessId: business.id,
+          bookingId: booking.id,
+          amountCents: 0,
+          currency: "USD",
+          method: "CASH",
+        },
+      }),
+    ).rejects.toThrow(/payment_positive_amount/);
   });
 });

@@ -44,3 +44,6 @@ next-env.d.ts
 # local database files and their backups
 .pgdata
 backups/
+
+# private planning material (pilot host contacts, analysis)
+docs/internal/

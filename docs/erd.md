@@ -503,6 +503,15 @@ erDiagram
     String id PK
     DateTime expiresAt
   }
+  PushSubscription {
+    String id PK
+    String endpoint
+    String p256dh
+    String auth
+    String userId FK
+    String bookingToken
+    DateTime createdAt
+  }
   User ||--o{ Session : "user"
   User ||--o{ Account : "user"
   Business ||--o{ Role : "business"
@@ -563,4 +572,5 @@ erDiagram
   OauthRefreshToken |o--o{ OauthAccessToken : "refresh"
   OauthClient ||--o{ OauthConsent : "client"
   User |o--o{ OauthConsent : "user"
+  User |o--o{ PushSubscription : "user"
 ```

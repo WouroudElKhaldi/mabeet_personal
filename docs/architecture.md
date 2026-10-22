@@ -1,0 +1,289 @@
+# Architecture
+
+How Mabeet is put together, and why. What it does is in the
+[functional requirements](functional-requirements.md). Where each guarantee is tested is in the
+[requirements matrix](requirements-matrix.md).
+
+## Overview
+
+One Next.js 15 app in TypeScript. PostgreSQL through Prisma. Better Auth for sign-in. Zod for every input.
+
+Next.js serves the pages, the JSON API, the iCal feeds and the MCP endpoints from one codebase and one deploy.
+Prisma gives typed queries and versioned migrations. Postgres does what Prisma can't: an `EXCLUDE`
+constraint and triggers, written as hand-made SQL migrations.
+
+Five ways in, one set of services:
+
+```
+ website pages ─┐
+ JSON API ──────┤
+ AI chat ───────┼──▶ services ──▶ repositories ──▶ PostgreSQL
+ owner MCP ─────┤    (rules)      (queries)        (last word on
+ guest MCP ─────┘                                   overlaps & seats)
+```
+
+## Layers
+
+| Layer            | Lives in                                       | Does                                                                                             | Never does                   |
+| ---------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------- |
+| **Routes/pages** | `src/app/**`                                   | Read the request, validate it with a Zod schema, find out who is calling, call a service, answer | Business rules, Prisma calls |
+| **Services**     | `src/server/services/*`                        | Permissions, business rules, transactions, notifications                                         | Build HTTP responses         |
+| **Repositories** | `src/server/repositories/*`                    | Prisma queries, always scoped by `businessId`                                                    | Decide anything, check roles |
+| **Database**     | `prisma/schema.prisma`, `prisma/migrations/**` | Final guarantees: no overlapping nights, no oversold seats, sane values                          | Trust that the code is right |
+
+The linter enforces the arrows (`eslint.config.mjs`): only repositories may import Prisma at runtime, and nothing
+in `src/app` may import a repository or the database client. A route that skips a layer fails `pnpm lint` and CI.
+
+Every API route goes through one wrapper (`src/server/http/route.ts`). It parses input with the route's Zod
+schema (`src/server/validation/schemas.ts`), turns domain errors into HTTP codes, refuses cross-site writes, and
+never leaks internal errors. Bad input gets `400` with the failing field. Routes that take no input (cron jobs,
+`/api/me/bookings`, `/api/me/export`) have no schema. The Better Auth, MCP and Stripe endpoints hand their input
+to code that checks it: Better Auth, each MCP tool's own Zod schema, and Stripe's signature check.
+
+## Authentication, authorization and tenant isolation
+
+These are three separate questions, answered in this order:
+
+1. **Who are you?** (authentication) A Better Auth session cookie for the website. For AI apps, either a
+   personal API key (only its SHA-256 hash is stored) or an OAuth access token. Cron jobs present `CRON_SECRET`.
+2. **Which business are you acting in?** (tenant isolation) Your `Membership` in that business. A workspace URL
+   names a business (`/api/workspaces/{businessId}/…`), but that id only picks between businesses you belong to.
+   `tenantRoute()` looks up your active membership before the handler runs. No membership means `404`, never
+   `403`, so nobody learns that a business exists. An API key or OAuth token is tied to one membership, so the
+   business comes from the key, not from the request.
+3. **What may you do there?** (authorization) The membership's role gives a set of permissions. The result is a
+   `TenantContext` (`src/server/auth/tenant-context.ts`): user, business, permissions and channel. Every service
+   function takes it and calls `requirePermission(ctx, "bookings.decide")` (or similar) itself.
+
+```
+caller ──▶ session / API key / OAuth token
+             │
+             ▼
+        Membership (user + business + role)  ── none? ──▶ 404
+             │
+             ▼
+        TenantContext { businessId, permissions }
+             │
+             ▼
+        service: requirePermission(...)      ── missing? ──▶ 403
+             │
+             ▼
+        repository: WHERE "businessId" = ctx.businessId
+```
+
+Repositories take `businessId` from the context in every query. A record id from another business finds nothing
+and answers `404 Not found`, even inside your own workspace URL. Tests check this over HTTP and MCP
+(`tests/integration/tenant-isolation.test.ts`, `mcp-isolation.test.ts`).
+
+Roles are made by owners from a fixed list of permissions (`src/server/auth/permissions.ts`). Nobody can grant a
+permission they don't hold, and read-only AI keys keep only the `*.read` permissions of their member.
+
+**Guests** need no membership. Their pages are public by place slug. They reach their own booking through an
+unguessable private link (`publicToken`, 32 random bytes), and signed-in guests also see it in their account.
+
+## Booking vs Occupancy
+
+This split is the core of the design.
+
+- **`Booking`** is the guest's request and its lifecycle: who, how many, price, deposit, and a status that moves
+  `HELD → CONFIRMED`, or ends as `DECLINED`, `EXPIRED` or `CANCELLED` (`src/server/services/booking-status.ts`).
+- **`Occupancy`** is inventory: "this room is taken on these nights". One row per taken range, whatever the
+  cause:
+
+| `kind`     | Comes from                                                              | `active` while                    |
+| ---------- | ----------------------------------------------------------------------- | --------------------------------- |
+| `DIRECT`   | A Mabeet booking (one row per booking)                                  | the booking is `HELD`/`CONFIRMED` |
+| `MANUAL`   | A host closing nights: maintenance, a phone booking, Kazderni           | until the host removes it         |
+| `IMPORTED` | An event read from an Airbnb or Booking.com calendar link (or any iCal) | until it leaves the platform feed |
+
+Availability, the calendar, the iCal export and the overlap rule all read `Occupancy`, never `Booking`. A new
+source of taken nights is a new `kind`, not a new set of checks.
+
+## No double bookings
+
+The guarantee: **two active `DIRECT` or `MANUAL` occupancies never share a room night.** The database enforces
+it:
+
+```sql
+ALTER TABLE "Occupancy" ADD CONSTRAINT occupancy_no_overlap
+  EXCLUDE USING gist ("roomId" WITH =, daterange("checkIn", "checkOut", '[)') WITH &&)
+  WHERE (active AND kind <> 'IMPORTED');
+```
+
+`'[)'` counts nights: a guest leaving on the 12th never clashes with one arriving on the 12th.
+
+**Why a check in code is not enough.** Code like this has a race:
+
+```ts
+if (!(await isTaken(room, dates))) await createBooking(room, dates); // two requests can both pass the check
+```
+
+Two requests can run the check at the same moment, both see a free room, and both insert. Only the database
+sees every write, so it has the final say.
+
+**What happens on a request** (`requestBooking` in `src/server/services/booking-service.ts`):
+
+```
+POST /api/public/places/{slug}/bookings
+  │  Zod: dates, guests, name, phone…        bad input ──▶ 400
+  │  dates sane? (future, ≤ 60 nights)        no ──▶ 400
+  │  place active? (by slug)                  no ──▶ 404
+  ▼
+BEGIN
+  SELECT … FROM "Room" … FOR UPDATE           requests for this room queue here
+  room fits? (guests, minimum nights)         no ──▶ 400
+  expire this room's stale holds              frees nights nobody answered for
+  any IMPORTED night in the range?            yes ──▶ 409 "dates taken"
+  price the stay
+  INSERT Booking (HELD) + Occupancy (DIRECT)  occupancy_no_overlap ──▶ 23P01 ──▶ 409
+  log the activity
+COMMIT ──▶ 201, then email + push in the background
+```
+
+The room lock makes requests for one room take turns, which keeps the check against imported nights correct.
+That check has to be in code, because imported rows are outside the constraint (see below). The direct overlap
+itself is refused by the constraint, and nothing in the code checks it first. If the lock were removed, the
+constraint would still refuse the overlap.
+
+**Requests hold the room right away.** The occupancy is created as `HELD`, not when the host confirms. Two
+guests never wait on the same nights, and the loser learns at once. Holds last `holdHours` (24 by default).
+Each new request on a room expires that room's stale holds, and a scheduled job expires the rest.
+
+**The race test** (`tests/integration/booking-race.test.ts`): one room, 20 `requestBooking` calls for the same
+nights started at the same moment through `Promise.allSettled`. Exactly 1 succeeds, 19 fail with `CONFLICT`, the
+database has exactly one `HELD` booking and exactly one active occupancy. A second test checks that parallel
+requests for different nights all succeed.
+
+**Seats work the same way.** Experiences sell seats in an `OfferingSession`. The `session_seats_guard` trigger
+locks the session row and refuses any `SessionBooking` that would go over capacity. `session_capacity_guard`
+refuses lowering capacity below seats sold. Test: 20 guests ask for the last 5 seats at once, exactly 5 get one
+(`tests/integration/session-seats.test.ts`), plus a row inserted by hand that the trigger still refuses.
+
+## Calendar synchronization
+
+### Import (Airbnb, Booking.com, any iCal link)
+
+```
+CalendarFeed (room, URL, source)
+  │  every 15 min (scheduled job) · on "Sync now" · right before a host confirms a booking on that room
+  ▼
+fetch: https only, public addresses only, size and time limits      (src/server/ical/safe-fetch.ts)
+  ▼
+parse: all-day and timed events → [checkIn, checkOut) in the place's timezone;
+       drop cancelled, past, > 540 days ahead and UID-less events  (src/server/ical/parse-feed.ts)
+  ▼
+BEGIN · lock the room
+  upsert Occupancy (IMPORTED) by (feedId, externalUid)    re-reading a feed never makes duplicates
+  deactivate this feed's rows whose UID is gone           a platform cancellation frees the nights
+  flag conflict = true on imported rows that overlap one of our DIRECT/MANUAL rows
+COMMIT
+  ▼
+record lastSyncedAt and lastError on the feed
+```
+
+- **Duplicates.** `@@unique([feedId, externalUid])` on `Occupancy`. The platform's event UID identifies a stay.
+- **Disappeared events.** Deactivated, not deleted. The nights free up.
+- **A failing feed** (404, timeout, bad file) changes nothing that was already imported. The error is stored on
+  the feed and shown to the host, and admins see sync health across the platform.
+- **Conflicts.** If Airbnb has a stay over nights Mabeet already gave a guest, the imported row is flagged and
+  shown to the host. Nothing is cancelled automatically: a person decides.
+- **Why imported rows are outside the constraint.** Airbnb and Booking.com can contain overlapping stays
+  themselves, and Mabeet can't refuse what already happened on another platform. Direct requests are still
+  checked against imported nights in code, under the room lock, and feeds are re-read before a host confirms.
+
+### Export
+
+```
+Room.exportToken (random, private) ──▶ GET /api/ical/{token}.ics ──▶ DIRECT and MANUAL nights, today onwards
+```
+
+The feed carries no guest names or contacts, and no imported events (echoing Airbnb's nights back to Airbnb
+would make loops). An unknown token answers `404`.
+
+### What Mabeet can and cannot promise
+
+- **Can:** no two Mabeet-controlled active occupancies overlap (constraint), and no direct request is accepted
+  over a night already imported (code, under the room lock).
+- **Cannot:** that Airbnb or Booking.com never sell a night Mabeet just sold. They read our export link on
+  their own schedule, often every few hours. Until then a platform booking can land on the same night. The next
+  sync flags it for the host.
+
+## Background jobs
+
+| Job                     | Endpoint                      | What it does                                              | If it never runs                                                |
+| ----------------------- | ----------------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| Calendar sync           | `POST /api/cron/sync-feeds`   | Re-reads up to 20 feeds not synced in the last 15 minutes | Feeds still refresh on "Sync now" and before every confirmation |
+| Expire unanswered holds | `POST /api/cron/expire-holds` | Expires every `HELD` booking past its time, emails guests | Each new request on a room expires that room's stale holds      |
+
+Both need `Authorization: Bearer $CRON_SECRET` (compared in constant time). The repo calls them every 15
+minutes from `.github/workflows/scheduled-jobs.yml`, once `APP_URL` and `CRON_SECRET` are set as repository
+secrets. GitHub may run scheduled workflows late under load. That's acceptable here because of the fallbacks in
+the last column.
+
+## Notifications
+
+Emails (Resend) and push notifications (Web Push with VAPID keys) are sent **after** the transaction commits, in
+the background, and never throw (`src/server/services/notification-service.ts`). A mail or push outage can't
+undo or slow a booking. A device that has unsubscribed is forgotten the next time a push to it fails.
+
+Whoever gets an email about a booking also gets a push on every device they turned notifications on for:
+
+- hosts and staff who can decide bookings: new requests and guest cancellations
+- guests: confirmed, declined, expired, cancelled, deposit recorded. Guests without an account follow one booking
+  from its private link
+- platform admins: AI budget warnings
+
+Push subscriptions are only accepted for the browsers' own push services. A forged subscription can't make the
+server call an address of the attacker's choosing.
+
+The site is an installable web app (PWA): a web manifest, icons, and a service worker (`public/sw.js`) that
+shows notifications and an offline page. Pages are never served from cache, because availability must be
+live.
+
+## External integrations
+
+| Service                        | Used for                | If it's down or not configured                                       |
+| ------------------------------ | ----------------------- | -------------------------------------------------------------------- |
+| Airbnb / Booking.com (iCal)    | Reading their calendars | Feed error shown to the host. Existing imported nights stay          |
+| Resend                         | Emails                  | Emails are logged instead. Bookings are unaffected                   |
+| Web Push (FCM, Mozilla, Apple) | Phone notifications     | Off without VAPID keys. Failures are logged, bookings unaffected     |
+| Stripe (test mode)             | Host plans only         | Plans can't be bought. Webhooks are signature-checked and idempotent |
+| DeepSeek                       | AI chat and assistant   | AI shows a friendly error. Everything else works                     |
+
+Guest deposits are not taken online. Hosts record Whish, OMT, bank or cash payments by hand.
+
+## AI and MCP
+
+AI is an extra way in, not a separate system. Every AI tool (`src/server/ai/*-tools.ts`) is a Zod schema and a
+call to an existing service with the caller's `TenantContext`. So the AI has exactly the permissions of the
+person behind it, isolation included.
+
+- **Owner/staff MCP** (`/api/mcp`): API key or OAuth token → membership → `TenantContext`. Read-only keys see no
+  write tools. Every call is logged in `McpAuditLog`.
+- **Dashboard assistant**: same tools, same context, from the signed-in session.
+- **Guest concierge and guest MCP** (`/api/mcp/guest`): read-only search tools over public data. They never see
+  guests' contact details.
+- **Cost**: a monthly budget in `AiUsage`. Admins are warned at 80%, and AI pauses at 100%.
+
+## Languages
+
+English, Modern Standard Arabic and Lebanese Arabic (`messages/en.json`, `ar.json`, `ar-LB.json`), right to
+left for both Arabic variants. A unit test fails if any language misses a string. Server error messages are
+translated too. Emails to Lebanese readers use standard Arabic.
+
+## Tests
+
+| Kind           | Command                 | What it covers                                                                                       |
+| -------------- | ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| Unit           | `pnpm test`             | Pricing, booking status changes, dates, permissions, iCal parse/build, privacy masking, translations |
+| Integration    | `pnpm test:integration` | Services and repositories against a real Postgres: booking flow, calendar sync, roles                |
+| Database rules | (in integration)        | The constraint and triggers themselves, written to directly                                          |
+| Concurrency    | (in integration)        | 20 guests for the last room, 20 guests for the last 5 seats, the shared rate limit                   |
+| Isolation      | (in integration)        | Business A against business B, over real HTTP routes and over MCP                                    |
+| Smoke          | `pnpm smoke`            | Against a running app: guest, host, admin and outsider flows, iCal export over HTTP                  |
+| Failure cases  | `pnpm edge-cases`       | Against a running app: bad input, wrong roles, foreign ids, bad tokens, for every user type          |
+
+CI (`.github/workflows/ci.yml`) runs types, lint (including the layer rules), formatting, unused-code checks,
+unit tests, a check that the generated ERD and OpenAPI files are current, and the integration tests against
+Postgres 17, on every pull request and every push to `main`. Smoke and failure-case runs need a running app and
+are run by hand.

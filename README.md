@@ -15,7 +15,8 @@ Guests and hosts can also ask an AI, on the site or from Claude and ChatGPT.
 - **Staff** see and do only what their role allows, whether they use the screens or an AI.
 - **Platform admins** watch the platform and can suspend a business.
 
-English and Arabic throughout, designed for phones first.
+English, Arabic and Lebanese Arabic throughout, designed for phones first. Mabeet installs on a phone's home screen
+and sends push notifications for everything it would email.
 
 ## Run it on your computer
 
@@ -51,6 +52,7 @@ or settings, or manage the team. Owners can change that on the **Team** page.
 | `CRON_SECRET`                           | Protects the scheduled jobs (calendar sync, expiring holds)                                                                                                                       |
 | `DEEPSEEK_API_KEY`                      | Turns on the AI concierge and assistant. Optional                                                                                                                                 |
 | `RESEND_API_KEY`, `EMAIL_FROM`          | Sends emails. Without a key they are only logged. Email verification turns on once `EMAIL_FROM` is on your own verified domain (Resend's test sender only reaches your own inbox) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Turns on push notifications. Make a pair with `pnpm push:keys`. Optional                                                                                                          |
 | `AI_MONTHLY_BUDGET_USD`                 | Monthly AI spending cap ($50 by default). Admins are warned at 80%                                                                                                                |
 | `STRIPE_*`                              | Host plans, in Stripe test mode. See "Testing card payments" below                                                                                                                |
 
@@ -69,16 +71,17 @@ card `4242 4242 4242 4242`, any future date and any CVC.
 
 ## Useful commands
 
-| Command                 | What it does                                                          |
-| ----------------------- | --------------------------------------------------------------------- |
-| `pnpm check`            | Types, lint, formatting, unused code and unit tests in one go         |
-| `pnpm test:integration` | Tests against a real database, including the race and isolation tests |
-| `pnpm smoke`            | Clicks through guest, host, admin and outsider flows on a running app |
-| `pnpm run docs`         | Regenerates the full database diagram and the API contract            |
+| Command                 | What it does                                                           |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `pnpm check`            | Types, lint, formatting, unused code and unit tests in one go          |
+| `pnpm test:integration` | Tests against a real database, including the race and isolation tests  |
+| `pnpm smoke`            | Clicks through guest, host, admin and outsider flows on a running app  |
+| `pnpm edge-cases`       | Tries what should fail (bad input, wrong roles, other businesses' ids) |
+| `pnpm run docs`         | Regenerates the full database diagram and the API contract             |
 
 ## How it's built
 
-One Next.js app in TypeScript, with PostgreSQL through Prisma, Better Auth for sign-in, next-intl for the two
+One Next.js app in TypeScript, with PostgreSQL through Prisma, Better Auth for sign-in, next-intl for the three
 languages, and Tailwind for styling.
 
 The code has three layers, and the linter stops anyone from skipping one:
@@ -91,7 +94,17 @@ routes and pages  →  services  →  repositories  →  database
 ```
 
 The website, the AI chat and both AI connectors (MCP) call the same services. So a rule or a permission is
-written once and applies everywhere.
+written once and applies everywhere. The [architecture](docs/architecture.md) explains each layer, the booking
+race, tenant isolation and calendar sync in detail.
+
+**Tests come in layers.** Unit tests cover pricing, status changes, permissions and iCal parsing. Integration
+tests run against a real Postgres and include the database rules themselves, the race for the last room and the
+last seats, and business isolation over HTTP and MCP. Smoke and failure-case runs click through a live app. The
+[requirements matrix](docs/requirements-matrix.md) maps each requirement to its code and its test.
+
+**CI** runs types, lint, formatting, unused code, unit tests, a check that the generated docs are current, and the
+integration tests on every pull request. `.github/workflows/scheduled-jobs.yml` calls the calendar sync and hold
+expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets are set.
 
 ## Key decisions
 
@@ -110,6 +123,8 @@ written once and applies everywhere.
 
 ## Documents
 
+- [Architecture](docs/architecture.md): how it's built and why, including the double-booking guarantee
+- [Requirements matrix](docs/requirements-matrix.md): each requirement, where it's built and which test proves it
 - [Functional requirements](docs/functional-requirements.md): what the app does, for each kind of user
 - [Non-functional requirements](docs/non-functional-requirements.md): how well it must work, and how we make sure
 - [Data model](docs/data-model.md): the database in plain words, with a diagram
@@ -122,3 +137,4 @@ written once and applies everywhere.
   host and never cancelled automatically.
 - Kazderni has no public API or calendar link, so hosts add its bookings as manual blocks.
 - Lebanese hosts can't take card deposits online yet, so deposits are recorded by hand.
+- On iPhone, push notifications only work once Mabeet is added to the Home Screen and opened from there.

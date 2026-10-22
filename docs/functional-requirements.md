@@ -55,9 +55,14 @@ Instagram and WhatsApp. Hosts who juggle several calendars sometimes sell the sa
 ## Everyone
 
 - **F17. Sign in.** Email and password, email verification, password reset.
-- **F18. Two languages.** English and Arabic, right to left included.
+- **F18. Three languages.** English, Arabic and Lebanese Arabic, right to left included. Anyone can switch from
+  the menu.
+- **F19. Phone notifications.** Anyone can turn on push notifications on their phone and get every update they
+  would be emailed. Guests without an account can follow one booking from its private link.
+- **F20. Install the app.** Mabeet can be added to a phone's home screen and opens like an app, with an offline
+  page when there is no signal.
 
 ## Not in this version
 
 Instant booking, online payment of deposits for Lebanese hosts, payouts, in-app chat, automatic pricing,
-mobile apps.
+native mobile apps (the website installs as an app instead).

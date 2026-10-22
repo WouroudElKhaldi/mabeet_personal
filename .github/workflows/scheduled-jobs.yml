@@ -1,0 +1,25 @@
+name: Scheduled jobs
+
+# Calls the app's two background jobs on the live site. Set the repository secrets APP_URL
+# (e.g. https://mabeet.example) and CRON_SECRET (the same value as the app's). Without them this does nothing.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    name: Sync calendars and expire holds
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: ${{ secrets.APP_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Re-read Airbnb, Booking.com and Kazderni calendar links that are due
+        if: env.APP_URL != '' && env.CRON_SECRET != ''
+        run: |
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/sync-feeds"
+      - name: Expire unanswered booking requests and free their nights
+        if: env.APP_URL != '' && env.CRON_SECRET != ''
+        run: |
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/expire-holds"

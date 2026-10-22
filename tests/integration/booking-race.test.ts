@@ -26,6 +26,7 @@ describe("the last free room", () => {
       expect((reason as AppError).code).toBe("CONFLICT");
     }
     expect(await prisma.booking.count({ where: { roomId: room.id, status: "HELD" } })).toBe(1);
+    expect(await prisma.occupancy.count({ where: { roomId: room.id, active: true } })).toBe(1);
   });
 
   it("lets parallel guests book different nights of the same room", async () => {
