@@ -1044,7 +1044,15 @@
     },
     "ideas": "Start with an idea",
     "idea": "Idea {number}",
-    "enterHint": "Enter to send · Shift + Enter for a new line"
+    "enterHint": "Enter to send · Shift + Enter for a new line",
+    "newChat": "New chat",
+    "history": "History ({count})",
+    "temporary": "Temporary chat",
+    "signInToSave": "Sign in to keep your chats. This one won't be saved.",
+    "temporaryHint": "Temporary: this chat isn't saved and disappears when you leave.",
+    "savedHint": "Saved to your history. Only you can see it.",
+    "noHistory": "No saved chats yet.",
+    "deleteChat": "Delete chat"
   },
   "admin": {
     "title": "Platform",
@@ -1461,7 +1469,8 @@
       "Payment": "Payment",
       "Payout": "Payout",
       "Page": "Page",
-      "Host": "Host"
+      "Host": "Host",
+      "Chat": "Chat"
     },
     "statuses": {
       "held": "held",

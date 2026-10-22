@@ -5,6 +5,7 @@ import { Concierge } from "@/components/assistant/concierge";
 import { BoardingPass } from "@/components/brand/boarding-pass";
 import { CopyField } from "@/components/ui/copy-field";
 import { env } from "@/server/env";
+import { getCurrentUser } from "@/server/http/session";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("assistant.guest");
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The trip concierge: a travel desk on the left, and on the right how to reach it from your own AI app. */
 export default async function AssistantPage() {
-  const t = await getTranslations("assistant.guest");
+  const [t, user] = await Promise.all([getTranslations("assistant.guest"), getCurrentUser()]);
   return (
     <div className="mx-auto grid max-w-300 gap-12 px-4 pt-10 pb-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:px-10">
       <section className="min-w-0">
@@ -22,7 +23,7 @@ export default async function AssistantPage() {
           {t("title")}
         </h1>
         <p className="mt-4 mb-10 max-w-xl text-lg text-muted">{t("subtitle")}</p>
-        <Concierge />
+        <Concierge signedIn={Boolean(user)} />
       </section>
 
       <aside id="mcp" className="scroll-mt-28 lg:pt-24">

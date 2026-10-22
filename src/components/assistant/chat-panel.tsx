@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, ArrowUp } from "lucide-react";
+import { clsx } from "clsx";
+import { ArrowRight, ArrowUp, EyeOff, History, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -14,8 +15,21 @@ export interface ChatMessage {
   attachment?: ReactNode;
 }
 
+/** Where saved chats live; absent when they can't be saved (a visitor who isn't signed in). */
+interface ChatHistoryEndpoints {
+  list: string;
+  item: (chatId: string) => string;
+}
+
+interface SavedChat {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
 interface ChatPanelProps<Response extends { reply: string }> {
   endpoint: string;
+  history: ChatHistoryEndpoints | null;
   suggestions: string[];
   greeting: string;
   /** Who answers, shown beside each reply, e.g. "Mabeet concierge". */
@@ -29,6 +43,7 @@ interface ChatPanelProps<Response extends { reply: string }> {
  */
 export function ChatPanel<Response extends { reply: string }>({
   endpoint,
+  history,
   suggestions,
   greeting,
   speaker,
@@ -41,6 +56,68 @@ export function ChatPanel<Response extends { reply: string }>({
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [temporary, setTemporary] = useState(false);
+  const [saved, setSaved] = useState<SavedChat[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const refreshHistory = async () => {
+    if (!history) return;
+    try {
+      setSaved((await api.get<{ chats: SavedChat[] }>(history.list)).chats);
+    } catch {
+      // The list is a convenience; the chat works without it.
+    }
+  };
+  useEffect(() => {
+    void refreshHistory();
+    // Loaded once; it refreshes after each saved answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const newChat = (asTemporary = false) => {
+    setMessages([]);
+    setChatId(null);
+    setError(null);
+    setTemporary(asTemporary);
+    setShowHistory(false);
+  };
+
+  const openChat = async (id: string) => {
+    if (!history) return;
+    setShowHistory(false);
+    setError(null);
+    try {
+      const { chat } = await api.get<{
+        chat: { id: string; messages: Array<{ role: "user" | "assistant"; content: string; data: unknown }> };
+      }>(history.item(id));
+      setChatId(chat.id);
+      setTemporary(false);
+      setMessages(
+        chat.messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+          attachment:
+            message.role === "assistant" && message.data && renderAttachment
+              ? renderAttachment({ reply: message.content, ...(message.data as object) } as Response)
+              : undefined,
+        })),
+      );
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("error"));
+    }
+  };
+
+  const removeChat = async (id: string) => {
+    if (!history) return;
+    try {
+      await api.delete(history.item(id));
+      if (id === chatId) newChat();
+      await refreshHistory();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t("error"));
+    }
+  };
 
   useEffect(() => {
     if (messages.length > 0 || thinking) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -63,9 +140,15 @@ export function ChatPanel<Response extends { reply: string }>({
     setThinking(true);
     setError(null);
     try {
-      const response = await api.post<Response>(endpoint, {
+      const response = await api.post<Response & { chatId?: string | null }>(endpoint, {
         messages: next.slice(-20).map(({ role, content: body }) => ({ role, content: body })),
+        chatId,
+        temporary,
       });
+      if (response.chatId) {
+        setChatId(response.chatId);
+        void refreshHistory();
+      }
       setMessages([
         ...next,
         {
@@ -83,6 +166,76 @@ export function ChatPanel<Response extends { reply: string }>({
 
   return (
     <div className="flex flex-col">
+      <div className="relative mb-6 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => newChat()}
+          className="inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm font-semibold ring-1 ring-line hover:bg-surface-2"
+        >
+          <Plus className="size-4" aria-hidden />
+          {t("newChat")}
+        </button>
+        {history && (
+          <button
+            type="button"
+            aria-expanded={showHistory}
+            onClick={() => setShowHistory((value) => !value)}
+            className="inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm font-semibold ring-1 ring-line hover:bg-surface-2"
+          >
+            <History className="size-4" aria-hidden />
+            {t("history", { count: saved.length })}
+          </button>
+        )}
+        <button
+          type="button"
+          aria-pressed={temporary}
+          disabled={!history}
+          onClick={() => newChat(!temporary)}
+          className={clsx(
+            "inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm font-semibold ring-1 transition-colors disabled:opacity-50",
+            temporary || !history ? "bg-ink text-paper ring-ink" : "ring-line hover:bg-surface-2",
+          )}
+        >
+          <EyeOff className="size-4" aria-hidden />
+          {t("temporary")}
+        </button>
+        <p className="w-full text-xs text-muted">
+          {!history ? t("signInToSave") : temporary ? t("temporaryHint") : t("savedHint")}
+        </p>
+        {showHistory && history && (
+          <div className="absolute inset-x-0 top-11 z-20 max-h-80 overflow-y-auto rounded-xl bg-surface p-1.5 shadow-lift ring-1 ring-line sm:end-auto sm:w-96">
+            {saved.length === 0 ? (
+              <p className="p-3 text-sm text-muted">{t("noHistory")}</p>
+            ) : (
+              <ul>
+                {saved.map((chat) => (
+                  <li key={chat.id} className="group flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void openChat(chat.id)}
+                      className={clsx(
+                        "min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-start text-sm hover:bg-surface-2",
+                        chat.id === chatId && "bg-surface-2 font-semibold",
+                      )}
+                    >
+                      {chat.title}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void removeChat(chat.id)}
+                      aria-label={t("deleteChat")}
+                      title={t("deleteChat")}
+                      className="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-danger"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
       <div className="space-y-8 pb-6" aria-live="polite">
         <Note speaker={speaker}>{greeting}</Note>
 

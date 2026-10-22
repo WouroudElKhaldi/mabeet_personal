@@ -1044,7 +1044,15 @@
     },
     "ideas": "بلّش بفكرة",
     "idea": "فكرة {number}",
-    "enterHint": "Enter لتبعت · Shift + Enter لسطر جديد"
+    "enterHint": "Enter لتبعت · Shift + Enter لسطر جديد",
+    "newChat": "محادثة جديدة",
+    "history": "السجل ({count})",
+    "temporary": "محادثة مؤقتة",
+    "signInToSave": "فوت لتنحفظ محادثاتك. هيدي ما رح تنحفظ.",
+    "temporaryHint": "مؤقتة: هالمحادثة ما بتنحفظ وبتروح لما تفل.",
+    "savedHint": "بتنحفظ بالسجل تبعك. بس إنت بتشوفها.",
+    "noHistory": "ما في محادثات محفوظة بعد.",
+    "deleteChat": "امحي المحادثة"
   },
   "admin": {
     "title": "المنصّة",
@@ -1461,7 +1469,8 @@
       "Payment": "الدفعة",
       "Payout": "التحويل",
       "Page": "الصفحة",
-      "Host": "المضيف"
+      "Host": "المضيف",
+      "Chat": "المحادثة"
     },
     "statuses": {
       "held": "مؤقّت",

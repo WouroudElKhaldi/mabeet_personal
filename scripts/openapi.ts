@@ -675,6 +675,48 @@ const OPERATIONS: Operation[] = [
     auth: "session",
     body: s.profileInput,
   },
+  {
+    method: "get",
+    path: "/api/workspaces/{businessId}/assistant/chats",
+    summary: "The member's own saved team-assistant chats in this business",
+    tag: "AI",
+    auth: "member",
+  },
+  {
+    method: "get",
+    path: "/api/workspaces/{businessId}/assistant/chats/{chatId}",
+    summary: "One of the member's own saved chats, with its messages",
+    tag: "AI",
+    auth: "member",
+  },
+  {
+    method: "delete",
+    path: "/api/workspaces/{businessId}/assistant/chats/{chatId}",
+    summary: "Delete one of the member's own saved chats",
+    tag: "AI",
+    auth: "member",
+  },
+  {
+    method: "get",
+    path: "/api/me/chats",
+    summary: "The signed-in guest's saved concierge chats",
+    tag: "AI",
+    auth: "session",
+  },
+  {
+    method: "get",
+    path: "/api/me/chats/{chatId}",
+    summary: "One of the guest's own saved concierge chats",
+    tag: "AI",
+    auth: "session",
+  },
+  {
+    method: "delete",
+    path: "/api/me/chats/{chatId}",
+    summary: "Delete one of the guest's own saved concierge chats",
+    tag: "AI",
+    auth: "session",
+  },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {
     method: "post",

@@ -47,6 +47,37 @@ model User {
   oauthConsents      OauthConsent[]
   pushSubscriptions  PushSubscription[]
   hostProfile        HostProfile?
+  aiChats            AiChat[]
+}
+
+/// A saved conversation with an assistant: the team assistant in one business, or the guests' concierge
+/// (businessId empty). Temporary chats are never stored. Only the person who had it can open it.
+model AiChat {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String?
+  business   Business?       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  surface    String
+  title      String
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  messages   AiChatMessage[]
+
+  @@index([userId, surface, businessId, updatedAt])
+}
+
+model AiChatMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      AiChat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  /// What the reply showed besides its text, e.g. the concierge's place cards.
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@index([chatId, createdAt])
 }
 
 /// A host's own details, kept for every person who owns a business. Guests only see them when the host turns
@@ -254,6 +285,7 @@ model Business {
   refunds         Refund[]
   payouts         Payout[]
   planPayments    PlanPayment[]
+  aiChats         AiChat[]
 }
 
 // A role is created by an owner or manager and holds a list of permission keys

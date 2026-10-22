@@ -321,7 +321,13 @@ export const chatInput = z.object({
     .refine((messages) => messages.at(-1)?.role === "user", {
       message: "The last message must be from the user",
     }),
+  /** The saved chat this continues; none starts a new one. */
+  chatId: z.string().min(1).max(64).nullish(),
+  /** A temporary chat is answered but never stored. */
+  temporary: z.boolean().default(false),
 });
+
+export const chatParams = z.object({ chatId: z.string().min(1).max(64) });
 
 export const keyInput = z.object({
   name: z.string().trim().min(2).max(60),

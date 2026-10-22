@@ -76,12 +76,13 @@ function Suggestions({ cards, locale }: { cards: SuggestionCard[]; locale: strin
   );
 }
 
-export function Concierge() {
+export function Concierge({ signedIn }: { signedIn: boolean }) {
   const t = useTranslations("assistant.guest");
   const locale = useLocale();
   return (
     <ChatPanel<ConciergeResponse>
       endpoint="/api/assistant"
+      history={signedIn ? { list: "/api/me/chats", item: (chatId) => `/api/me/chats/${chatId}` } : null}
       speaker={t("speaker")}
       greeting={t("greeting")}
       suggestions={[t("suggestions.mountain"), t("suggestions.sea"), t("suggestions.arabizi")]}

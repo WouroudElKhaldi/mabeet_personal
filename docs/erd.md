@@ -23,6 +23,23 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  AiChat {
+    String id PK
+    String userId FK
+    String businessId FK
+    String surface
+    String title
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  AiChatMessage {
+    String id PK
+    String chatId FK
+    String role
+    String content
+    Json data
+    DateTime createdAt
+  }
   HostProfile {
     String userId PK, FK
     String displayName
@@ -600,6 +617,9 @@ erDiagram
     String bookingToken
     DateTime createdAt
   }
+  User ||--o{ AiChat : "user"
+  Business |o--o{ AiChat : "business"
+  AiChat ||--o{ AiChatMessage : "chat"
   User ||--o{ HostProfile : "user"
   User ||--o{ Session : "user"
   User ||--o{ Account : "user"
