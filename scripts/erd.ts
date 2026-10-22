@@ -12,11 +12,12 @@ for (const model of models) {
   lines.push(`  ${model.name} {`);
   for (const field of model.fields.filter((candidate) => candidate.kind !== "object")) {
     const type = `${field.type}${field.isList ? "[]" : ""}`.replace(/[^A-Za-z0-9[\]_]/g, "");
-    const key = field.isId ? " PK" : field.relationName ? "" : field.isUnique ? " UK" : "";
     const foreign = model.fields.some(
       (relation) => relation.kind === "object" && relation.relationFromFields?.includes(field.name),
     );
-    lines.push(`    ${type.replace("[]", "_list")} ${field.name}${key}${foreign ? " FK" : ""}`);
+    // Mermaid separates several keys on one column with commas: "UK, FK".
+    const keys = [field.isId ? "PK" : field.isUnique ? "UK" : null, foreign ? "FK" : null].filter(Boolean);
+    lines.push(`    ${type.replace("[]", "_list")} ${field.name}${keys.length ? ` ${keys.join(", ")}` : ""}`);
   }
   lines.push("  }");
 }

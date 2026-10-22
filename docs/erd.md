@@ -208,7 +208,7 @@ erDiagram
     FeedSource source
     String note
     Boolean conflict
-    String bookingId UK FK
+    String bookingId UK, FK
     String feedId FK
     String externalUid
     DateTime createdAt
@@ -245,9 +245,9 @@ erDiagram
     String id PK
     String businessId FK
     String roomId FK
-    String bookingId UK FK
+    String bookingId UK, FK
     String offeringId FK
-    String sessionBookingId UK FK
+    String sessionBookingId UK, FK
     String authorId FK
     Int rating
     Int cleanliness
