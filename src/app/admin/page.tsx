@@ -93,7 +93,7 @@ export default async function AdminOverviewPage() {
         <Panel
           title={t("newestBusinesses")}
           action={
-            <Link href="/admin/businesses" className="text-sm font-semibold text-accent hover:underline">
+            <Link href="/admin/hosts" className="text-sm font-semibold text-accent hover:underline">
               {t("seeAll")}
             </Link>
           }

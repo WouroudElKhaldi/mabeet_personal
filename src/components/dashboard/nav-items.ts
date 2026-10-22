@@ -1,7 +1,7 @@
 import type { IconName } from "@/components/shell/app-shell";
 import type { Permission } from "@/server/auth/permissions";
 
-export type NavGroupKey = "today" | "bookings" | "listings" | "money" | "team" | "business";
+export type NavGroupKey = "today" | "ai" | "bookings" | "listings" | "money" | "team" | "business";
 
 export interface NavItem {
   key:
@@ -17,6 +17,7 @@ export interface NavItem {
     | "team"
     | "assistant"
     | "keys"
+    | "hostProfile"
     | "settings";
   group: NavGroupKey;
   path: string;
@@ -29,6 +30,7 @@ export interface NavItem {
 
 export const NAV_GROUPS: readonly NavGroupKey[] = [
   "today",
+  "ai",
   "bookings",
   "listings",
   "money",
@@ -47,9 +49,10 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "payouts", group: "money", path: "/payouts", icon: "landmark", anyOf: [], ownerOnly: true },
   { key: "billing", group: "money", path: "/billing", icon: "card", anyOf: ["settings.manage"] },
   { key: "team", group: "team", path: "/team", icon: "users", anyOf: ["team.manage", "roles.manage"] },
-  { key: "assistant", group: "team", path: "/assistant", icon: "bot", anyOf: ["ai.use"] },
-  { key: "keys", group: "team", path: "/keys", icon: "key", anyOf: ["ai.use"] },
+  { key: "assistant", group: "ai", path: "/assistant", icon: "sparkles", anyOf: ["ai.use"] },
+  { key: "keys", group: "ai", path: "/keys", icon: "bot", anyOf: ["ai.use"] },
   { key: "settings", group: "business", path: "/settings", icon: "settings", anyOf: ["settings.manage"] },
+  { key: "hostProfile", group: "business", path: "/host-profile", icon: "user", anyOf: [], ownerOnly: true },
 ];
 
 /** The pages a member may open: by permission, and money pages only for owners. */

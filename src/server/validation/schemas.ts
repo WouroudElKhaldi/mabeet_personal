@@ -194,6 +194,17 @@ export const settingsInput = z
   })
   .partial();
 
+export const hostProfileInput = z.object({
+  displayName: optionalText(80),
+  bio: optionalText(1500),
+  phone: phone.nullish(),
+  whatsapp: phone.nullish(),
+  city: optionalText(80),
+  languages: z.array(z.enum(LANGUAGES)).max(LANGUAGES.length),
+  hostingSince: z.number().int().min(1950).max(2100).nullish(),
+  showOnListings: z.boolean(),
+});
+
 export const payoutRequestInput = z
   .object({
     amountCents: z.number().int().min(100).max(100_000_000),

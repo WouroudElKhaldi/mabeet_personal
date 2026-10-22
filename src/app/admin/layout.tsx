@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       label: t("groups.platform"),
       items: [
         { href: "/admin", label: t("overview"), icon: "dashboard", exact: true },
-        { href: "/admin/businesses", label: t("businesses"), icon: "building" },
+        { href: "/admin/hosts", label: t("hosts"), icon: "building" },
         { href: "/admin/users", label: t("users"), icon: "users" },
       ],
     },
@@ -66,7 +66,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
       }
       groups={groups}
-      tabs={["/admin", "/admin/businesses", "/admin/money", "/admin/health"]}
+      tabs={["/admin", "/admin/hosts", "/admin/money", "/admin/health"]}
       user={{ name: user.name, email: user.email }}
       userLinks={userLinks}
     >

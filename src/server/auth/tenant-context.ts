@@ -11,6 +11,11 @@ export interface TenantContext {
   readonly isOwner: boolean;
   readonly permissions: ReadonlySet<Permission>;
   readonly channel: Channel;
+  /**
+   * A platform admin acting in a business they don't belong to: every permission, on the website only.
+   * Their actions are logged under their own user id. They have no membership, so `membershipId` is empty.
+   */
+  readonly platformAdmin?: boolean;
 }
 
 export function can(ctx: TenantContext, permission: Permission): boolean {

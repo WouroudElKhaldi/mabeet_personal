@@ -6414,7 +6414,7 @@
                 "properties": {
                   "palette": {
                     "type": "string",
-                    "enum": ["cedar", "terracotta", "sea", "olive", "jacaranda"]
+                    "enum": ["cedar", "byblos", "batroun", "baalbek", "jounieh"]
                   }
                 },
                 "required": ["palette"]
@@ -7249,6 +7249,230 @@
           }
         ],
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{businessId}/host-profile": {
+      "get": {
+        "tags": ["Workspaces"],
+        "summary": "The signed-in owner's own host profile (owners)",
+        "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "businessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Workspaces"],
+        "summary": "Save the host profile and whether guests see it on the host's listings (owners)",
+        "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "businessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "bio": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\+[1-9]\\d{7,14}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "whatsapp": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\+[1-9]\\d{7,14}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "city": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "languages": {
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["ar", "en", "fr"]
+                    }
+                  },
+                  "hostingSince": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1950,
+                        "maximum": 2100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "showOnListings": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["languages", "showOnListings"]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"

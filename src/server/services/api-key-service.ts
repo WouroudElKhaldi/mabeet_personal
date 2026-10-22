@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { addDays } from "@/lib/dates";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma } from "@/server/db/client";
-import { notFound } from "@/server/errors";
+import { forbidden, notFound } from "@/server/errors";
 import * as keys from "@/server/repositories/api-key-repository";
 import { recordAction } from "./audit";
 import { resolveKeyContext } from "./team-service";
@@ -24,6 +24,9 @@ export interface NewKey {
  */
 export async function createKey(ctx: TenantContext, input: NewKey, now = new Date()) {
   requirePermission(ctx, "ai.use");
+  // A key acts as a team member; a platform admin visiting a business isn't one.
+  if (ctx.platformAdmin)
+    throw forbidden("Platform admins can't create AI keys for a business they don't belong to");
   const raw = `${KEY_PREFIX}${randomBytes(32).toString("base64url")}`;
   const key = await keys.createApiKey(prisma, {
     businessId: ctx.businessId,

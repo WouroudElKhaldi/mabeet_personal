@@ -10,6 +10,15 @@ export function findActiveMembership(db: Db, userId: string, businessId: string)
   });
 }
 
+/** Whether this user is a platform admin, and whether the business exists (suspended ones included). */
+export async function findAdminAccess(db: Db, userId: string, businessId: string) {
+  const [user, business] = await Promise.all([
+    db.user.findUnique({ where: { id: userId }, select: { platformRole: true } }),
+    db.business.findUnique({ where: { id: businessId }, select: { id: true } }),
+  ]);
+  return user?.platformRole === "SUPER_ADMIN" && business !== null;
+}
+
 export function findMembershipById(db: Db, businessId: string, membershipId: string) {
   return db.membership.findFirst({
     where: { id: membershipId, businessId, status: "ACTIVE", business: { status: "ACTIVE" } },

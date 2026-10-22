@@ -29,10 +29,24 @@ function contextFrom(membership: MembershipWithRole, channel: Channel, writeAcce
   };
 }
 
-/** Resolves the acting member for a signed-in user. Returns null when they are not an active member. */
+/**
+ * Resolves the acting member for a signed-in user. A platform admin who isn't a member still gets in, with every
+ * permission, so they can manage any business from their dashboard; only on the website, never through AI keys
+ * or tokens. Returns null for anyone else who isn't an active member.
+ */
 export async function resolveContext(userId: string, businessId: string, channel: Channel = "web") {
   const membership = await team.findActiveMembership(prisma, userId, businessId);
-  return membership && contextFrom(membership, channel);
+  if (membership) return contextFrom(membership, channel);
+  if (channel !== "web" || !(await team.findAdminAccess(prisma, userId, businessId))) return null;
+  return {
+    userId,
+    businessId,
+    membershipId: "",
+    isOwner: true,
+    permissions: new Set(ALL_PERMISSIONS),
+    channel,
+    platformAdmin: true,
+  } satisfies TenantContext;
 }
 
 /** Resolves the member behind an OAuth access token: their own permissions, read-only unless the token may write. */

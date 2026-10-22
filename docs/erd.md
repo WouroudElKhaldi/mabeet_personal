@@ -22,6 +22,19 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  HostProfile {
+    String userId PK, FK
+    String displayName
+    String bio
+    String phone
+    String whatsapp
+    String city
+    String_list languages
+    Int hostingSince
+    Boolean showOnListings
+    DateTime createdAt
+    DateTime updatedAt
+  }
   Session {
     String id PK
     DateTime expiresAt
@@ -583,6 +596,7 @@ erDiagram
     String bookingToken
     DateTime createdAt
   }
+  User ||--o{ HostProfile : "user"
   User ||--o{ Session : "user"
   User ||--o{ Account : "user"
   Business ||--o{ Role : "business"

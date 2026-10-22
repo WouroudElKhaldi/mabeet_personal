@@ -21,6 +21,7 @@ import { ReviewList } from "@/components/listing/review-list";
 import { PlaceMap } from "@/components/listing/place-map";
 import { CategoryIcon } from "@/components/place/category-icon";
 import { FavoriteButton } from "@/components/place/favorite-button";
+import { HostCard } from "@/components/place/host-card";
 import { Gallery } from "@/components/place/gallery";
 import { Rating } from "@/components/ui/rating";
 import { formatMoney } from "@/lib/format";
@@ -213,6 +214,7 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
             openLabel={tMap("openMaps")}
           />
           <ThingsToKnow title={tKnow("title")} items={knowItems} />
+          <HostCard businessId={place.id} />
         </div>
 
         <aside className="lg:sticky lg:top-28 lg:self-start">

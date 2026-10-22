@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Settings,
   ShieldCheck,
+  Sparkles,
   Tags,
   UserRound,
   UsersRound,
@@ -59,6 +60,7 @@ const ICONS = {
   sync: RefreshCw,
   settings: Settings,
   shield: ShieldCheck,
+  sparkles: Sparkles,
   tags: Tags,
   user: UserRound,
   users: UsersRound,
@@ -91,6 +93,8 @@ interface AppShellProps {
   user: { name: string; email: string };
   /** Links in the user menu: account, admin, host dashboard… */
   userLinks: ShellLink[];
+  /** A highlighted shortcut in the top bar, e.g. the AI assistant. */
+  cta?: ShellLink;
   children: ReactNode;
 }
 
@@ -104,7 +108,7 @@ function useActive(groups: ShellGroup[]) {
 }
 
 /** The app frame for the host dashboard and the admin area: sidebar, top bar, phone drawer and tab bar. */
-export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, children }: AppShellProps) {
+export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, cta, children }: AppShellProps) {
   const t = useTranslations("shell");
   const active = useActive(groups);
   const pathname = usePathname();
@@ -214,6 +218,7 @@ export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, chil
               {active?.label ?? area}
             </p>
           </div>
+          {cta && <CtaLink link={cta} />}
           <Link
             href="/"
             className="hidden h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-ink md:inline-flex"
@@ -272,6 +277,19 @@ export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, chil
         </div>
       </nav>
     </div>
+  );
+}
+
+function CtaLink({ link }: { link: ShellLink }) {
+  const Icon = ICONS[link.icon];
+  return (
+    <Link
+      href={link.href}
+      className="inline-flex h-10 items-center gap-2 rounded-full bg-accent px-3 text-sm font-semibold text-accent-ink shadow-soft transition-colors hover:bg-accent-strong sm:px-4"
+    >
+      <Icon className="size-4 text-glow" aria-hidden />
+      <span className="hidden sm:inline">{link.label}</span>
+    </Link>
   );
 }
 

@@ -644,6 +644,21 @@ const OPERATIONS: Operation[] = [
     tag: "Platform",
     auth: "cron",
   },
+  {
+    method: "get",
+    path: "/api/workspaces/{businessId}/host-profile",
+    summary: "The signed-in owner's own host profile (owners)",
+    tag: "Workspaces",
+    auth: "member",
+  },
+  {
+    method: "put",
+    path: "/api/workspaces/{businessId}/host-profile",
+    summary: "Save the host profile and whether guests see it on the host's listings (owners)",
+    tag: "Workspaces",
+    auth: "member",
+    body: s.hostProfileInput,
+  },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {
     method: "post",

@@ -456,8 +456,8 @@
   },
   "dashboard": {
     "myAccount": "My account",
-    "switchWorkspace": "Switch workspace",
-    "newWorkspace": "New workspace",
+    "switchWorkspace": "Switch business",
+    "newWorkspace": "Add a business",
     "nav": {
       "overview": "Today",
       "bookings": "Bookings",
@@ -466,12 +466,13 @@
       "channels": "Channels",
       "reviews": "Reviews",
       "team": "Team",
-      "assistant": "Assistant",
-      "keys": "Connect AI",
+      "assistant": "AI assistant",
+      "keys": "Claude & ChatGPT (MCP)",
       "settings": "Settings",
       "offerings": "Experiences & services",
       "billing": "Billing",
-      "payouts": "Payouts"
+      "payouts": "Payouts",
+      "hostProfile": "My host profile"
     },
     "overview": {
       "title": "Today",
@@ -828,9 +829,11 @@
       "bookings": "Bookings",
       "listings": "Listings",
       "money": "Money",
-      "team": "Team and AI",
-      "business": "Business"
-    }
+      "team": "Team",
+      "business": "Business",
+      "ai": "AI"
+    },
+    "findBusiness": "Find a business"
   },
   "account": {
     "eyebrow": "Your account",
@@ -1098,7 +1101,8 @@
         "money": "Money",
         "content": "Content",
         "operations": "Operations"
-      }
+      },
+      "hosts": "Hosts"
     },
     "overviewIntro": "The platform at a glance, and what needs you today.",
     "businessesIntro": "Every business on Mabeet. Suspending one hides it everywhere at once.",
@@ -1111,6 +1115,31 @@
       "payouts": "{count, plural, =0 {No payouts to send} one {1 payout to send} other {# payouts to send}}",
       "refunds": "{count, plural, =0 {No refunds to send by hand} one {1 refund to send by hand} other {# refunds to send by hand}}",
       "feeds": "{count, plural, =0 {All calendar links syncing} one {1 calendar link failing} other {# calendar links failing}}"
+    },
+    "hosts": {
+      "title": "Hosts",
+      "intro": "{count, plural, one {# host} other {# hosts}}, each listed once with all their businesses. Open one for their profile, contacts and businesses.",
+      "host": "Host",
+      "phone": "Phone",
+      "businesses": "Businesses",
+      "bookings": "Bookings",
+      "since": "Joined",
+      "suspended": "{count} suspended",
+      "open": "Open {name}",
+      "profile": "Host profile",
+      "shown": "Shown to guests",
+      "hidden": "Private",
+      "noProfile": "This host hasn't filled in a profile yet.",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "city": "City",
+      "languages": "Languages",
+      "hostingSince": "Hosting since",
+      "joined": "Joined Mabeet",
+      "theirBusinesses": "{count, plural, one {# business} other {# businesses}}",
+      "counts": "{rooms} rooms · {offerings} experiences · {bookings} bookings · {team} in the team",
+      "openDashboard": "Open dashboard",
+      "openPage": "Public page"
     }
   },
   "errors": {
@@ -1340,7 +1369,9 @@
       "payoutTooMuch": "That is more than is available to pay out.",
       "payoutDecided": "This payout was already decided.",
       "refundNotWaiting": "This refund is not waiting to be sent.",
-      "payByCard": "You pay by card. Change your plan from Manage billing."
+      "payByCard": "You pay by card. Change your plan from Manage billing.",
+      "hostOwnersOnly": "Only an owner has a host profile",
+      "adminNoKeys": "Platform admins can't create AI keys for a business they don't belong to"
     },
     "entities": {
       "Block": "Block",
@@ -1364,7 +1395,8 @@
       "Category": "Category",
       "Payment": "Payment",
       "Payout": "Payout",
-      "Page": "Page"
+      "Page": "Page",
+      "Host": "Host"
     },
     "statuses": {
       "held": "held",
@@ -1573,6 +1605,28 @@
     "hostDashboard": "Host dashboard",
     "hostArea": "Host",
     "adminArea": "Admin",
-    "adminBadge": "Platform admin"
+    "adminBadge": "Platform admin",
+    "askAi": "Ask AI",
+    "adminVisiting": "You're viewing this business as platform admin. Back to hosts"
+  },
+  "hostProfile": {
+    "title": "My host profile",
+    "intro": "About you as a host, shared by all your businesses. It's always saved; guests see it only if you turn it on below.",
+    "displayName": "Name guests see",
+    "displayNameHint": "Leave empty to use your account name.",
+    "city": "Where you live",
+    "phone": "Phone",
+    "whatsapp": "WhatsApp",
+    "hostingSince": "Hosting since (year)",
+    "hostingSinceShort": "Hosting since {year}",
+    "languages": "Languages you speak",
+    "bio": "About you",
+    "bioPlaceholder": "Who you are, why you host, what guests love about your places…",
+    "show": "Show my profile on my listings",
+    "showHint": "Guests then see your name, bio, languages and a WhatsApp button. Your phone number is never shown.",
+    "save": "Save profile",
+    "saved": "Saved.",
+    "yourHost": "Your host",
+    "message": "Message on WhatsApp"
   }
 }
