@@ -897,7 +897,8 @@
       "business": "Business",
       "ai": "AI"
     },
-    "findBusiness": "Find a business"
+    "findBusiness": "Find a business",
+    "allPlaces": "All my places"
   },
   "account": {
     "eyebrow": "Your account",
@@ -1786,5 +1787,20 @@
     "messages": "Messages",
     "embed": "Embed",
     "more": "More options"
+  },
+  "overviewAll": {
+    "title": "All my places",
+    "overview": "Overview",
+    "yourPlaces": "Your places",
+    "intro": "Today across your {count} places. Open one to manage it.",
+    "addPlace": "Add a place",
+    "totals": {
+      "waiting": "Requests waiting",
+      "arriving": "Arriving today",
+      "leaving": "Leaving today",
+      "inHouse": "Staying tonight"
+    },
+    "month": "This month",
+    "noAccess": "Your role here doesn't include bookings."
   }
 }

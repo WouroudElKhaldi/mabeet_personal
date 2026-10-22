@@ -1,8 +1,9 @@
-import { countNights, type DateRange, toIsoDate } from "@/lib/dates";
-import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
+import { countNights, type DateRange, toIsoDate, todayUtc } from "@/lib/dates";
+import { can, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma } from "@/server/db/client";
 import * as analytics from "@/server/repositories/analytics-repository";
 import { sumPlanRevenue } from "@/server/repositories/money-repository";
+import { listWorkspaces, resolveContext } from "./team-service";
 import { findBusinessSettings } from "@/server/repositories/business-repository";
 
 // One reporting layer for the dashboard, the owner AI and the MCP tools, so their numbers always match.
@@ -85,6 +86,52 @@ export async function getSavings(ctx: TenantContext): Promise<Savings[]> {
     directRevenueCents: row.cents,
     commissionSavedCents: Math.round((row.cents * business.commissionRateBps) / 10_000),
     planFeesUsdCents,
+  }));
+}
+
+/**
+ * An owner's places side by side: today's arrivals and departures, who's in, requests waiting and this month's
+ * direct revenue. Only for places where the person may read bookings; the rest are listed without numbers.
+ */
+export async function getPlacesOverview(userId: string, today = todayUtc()) {
+  const memberships = await listWorkspaces(userId);
+  const contexts = await Promise.all(
+    memberships.map((membership) => resolveContext(userId, membership.businessId)),
+  );
+  const readable = contexts.filter((ctx): ctx is TenantContext => ctx !== null && can(ctx, "bookings.read"));
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const nextMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
+  const [snapshots, currencies] = await Promise.all([
+    readable.length > 0
+      ? analytics.placeSnapshots(
+          prisma,
+          readable.map((ctx) => ctx.businessId),
+          today,
+          monthStart,
+          nextMonth,
+        )
+      : Promise.resolve([]),
+    Promise.all(readable.map((ctx) => findBusinessSettings(prisma, ctx.businessId))),
+  ]);
+  const byId = new Map(snapshots.map((row) => [row.businessId, row]));
+  const currencyOf = new Map(
+    readable.map((ctx, index) => [ctx.businessId, currencies[index]?.currency ?? "USD"]),
+  );
+  return memberships.map((membership) => ({
+    id: membership.businessId,
+    name: membership.business.name,
+    slug: membership.business.slug,
+    role: membership.role.name,
+    currency: currencyOf.get(membership.businessId) ?? "USD",
+    stats: currencyOf.has(membership.businessId)
+      ? (byId.get(membership.businessId) ?? {
+          waiting: 0,
+          arrivingToday: 0,
+          leavingToday: 0,
+          inHouse: 0,
+          monthRevenueCents: 0,
+        })
+      : null,
   }));
 }
 

@@ -6,6 +6,9 @@ import { listWorkspaces } from "@/server/services/team-service";
 export default async function HomeAfterSignIn() {
   const user = await requirePageUser();
   if (user.platformRole === "SUPER_ADMIN") redirect("/admin");
-  const [first] = await listWorkspaces(user.id);
-  redirect(first ? `/dashboard/${first.businessId}` : "/");
+  const workspaces = await listWorkspaces(user.id);
+  // Several places: the "all my places" overview; one: straight to it.
+  redirect(
+    workspaces.length > 1 ? "/dashboard" : workspaces[0] ? `/dashboard/${workspaces[0].businessId}` : "/",
+  );
 }

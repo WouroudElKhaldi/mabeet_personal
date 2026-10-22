@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { DateRange } from "@/lib/dates";
 import type { Db } from "@/server/db/client";
 
@@ -82,6 +83,40 @@ export async function lifetimeDirectRevenue(db: Db, businessId: string) {
      ) direct GROUP BY currency`,
     businessId,
   );
+}
+
+export interface PlaceSnapshot {
+  businessId: string;
+  /** Requests waiting for an answer. */
+  waiting: number;
+  arrivingToday: number;
+  leavingToday: number;
+  /** Guests staying tonight. */
+  inHouse: number;
+  /** Confirmed direct revenue for stays starting this month. */
+  monthRevenueCents: number;
+}
+
+/** Today at a glance for several places at once, for an owner's "all my places" screen. */
+export function placeSnapshots(
+  db: Db,
+  businessIds: string[],
+  today: Date,
+  monthStart: Date,
+  nextMonth: Date,
+) {
+  return db.$queryRaw<PlaceSnapshot[]>`
+    SELECT b."businessId",
+           COUNT(*) FILTER (WHERE b.status = 'HELD')::int AS waiting,
+           COUNT(*) FILTER (WHERE b.status IN ('CONFIRMED', 'AWAITING_PAYMENT') AND b."checkIn" = ${today}::date)::int AS "arrivingToday",
+           COUNT(*) FILTER (WHERE b.status = 'CONFIRMED' AND b."checkOut" = ${today}::date)::int AS "leavingToday",
+           COUNT(*) FILTER (WHERE b.status = 'CONFIRMED' AND b."checkIn" <= ${today}::date AND b."checkOut" > ${today}::date)::int AS "inHouse",
+           COALESCE(SUM(b."totalCents") FILTER (
+             WHERE b.status = 'CONFIRMED' AND b."checkIn" >= ${monthStart}::date AND b."checkIn" < ${nextMonth}::date
+           ), 0)::int AS "monthRevenueCents"
+    FROM "Booking" b
+    WHERE b."businessId" IN (${Prisma.join(businessIds)})
+    GROUP BY b."businessId"`;
 }
 
 export function countActiveRooms(db: Db, businessId: string) {

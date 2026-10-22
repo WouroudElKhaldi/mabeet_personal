@@ -1,7 +1,7 @@
 "use client";
 
 import { clsx } from "clsx";
-import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, Plus, Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -119,6 +119,16 @@ export function WorkspaceSwitcher({ current, workspaces }: { current: string; wo
                 </li>
               ))}
             </ul>
+            {workspaces.length > 1 && (
+              <Link
+                href="/dashboard"
+                onClick={() => setOpen(false)}
+                className="mt-1 flex items-center gap-3 rounded-lg border-t border-line px-2.5 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-2"
+              >
+                <LayoutGrid className="size-4 text-muted" aria-hidden />
+                {t("allPlaces")}
+              </Link>
+            )}
             <Link
               href="/host"
               onClick={() => setOpen(false)}

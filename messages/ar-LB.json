@@ -897,7 +897,8 @@
       "business": "المحل",
       "ai": "الذكاء الاصطناعي"
     },
-    "findBusiness": "فتّش عمحل"
+    "findBusiness": "فتّش عمحل",
+    "allPlaces": "كل محلاتي"
   },
   "account": {
     "eyebrow": "حسابك",
@@ -1786,5 +1787,20 @@
     "messages": "رسائل",
     "embed": "تضمين",
     "more": "خيارات تانية"
+  },
+  "overviewAll": {
+    "title": "كل محلاتي",
+    "overview": "نظرة عامة",
+    "yourPlaces": "محلاتك",
+    "intro": "اليوم بمحلاتك الـ {count}. افتح واحد لتديرو.",
+    "addPlace": "زيد محل",
+    "totals": {
+      "waiting": "طلبات ناطرتك",
+      "arriving": "واصلين اليوم",
+      "leaving": "فالّين اليوم",
+      "inHouse": "نايمين الليلة"
+    },
+    "month": "هالشهر",
+    "noAccess": "دورك هون ما بيشمل الحجوزات."
   }
 }
