@@ -264,6 +264,18 @@ async function seedPlace(place: DemoPlace, ownerId: string) {
   await ensurePhotos(business.id, place);
 }
 
+/** A front-desk staff member at the first demo place, so roles can be tried without setting anything up. */
+async function seedFrontDeskStaff(password: string) {
+  const staff = await ensureUser("staff@mabeet.test", "Demo Front Desk", password);
+  const business = await prisma.business.findFirstOrThrow({ where: { name: PLACES[0]!.name } });
+  const role = await prisma.role.findFirstOrThrow({ where: { businessId: business.id, name: "Front desk" } });
+  await prisma.membership.upsert({
+    where: { userId_businessId: { userId: staff.id, businessId: business.id } },
+    create: { userId: staff.id, businessId: business.id, roleId: role.id },
+    update: { roleId: role.id, status: "ACTIVE" },
+  });
+}
+
 async function main() {
   const categories = [
     ...CATEGORIES.map((category) => ({ ...category, kind: "HOME" as const })),
@@ -282,13 +294,14 @@ async function main() {
   await ensureUser("guest@mabeet.test", "Demo Guest", password);
 
   for (const place of PLACES) await seedPlace(place, host.id);
+  await seedFrontDeskStaff(password);
   await seedPlaceDetails();
   const offerings = await seedOfferings();
   console.log(
     `Seeded ${categories.length} categories, ${PLACES.length} demo places and ${offerings} experiences and services.`,
   );
   console.log(
-    "Sign in as host@mabeet.test, guest@mabeet.test or admin@mabeet.test (password: SEED_PASSWORD).",
+    "Sign in as host@mabeet.test, staff@mabeet.test, guest@mabeet.test or admin@mabeet.test (password: SEED_PASSWORD).",
   );
 }
 

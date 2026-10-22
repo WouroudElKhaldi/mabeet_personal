@@ -32,13 +32,15 @@ pnpm dev                # open http://localhost:3000
 
 **Demo accounts.** All use the password `demo-password-123` (or your `SEED_PASSWORD`, if you set one):
 
-| Email               | What it is                                      |
-| ------------------- | ----------------------------------------------- |
-| `admin@mabeet.test` | Platform admin. Go to `/admin` after signing in |
-| `host@mabeet.test`  | Owner of every demo place. Go to `/dashboard`   |
-| `guest@mabeet.test` | A guest with an account                         |
+| Email               | What it is                                              |
+| ------------------- | ------------------------------------------------------- |
+| `admin@mabeet.test` | Platform admin. Go to `/admin` after signing in         |
+| `host@mabeet.test`  | Owner of every demo place. Go to `/dashboard`           |
+| `staff@mabeet.test` | Front desk staff at Dar Al Sindiyan. Go to `/dashboard` |
+| `guest@mabeet.test` | A guest with an account                                 |
 
-To try a staff account, sign up a new user, then add them from the owner's **Team** page.
+The front desk role handles bookings, guests, deposits and closed dates, but can't see the numbers, change rooms
+or settings, or manage the team. Owners can change that on the **Team** page.
 
 ## Settings (`.env`)
 
