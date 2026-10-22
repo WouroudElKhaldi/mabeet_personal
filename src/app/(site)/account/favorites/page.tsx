@@ -6,7 +6,7 @@ import { requirePageUser } from "@/server/http/session";
 import { listFavoritePlaces } from "@/server/services/favorite-service";
 
 export default async function FavoritesPage() {
-  const user = await requirePageUser("/account/favorites");
+  const user = await requirePageUser();
   const [t, places] = await Promise.all([getTranslations("account"), listFavoritePlaces(user.id)]);
   if (places.length === 0) {
     return (

@@ -1,61 +1,59 @@
 import { clsx } from "clsx";
-import type { Metadata } from "next";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { StatTile } from "@/components/dashboard/stat-tile";
-import { BusinessStatusToggle } from "@/components/dashboard/business-status-toggle";
-import { CategoryManager } from "@/components/dashboard/category-manager";
-import { SitePalettePicker } from "@/components/dashboard/site-palette-picker";
-import { Wordmark } from "@/components/site/wordmark";
-import { AppearanceMenu } from "@/components/theme/appearance-menu";
+import { PageHeader, Panel } from "@/components/shell/page-header";
 import { formatDate } from "@/lib/format";
 import { requirePageUser } from "@/server/http/session";
-import {
-  getAiUsage,
-  getPlatformOverview,
-  getSyncHealth,
-  listCategoriesForAdmin,
-} from "@/server/services/admin-service";
-import { getSitePalette } from "@/server/services/site-service";
+import { getAiUsage, getPlatformOverview, getSyncHealth } from "@/server/services/admin-service";
+import { getPlatformMoney } from "@/server/services/payout-service";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("admin");
-  return { title: t("title"), robots: { index: false } };
-}
-
-export default async function AdminPage() {
-  const user = await requirePageUser("/admin");
-  if (user.platformRole !== "SUPER_ADMIN") notFound();
-  const [t, locale, { totals, businesses, users }, palette, categories, ai, sync] = await Promise.all([
+/** The platform at a glance, and what needs the admin's attention today. */
+export default async function AdminOverviewPage() {
+  const user = await requirePageUser();
+  const [t, locale, { totals, businesses }, ai, sync, money] = await Promise.all([
     getTranslations("admin"),
     getLocale(),
     getPlatformOverview(user),
-    getSitePalette(),
-    listCategoriesForAdmin(user),
     getAiUsage(user),
     getSyncHealth(user),
+    getPlatformMoney(user),
   ]);
   const usd = (micro: number) =>
     new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(
       micro / 1_000_000,
     );
-  const when = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" });
+  const earned = money.revenue.thisMonth
+    .filter((row) => row.currency === "USD")
+    .reduce((sum, row) => sum + (row._sum.amountCents ?? 0), 0);
+  const attention = [
+    {
+      href: "/admin/money",
+      label: t("attention.payouts", { count: money.requests.length }),
+      urgent: money.requests.length > 0,
+    },
+    {
+      href: "/admin/money",
+      label: t("attention.refunds", { count: money.refunds.length }),
+      urgent: money.refunds.length > 0,
+    },
+    {
+      href: "/admin/health",
+      label: t("attention.feeds", { count: sync.unhealthy.length }),
+      urgent: sync.unhealthy.length > 0,
+    },
+    {
+      href: "/admin/health",
+      label: t("ai.ofBudget", { spent: usd(ai.costMicroUsd), budget: usd(ai.budgetMicroUsd) }),
+      urgent: ai.costMicroUsd >= ai.budgetMicroUsd * 0.8,
+    },
+  ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex items-center justify-between">
-        <Wordmark />
-        <AppearanceMenu />
-      </header>
-      <div className="mt-10 flex flex-wrap items-end justify-between gap-4">
-        <h1 className="rise-in text-4xl font-semibold">{t("title")}</h1>
-        <Link href="/admin/money" className="font-semibold underline underline-offset-4">
-          {t("money.link")}
-        </Link>
-      </div>
-
-      <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <>
+      <PageHeader title={t("nav.overview")} intro={t("overviewIntro")} />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label={t("businesses")} value={totals.businesses} kind="count" />
         <StatTile label={t("users")} value={totals.users} kind="count" />
         <StatTile
@@ -64,176 +62,55 @@ export default async function AdminPage() {
           kind="count"
           note={t("allTime", { count: totals.bookings })}
         />
-        {(totals.recentConfirmed.length > 0 ? totals.recentConfirmed : [{ currency: "USD", cents: 0 }]).map(
-          ({ currency, cents }) => (
-            <StatTile
-              key={currency}
-              label={t("confirmed30")}
-              value={cents}
-              kind="money"
-              currency={currency}
-            />
-          ),
-        )}
+        <StatTile label={t("money.earnedMonth")} value={earned} kind="money" currency="USD" />
       </section>
 
-      <section className="mt-12 grid gap-8 lg:grid-cols-2">
-        <div>
-          <h2 className="text-2xl font-semibold">{t("ai.title")}</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
-            {t("ai.ofBudget", { spent: usd(ai.costMicroUsd), budget: usd(ai.budgetMicroUsd) })}
-          </p>
-          <div
-            className="mb-4 h-2 overflow-hidden rounded-full bg-surface-2"
-            role="meter"
-            aria-label={t("ai.title")}
-            aria-valuemin={0}
-            aria-valuemax={ai.budgetMicroUsd}
-            aria-valuenow={ai.costMicroUsd}
-          >
-            <div
-              className={clsx(
-                "h-full rounded-full",
-                ai.costMicroUsd >= ai.budgetMicroUsd * 0.8 ? "bg-danger" : "bg-accent",
-              )}
-              style={{ width: `${Math.min(100, (ai.costMicroUsd / ai.budgetMicroUsd) * 100)}%` }}
-            />
-          </div>
-          {ai.surfaces.length === 0 ? (
-            <p className="text-sm text-faint">{t("ai.none")}</p>
-          ) : (
-            <ul className="grid gap-2">
-              {ai.surfaces.map((row) => (
-                <li
-                  key={row.surface}
-                  className="flex items-center justify-between gap-3 rounded-lg bg-surface p-4 text-sm ring-1 ring-line"
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <Panel title={t("attention.title")}>
+          <ul className="grid gap-2">
+            {attention.map((item) => (
+              <li key={item.label}>
+                <Link
+                  href={item.href}
+                  className="flex items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm ring-1 ring-line transition-colors hover:bg-surface-2"
                 >
-                  <span className="font-semibold">
-                    {t(`ai.surfaces.${row.surface === "team" ? "team" : "concierge"}`)}
-                  </span>
-                  <span className="text-muted tabular-nums">
-                    {t("ai.row", { answers: row.answers, tokens: row.tokens })} · {usd(row.costMicroUsd)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div>
-          <h2 className="text-2xl font-semibold">{t("sync.title")}</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
-            {t("sync.summary", { total: sync.total, problems: sync.unhealthy.length })}
-          </p>
-          {sync.unhealthy.length === 0 ? (
-            <p className="text-sm text-faint">{t("sync.allGood")}</p>
-          ) : (
-            <ul className="grid gap-2">
-              {sync.unhealthy.map((feed) => (
-                <li key={feed.id} className="rounded-lg bg-surface p-4 text-sm ring-1 ring-line">
-                  <p className="font-semibold">
-                    {feed.business.name} · {feed.room.name}{" "}
-                    <span className="font-normal text-muted">({feed.source})</span>
-                  </p>
-                  <p className="mt-1 text-muted">
-                    {feed.lastSyncedAt
-                      ? t("sync.lastSynced", { when: when.format(feed.lastSyncedAt) })
-                      : t("sync.never")}
-                  </p>
-                  {feed.lastError && <p className="mt-1 text-danger">{feed.lastError}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      <section className="mt-12">
-        <h2 className="text-2xl font-semibold">{t("theme.title")}</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">{t("theme.hint")}</p>
-        <SitePalettePicker current={palette} />
-      </section>
-
-      <section className="mt-12">
-        <h2 className="text-2xl font-semibold">{t("categories.title")}</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">{t("categories.hint")}</p>
-        <CategoryManager
-          categories={categories.map(({ _count, ...category }) => ({
-            ...category,
-            uses: _count.businesses + _count.offerings,
-          }))}
-        />
-      </section>
-
-      <section className="mt-12">
-        <h2 className="text-2xl font-semibold">{t("businesses")}</h2>
-        <div className="mt-4 overflow-x-auto rounded-xl bg-surface ring-1 ring-line">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="text-start text-xs tracking-wide text-muted uppercase">
-              <tr className="border-b border-line">
-                <th className="px-4 py-3 text-start">{t("name")}</th>
-                <th className="px-4 py-3 text-start">{t("area")}</th>
-                <th className="px-4 py-3 text-end">{t("rooms")}</th>
-                <th className="px-4 py-3 text-end">{t("bookings")}</th>
-                <th className="px-4 py-3 text-end">{t("team")}</th>
-                <th className="px-4 py-3 text-start">{t("since")}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {businesses.map((business) => (
-                <tr
-                  key={business.id}
-                  className={clsx(
-                    "border-b border-line last:border-0",
-                    business.status === "SUSPENDED" && "opacity-60",
-                  )}
-                >
-                  <td className="px-4 py-3 font-semibold">
-                    <Link href={`/p/${business.slug}`} className="hover:underline">
-                      {business.name}
-                    </Link>
-                    {business.listedPublicly && (
-                      <span className="ms-2 text-xs text-accent">{t("listed")}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted">{business.area}</td>
-                  <td className="px-4 py-3 text-end tabular-nums">{business._count.rooms}</td>
-                  <td className="px-4 py-3 text-end tabular-nums">{business._count.bookings}</td>
-                  <td className="px-4 py-3 text-end tabular-nums">{business._count.memberships}</td>
-                  <td className="px-4 py-3 text-muted">{formatDate(business.createdAt, locale)}</td>
-                  <td className="px-4 py-3 text-end">
-                    <BusinessStatusToggle
-                      businessId={business.id}
-                      businessName={business.name}
-                      suspended={business.status === "SUSPENDED"}
+                  <span className="flex items-center gap-3">
+                    <span
+                      className={clsx(
+                        "size-2.5 shrink-0 rounded-full",
+                        item.urgent ? "bg-danger" : "bg-success",
+                      )}
+                      aria-hidden
                     />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mt-12">
-        <h2 className="text-2xl font-semibold">{t("recentUsers")}</h2>
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-          {users.map((member) => (
-            <li
-              key={member.id}
-              className="flex items-center justify-between gap-3 rounded-lg bg-surface p-4 ring-1 ring-line"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{member.name}</p>
-                <p className="truncate text-sm text-muted">{member.email}</p>
-              </div>
-              <p className="text-end text-xs text-muted">
-                {t("userCounts", { places: member._count.memberships, trips: member._count.bookings })}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
+                    {item.label}
+                  </span>
+                  <ArrowRight className="size-4 shrink-0 text-muted rtl:rotate-180" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+        <Panel
+          title={t("newestBusinesses")}
+          action={
+            <Link href="/admin/businesses" className="text-sm font-semibold text-accent hover:underline">
+              {t("seeAll")}
+            </Link>
+          }
+        >
+          <ul className="grid gap-1">
+            {businesses.slice(0, 6).map((business) => (
+              <li
+                key={business.id}
+                className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm last:border-0"
+              >
+                <span className="truncate font-semibold">{business.name}</span>
+                <span className="shrink-0 text-muted">{formatDate(business.createdAt, locale)}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
+    </>
   );
 }

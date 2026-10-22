@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PayoutDecision, RefundSent } from "@/components/dashboard/payout-decision";
 import { StatTile } from "@/components/dashboard/stat-tile";
-import { Wordmark } from "@/components/site/wordmark";
-import { AppearanceMenu } from "@/components/theme/appearance-menu";
+import { PageHeader } from "@/components/shell/page-header";
 import { formatDate, formatMoney } from "@/lib/format";
 import { requirePageUser } from "@/server/http/session";
 import { getPlatformMoney } from "@/server/services/payout-service";
@@ -20,8 +17,7 @@ const sumUsd = (rows: Array<{ currency: string; _sum: { amountCents: number | nu
 
 /** The founder's money page: what Mabeet earned from plans, what it owes each host, and what to send. */
 export default async function AdminMoneyPage() {
-  const user = await requirePageUser("/admin/money");
-  if (user.platformRole !== "SUPER_ADMIN") notFound();
+  const user = await requirePageUser();
   const [t, locale, data] = await Promise.all([
     getTranslations("admin.money"),
     getLocale(),
@@ -31,18 +27,10 @@ export default async function AdminMoneyPage() {
   const byMethod = (method: string) => sumUsd(data.revenue.allTime.filter((row) => row.method === method));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex items-center justify-between">
-        <Wordmark />
-        <AppearanceMenu />
-      </header>
-      <Link href="/admin" className="mt-8 inline-block text-sm font-semibold text-muted hover:text-ink">
-        {t("back")}
-      </Link>
-      <h1 className="rise-in mt-2 text-4xl font-semibold">{t("title")}</h1>
-      <p className="mt-2 max-w-2xl text-muted">{t("intro")}</p>
+    <>
+      <PageHeader title={t("title")} intro={t("intro")} />
 
-      <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label={t("earnedAll")} value={sumUsd(data.revenue.allTime)} kind="money" currency="USD" />
         <StatTile
           label={t("earnedMonth")}
@@ -177,6 +165,6 @@ export default async function AdminMoneyPage() {
           </ul>
         </section>
       )}
-    </div>
+    </>
   );
 }

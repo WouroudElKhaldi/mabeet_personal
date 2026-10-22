@@ -3,18 +3,21 @@
 import { LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { authClient, safeNextPath } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const t = useTranslations("auth");
   const locale = useLocale();
-  const router = useRouter();
-  const next = safeNextPath(useSearchParams().get("next"));
+  // One way in: after signing in, /home sends admins, hosts and guests each to their own place. The only
+  // parameters ever on this page are an AI app's OAuth request, which must survive sign-in and sign-up.
+  const params = useSearchParams();
+  const next = "/home";
+  const oauthQuery = params.has("client_id") ? `?${params.toString()}` : "";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -65,8 +68,9 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       setPending(false);
       return;
     }
-    router.replace(next);
-    router.refresh();
+    // A full page load, not a client-side jump: the router may still hold the "sign in first" redirect it got
+    // for this page before the session existed.
+    window.location.assign(next);
   };
 
   const other = mode === "sign-in" ? "sign-up" : "sign-in";
@@ -76,10 +80,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       <div role="status" className="grid gap-4 rounded-2xl bg-accent-soft p-6">
         <p className="text-lg font-semibold">{t("checkInbox.title")}</p>
         <p className="text-muted">{t("checkInbox.body", { email: sentTo })}</p>
-        <Link
-          href={`/sign-in?next=${encodeURIComponent(next)}`}
-          className="font-semibold underline underline-offset-4"
-        >
+        <Link href={`/sign-in${oauthQuery}`} className="font-semibold underline underline-offset-4">
           {t("checkInbox.back")}
         </Link>
       </div>
@@ -129,7 +130,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       <p className="text-center text-sm text-muted">
         {t(`${mode}.switchPrompt`)}{" "}
         <Link
-          href={`/${other}?next=${encodeURIComponent(next)}`}
+          href={`/${other}${oauthQuery}`}
           className="font-semibold text-ink underline-offset-4 hover:underline"
         >
           {t(`${other}.title`)}

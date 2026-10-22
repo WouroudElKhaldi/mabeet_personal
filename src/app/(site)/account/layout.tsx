@@ -7,7 +7,7 @@ import { requirePageUser } from "@/server/http/session";
 import { listWorkspaces } from "@/server/services/team-service";
 
 export default async function AccountLayout({ children }: { children: ReactNode }) {
-  const user = await requirePageUser("/account");
+  const user = await requirePageUser();
   const [t, workspaces] = await Promise.all([getTranslations("account"), listWorkspaces(user.id)]);
   return (
     <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6">

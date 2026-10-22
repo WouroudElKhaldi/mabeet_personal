@@ -47,10 +47,10 @@ export default async function HostPage() {
           <CreateWorkspaceForm />
         ) : (
           <div className="grid gap-3">
-            <ButtonLink href="/sign-up?next=/host" size="lg">
+            <ButtonLink href="/sign-up" size="lg">
               {t("signUpFirst")}
             </ButtonLink>
-            <ButtonLink href="/sign-in?next=/host" variant="secondary">
+            <ButtonLink href="/sign-in" variant="secondary">
               {t("haveAccount")}
             </ButtonLink>
           </div>

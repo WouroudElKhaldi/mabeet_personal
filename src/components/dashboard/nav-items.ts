@@ -1,59 +1,62 @@
-import {
-  Bot,
-  CalendarRange,
-  Compass,
-  CreditCard,
-  DoorOpen,
-  Inbox,
-  KeyRound,
-  LayoutDashboard,
-  Landmark,
-  type LucideIcon,
-  RefreshCw,
-  Settings,
-  MessageSquareQuote,
-  UsersRound,
-} from "lucide-react";
+import type { IconName } from "@/components/shell/app-shell";
 import type { Permission } from "@/server/auth/permissions";
+
+export type NavGroupKey = "today" | "bookings" | "listings" | "money" | "team" | "business";
 
 export interface NavItem {
   key:
     | "overview"
     | "bookings"
     | "calendar"
+    | "channels"
     | "rooms"
     | "offerings"
-    | "channels"
     | "reviews"
+    | "payouts"
+    | "billing"
     | "team"
     | "assistant"
     | "keys"
-    | "settings"
-    | "billing"
-    | "payouts";
+    | "settings";
+  group: NavGroupKey;
   path: string;
-  icon: LucideIcon;
+  icon: IconName;
   /** Shown when the member holds any of these; empty means everyone. */
   anyOf: Permission[];
+  /** Money that belongs to the business: owners only, whatever their role says. */
+  ownerOnly?: boolean;
 }
 
-export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "overview", path: "", icon: LayoutDashboard, anyOf: [] },
-  { key: "bookings", path: "/bookings", icon: Inbox, anyOf: ["bookings.read"] },
-  { key: "calendar", path: "/calendar", icon: CalendarRange, anyOf: ["calendar.read"] },
-  { key: "rooms", path: "/rooms", icon: DoorOpen, anyOf: ["rooms.read"] },
-  { key: "offerings", path: "/offerings", icon: Compass, anyOf: ["offerings.manage"] },
-  { key: "channels", path: "/channels", icon: RefreshCw, anyOf: ["feeds.manage"] },
-  { key: "reviews", path: "/reviews", icon: MessageSquareQuote, anyOf: ["reviews.reply"] },
-  { key: "team", path: "/team", icon: UsersRound, anyOf: ["team.manage", "roles.manage"] },
-  { key: "assistant", path: "/assistant", icon: Bot, anyOf: ["ai.use"] },
-  { key: "keys", path: "/keys", icon: KeyRound, anyOf: ["ai.use"] },
-  { key: "settings", path: "/settings", icon: Settings, anyOf: ["settings.manage"] },
-  { key: "billing", path: "/billing", icon: CreditCard, anyOf: ["settings.manage"] },
-  // The page itself is owners only; settings.manage is the closest permission for showing the link.
-  { key: "payouts", path: "/payouts", icon: Landmark, anyOf: ["settings.manage"] },
+export const NAV_GROUPS: readonly NavGroupKey[] = [
+  "today",
+  "bookings",
+  "listings",
+  "money",
+  "team",
+  "business",
 ];
 
-export function visibleNavItems(permissions: ReadonlySet<Permission>): NavItem[] {
-  return NAV_ITEMS.filter((item) => item.anyOf.length === 0 || item.anyOf.some((p) => permissions.has(p)));
+const NAV_ITEMS: readonly NavItem[] = [
+  { key: "overview", group: "today", path: "", icon: "dashboard", anyOf: [] },
+  { key: "bookings", group: "bookings", path: "/bookings", icon: "inbox", anyOf: ["bookings.read"] },
+  { key: "calendar", group: "bookings", path: "/calendar", icon: "calendar", anyOf: ["calendar.read"] },
+  { key: "channels", group: "bookings", path: "/channels", icon: "sync", anyOf: ["feeds.manage"] },
+  { key: "rooms", group: "listings", path: "/rooms", icon: "door", anyOf: ["rooms.read"] },
+  { key: "offerings", group: "listings", path: "/offerings", icon: "compass", anyOf: ["offerings.manage"] },
+  { key: "reviews", group: "listings", path: "/reviews", icon: "quote", anyOf: ["reviews.reply"] },
+  { key: "payouts", group: "money", path: "/payouts", icon: "landmark", anyOf: [], ownerOnly: true },
+  { key: "billing", group: "money", path: "/billing", icon: "card", anyOf: ["settings.manage"] },
+  { key: "team", group: "team", path: "/team", icon: "users", anyOf: ["team.manage", "roles.manage"] },
+  { key: "assistant", group: "team", path: "/assistant", icon: "bot", anyOf: ["ai.use"] },
+  { key: "keys", group: "team", path: "/keys", icon: "key", anyOf: ["ai.use"] },
+  { key: "settings", group: "business", path: "/settings", icon: "settings", anyOf: ["settings.manage"] },
+];
+
+/** The pages a member may open: by permission, and money pages only for owners. */
+export function visibleNavItems(permissions: ReadonlySet<Permission>, isOwner: boolean): NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) =>
+      (!item.ownerOnly || isOwner) &&
+      (item.anyOf.length === 0 || item.anyOf.some((permission) => permissions.has(permission))),
+  );
 }

@@ -3,7 +3,7 @@
 import { clsx } from "clsx";
 import { Heart } from "lucide-react";
 import { motion } from "motion/react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
 import { toggleFavorite } from "@/app/actions/favorites";
@@ -25,7 +25,6 @@ export function FavoriteButton({
 }) {
   const t = useTranslations("place");
   const router = useRouter();
-  const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useOptimistic(initial);
 
@@ -33,7 +32,7 @@ export function FavoriteButton({
     event.preventDefault();
     event.stopPropagation();
     if (!signedIn) {
-      router.push(`/sign-in?next=${encodeURIComponent(pathname)}`);
+      router.push("/sign-in");
       return;
     }
     startTransition(async () => {

@@ -12,15 +12,16 @@ export const getCurrentUser = cache(async () => {
   return session?.user ?? null;
 });
 
-export async function requirePageUser(returnTo: string) {
+/** Signed-out visitors go to the one sign-in page; after signing in, /home sends them where their role belongs. */
+export async function requirePageUser() {
   const user = await getCurrentUser();
-  if (!user) redirect(`/sign-in?next=${encodeURIComponent(returnTo)}`);
+  if (!user) redirect("/sign-in");
   return user;
 }
 
 /** The acting member for a dashboard page. Non-members get the 404 page, like the API. */
 export const requirePageTenant = cache(async (businessId: string): Promise<TenantContext> => {
-  const user = await requirePageUser(`/dashboard/${businessId}`);
+  const user = await requirePageUser();
   const ctx = await resolveContext(user.id, businessId);
   if (!ctx) notFound();
   return ctx;

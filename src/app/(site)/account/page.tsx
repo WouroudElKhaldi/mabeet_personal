@@ -13,7 +13,7 @@ import { listMyBookings } from "@/server/services/booking-service";
 import { listMySessionBookings } from "@/server/services/session-booking-service";
 
 export default async function TripsPage() {
-  const user = await requirePageUser("/account");
+  const user = await requirePageUser();
   const [t, locale, bookings, sessionBookings] = await Promise.all([
     getTranslations("account"),
     getLocale(),

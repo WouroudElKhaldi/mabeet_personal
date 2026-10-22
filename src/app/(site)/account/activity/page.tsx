@@ -16,7 +16,7 @@ type KnownAction = keyof typeof ACTIONS;
 const isKnown = (action: string): action is KnownAction => action in ACTIONS;
 
 export default async function ActivityPage() {
-  const user = await requirePageUser("/account/activity");
+  const user = await requirePageUser();
   const [t, locale, activity] = await Promise.all([
     getTranslations("account.activity"),
     getLocale(),

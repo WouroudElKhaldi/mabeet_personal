@@ -822,6 +822,14 @@
         "PAID": "Sent",
         "REJECTED": "Refused"
       }
+    },
+    "navGroups": {
+      "today": "Today",
+      "bookings": "Bookings",
+      "listings": "Listings",
+      "money": "Money",
+      "team": "Team and AI",
+      "business": "Business"
     }
   },
   "account": {
@@ -1037,9 +1045,7 @@
       "never": "Never synced"
     },
     "money": {
-      "link": "Money",
       "title": "Money",
-      "back": "← Platform admin",
       "intro": "What Mabeet earned from plans, what it holds for each host from online payments, and what you need to send.",
       "earnedAll": "Earned from plans",
       "earnedMonth": "Earned this month",
@@ -1071,6 +1077,33 @@
         "PAID": "Sent",
         "REJECTED": "Refused"
       }
+    },
+    "nav": {
+      "overview": "Overview",
+      "businesses": "Businesses",
+      "users": "Users",
+      "money": "Money",
+      "categories": "Categories",
+      "appearance": "Appearance",
+      "health": "Health",
+      "groups": {
+        "platform": "Platform",
+        "money": "Money",
+        "content": "Content",
+        "operations": "Operations"
+      }
+    },
+    "overviewIntro": "The platform at a glance, and what needs you today.",
+    "businessesIntro": "Every business on Mabeet. Suspending one hides it everywhere at once.",
+    "usersIntro": "The newest accounts: guests, hosts and staff.",
+    "healthIntro": "What runs on its own: calendar sync with the platforms, and AI spending.",
+    "newestBusinesses": "Newest businesses",
+    "seeAll": "See all",
+    "attention": {
+      "title": "Needs your attention",
+      "payouts": "{count, plural, =0 {No payouts to send} one {1 payout to send} other {# payouts to send}}",
+      "refunds": "{count, plural, =0 {No refunds to send by hand} one {1 refund to send by hand} other {# refunds to send by hand}}",
+      "feeds": "{count, plural, =0 {All calendar links syncing} one {1 calendar link failing} other {# calendar links failing}}"
     }
   },
   "errors": {
@@ -1519,5 +1552,20 @@
     "wrongCode": "That code didn't work. Try again: the payment is still open.",
     "done": "Paid. Taking you back…",
     "closed": "This payment link is closed."
+  },
+  "shell": {
+    "signOut": "Sign out",
+    "close": "Close menu",
+    "menu": "Open menu",
+    "viewSite": "View site",
+    "notifications": "Notifications",
+    "tabs": "Main pages",
+    "more": "More",
+    "account": "My account",
+    "admin": "Platform admin",
+    "hostDashboard": "Host dashboard",
+    "hostArea": "Host",
+    "adminArea": "Admin",
+    "adminBadge": "Platform admin"
   }
 }
