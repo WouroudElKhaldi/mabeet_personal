@@ -7,8 +7,9 @@
    so light/dark and every palette come for free.
    ------------------------------------------------------------------------- */
 
-/* Crisp and photo-first: a white canvas, near-black type, hairline borders, one confident accent.
-   The accent palette is chosen site-wide by the super admin; visitors only switch light and dark. */
+/* Photo-first: a softly tinted canvas, deep ink, hairline borders, a deep primary and a second accent.
+   The palette is chosen site-wide by the super admin; visitors only switch light and dark. These root values
+   are the fallback before a palette applies. */
 :root {
   --paper: #ffffff;
   --surface: #ffffff;
@@ -57,48 +58,158 @@
   color-scheme: dark;
 }
 
-[data-palette="terracotta"] {
-  --accent: #d1462f;
-  --accent-strong: #a8351f;
+/* Palettes, named after places in Lebanon. Each is a full set: a tinted canvas, matching ink and hairlines, a
+   deep primary (buttons, links, the active page) and a complementary second accent (`glow`: markers, highlights,
+   charts). Every primary holds white text at 4.5:1 or better in light mode, and dark text in dark mode. */
+
+/* Cedar: cedar green, ivory and brass. */
+[data-palette="cedar"] {
+  --paper: #fbf8f1;
+  --surface: #ffffff;
+  --surface-2: #f3eee3;
+  --ink: #1d2a24;
+  --ink-muted: #5f6b64;
+  --ink-faint: #8c958f;
+  --line: #e7e0d2;
+  --line-strong: #d8cfbd;
+  --accent: #1f5c44;
+  --accent-strong: #154532;
+  --accent-ink: #ffffff;
+  --glow: #b8893b;
 }
-[data-palette="sea"] {
-  --accent: #0b6bcb;
-  --accent-strong: #08519b;
-}
-[data-palette="olive"] {
-  --accent: #5f7a10;
-  --accent-strong: #485d0b;
-}
-[data-palette="jacaranda"] {
-  --accent: #6d3fd1;
-  --accent-strong: #5530a8;
+[data-mode="dark"][data-palette="cedar"] {
+  --paper: #0e1512;
+  --surface: #151e1a;
+  --surface-2: #1d2823;
+  --ink: #f1efe8;
+  --ink-muted: #a8b1ab;
+  --ink-faint: #74807a;
+  --line: #26332d;
+  --line-strong: #34443c;
+  --accent: #5fbf94;
+  --accent-strong: #82d1ad;
+  --accent-ink: #07140e;
+  --glow: #d8a856;
 }
 
-[data-mode="dark"][data-palette="cedar"],
-[data-mode="dark"]:not([data-palette]) {
-  --accent: #34c486;
-  --accent-strong: #5fd6a2;
-  --accent-ink: #04140c;
+/* Byblos: Phoenician navy, sand and terracotta. */
+[data-palette="byblos"] {
+  --paper: #f9f6f0;
+  --surface: #ffffff;
+  --surface-2: #f1ece2;
+  --ink: #16233a;
+  --ink-muted: #5a6577;
+  --ink-faint: #8a93a3;
+  --line: #e6dfd2;
+  --line-strong: #d6cdbd;
+  --accent: #1f3b63;
+  --accent-strong: #152a48;
+  --accent-ink: #ffffff;
+  --glow: #c2603f;
 }
-[data-mode="dark"][data-palette="terracotta"] {
-  --accent: #ff7a5c;
-  --accent-strong: #ff9b84;
-  --accent-ink: #2a0b05;
+[data-mode="dark"][data-palette="byblos"] {
+  --paper: #0d1220;
+  --surface: #141b2c;
+  --surface-2: #1c2538;
+  --ink: #f1eee8;
+  --ink-muted: #a7aebd;
+  --ink-faint: #737c8f;
+  --line: #263048;
+  --line-strong: #33405c;
+  --accent: #8fb0e4;
+  --accent-strong: #afc6ec;
+  --accent-ink: #0a1426;
+  --glow: #e08867;
 }
-[data-mode="dark"][data-palette="sea"] {
-  --accent: #4ba3f5;
-  --accent-strong: #79bbf8;
-  --accent-ink: #04172b;
+
+/* Batroun: terracotta roofs, warm cream and olive. */
+[data-palette="batroun"] {
+  --paper: #fcf7f1;
+  --surface: #ffffff;
+  --surface-2: #f5ebe0;
+  --ink: #2e211b;
+  --ink-muted: #6f5f55;
+  --ink-faint: #9b8a80;
+  --line: #ecdccd;
+  --line-strong: #dfcab7;
+  --accent: #a8472a;
+  --accent-strong: #84361f;
+  --accent-ink: #ffffff;
+  --glow: #6d7f3b;
 }
-[data-mode="dark"][data-palette="olive"] {
-  --accent: #b5d334;
-  --accent-strong: #c9e263;
-  --accent-ink: #161d02;
+[data-mode="dark"][data-palette="batroun"] {
+  --paper: #16100d;
+  --surface: #1f1713;
+  --surface-2: #2a201a;
+  --ink: #f5ede6;
+  --ink-muted: #b8a99f;
+  --ink-faint: #85766c;
+  --line: #35281f;
+  --line-strong: #463529;
+  --accent: #e2805f;
+  --accent-strong: #eca086;
+  --accent-ink: #2a0e06;
+  --glow: #a9bd6a;
 }
-[data-mode="dark"][data-palette="jacaranda"] {
-  --accent: #a78bfa;
-  --accent-strong: #c0aafc;
-  --accent-ink: #160a33;
+
+/* Baalbek: aubergine, limestone and ochre. */
+[data-palette="baalbek"] {
+  --paper: #f8f5f1;
+  --surface: #ffffff;
+  --surface-2: #efe8e1;
+  --ink: #2a1c26;
+  --ink-muted: #6c5d66;
+  --ink-faint: #9a8b94;
+  --line: #e6dcd3;
+  --line-strong: #d6c9be;
+  --accent: #5c2a4d;
+  --accent-strong: #451f3a;
+  --accent-ink: #ffffff;
+  --glow: #c49a3c;
+}
+[data-mode="dark"][data-palette="baalbek"] {
+  --paper: #140e13;
+  --surface: #1d151b;
+  --surface-2: #281d25;
+  --ink: #f3ecf0;
+  --ink-muted: #b5a6b0;
+  --ink-faint: #82737d;
+  --line: #33262f;
+  --line-strong: #45343f;
+  --accent: #cf94bb;
+  --accent-strong: #dfb0cf;
+  --accent-ink: #2a0c20;
+  --glow: #e0b75f;
+}
+
+/* Jounieh: midnight bay, pearl and champagne. */
+[data-palette="jounieh"] {
+  --paper: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #eceff4;
+  --ink: #141b2b;
+  --ink-muted: #5b6475;
+  --ink-faint: #8b93a3;
+  --line: #e1e5ec;
+  --line-strong: #cfd5df;
+  --accent: #23324f;
+  --accent-strong: #161f33;
+  --accent-ink: #ffffff;
+  --glow: #b08a4a;
+}
+[data-mode="dark"][data-palette="jounieh"] {
+  --paper: #0b0f18;
+  --surface: #121826;
+  --surface-2: #1a2233;
+  --ink: #eef1f6;
+  --ink-muted: #a3abba;
+  --ink-faint: #707a8c;
+  --line: #232c3f;
+  --line-strong: #303b52;
+  --accent: #a7bde6;
+  --accent-strong: #c3d2ef;
+  --accent-ink: #0b1426;
+  --glow: #d9b273;
 }
 
 @theme inline {

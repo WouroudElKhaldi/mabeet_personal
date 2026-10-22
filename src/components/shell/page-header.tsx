@@ -13,6 +13,7 @@ export function PageHeader({
   return (
     <header className="rise-in mb-8 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
+        <span className="mb-3 block h-1 w-10 rounded-full bg-glow" aria-hidden />
         <h1 className="text-3xl font-semibold sm:text-4xl">{title}</h1>
         {intro && <p className="mt-2 max-w-2xl text-muted">{intro}</p>}
       </div>

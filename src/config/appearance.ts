@@ -2,10 +2,10 @@
 export type ColorMode = "light" | "dark";
 
 /**
- * Accent palettes, named after places in Lebanon. Each is defined in globals.css.
+ * Palettes, named after places in Lebanon. Each is a full colour set defined in globals.css.
  * The palette is website-wide and only a super admin changes it (SiteSetting.palette).
  */
-export const PALETTES = ["cedar", "terracotta", "sea", "olive", "jacaranda"] as const;
+export const PALETTES = ["cedar", "byblos", "batroun", "baalbek", "jounieh"] as const;
 export type Palette = (typeof PALETTES)[number];
 export const DEFAULT_PALETTE: Palette = "cedar";
 
@@ -13,12 +13,13 @@ export function isPalette(value: string): value is Palette {
   return (PALETTES as readonly string[]).includes(value);
 }
 
-export const PALETTE_SWATCH: Record<Palette, string> = {
-  cedar: "#245c45",
-  terracotta: "#b4532f",
-  sea: "#1f5f86",
-  olive: "#6d6a2c",
-  jacaranda: "#6b4b93",
+/** Each palette's canvas, primary, second accent and ink, for the admin's picker. */
+export const PALETTE_SWATCH: Record<Palette, readonly [string, string, string, string]> = {
+  cedar: ["#fbf8f1", "#1f5c44", "#b8893b", "#1d2a24"],
+  byblos: ["#f9f6f0", "#1f3b63", "#c2603f", "#16233a"],
+  batroun: ["#fcf7f1", "#a8472a", "#6d7f3b", "#2e211b"],
+  baalbek: ["#f8f5f1", "#5c2a4d", "#c49a3c", "#2a1c26"],
+  jounieh: ["#f7f8fa", "#23324f", "#b08a4a", "#141b2b"],
 };
 
 /** localStorage key for the visitor's light/dark choice. */

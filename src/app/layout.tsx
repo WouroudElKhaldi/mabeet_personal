@@ -44,15 +44,15 @@ const kufi = localFont({
   display: "swap",
 });
 export const metadata: Metadata = {
-  title: { default: `${BRAND.name} · ${BRAND.tagline}`, template: `%s · ${BRAND.name}` },
+  title: { default: `${BRAND.name} Â· ${BRAND.tagline}`, template: `%s Â· ${BRAND.name}` },
   description: "Book Lebanese guesthouses directly, with no platform fees.",
   applicationName: BRAND.name,
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f0f10" },
+    { media: "(prefers-color-scheme: light)", color: "#fbf8f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1512" },
   ],
 };
 

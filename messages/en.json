@@ -1001,10 +1001,17 @@
       "hint": "One palette for the whole website. Visitors can still switch between light and dark.",
       "palettes": {
         "cedar": "Cedar",
-        "terracotta": "Terracotta",
-        "sea": "Mediterranean",
-        "olive": "Olive grove",
-        "jacaranda": "Jacaranda"
+        "byblos": "Byblos",
+        "batroun": "Batroun",
+        "baalbek": "Baalbek",
+        "jounieh": "Jounieh"
+      },
+      "paletteNotes": {
+        "cedar": "Cedar green, ivory and brass",
+        "byblos": "Phoenician navy, sand and terracotta",
+        "batroun": "Terracotta roofs, cream and olive",
+        "baalbek": "Aubergine, limestone and ochre",
+        "jounieh": "Midnight bay, pearl and champagne"
       }
     },
     "categories": {

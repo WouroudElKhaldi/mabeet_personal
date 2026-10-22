@@ -13,7 +13,7 @@ export function SitePalettePicker({ current }: { current: Palette }) {
   const { run, pending, error } = useAction();
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PALETTES.map((palette) => (
           <button
             key={palette}
@@ -22,17 +22,26 @@ export function SitePalettePicker({ current }: { current: Palette }) {
             aria-pressed={current === palette}
             onClick={() => run(() => api.patch("/api/admin/site", { palette }))}
             className={clsx(
-              "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold ring-1 transition-shadow",
-              current === palette ? "ring-2 ring-ink" : "ring-line hover:ring-line-strong",
+              "overflow-hidden rounded-xl bg-surface text-start ring-1 transition-shadow",
+              current === palette ? "ring-2 ring-accent" : "ring-line hover:ring-line-strong",
             )}
           >
-            <span
-              className="grid size-7 place-items-center rounded-full text-white"
-              style={{ backgroundColor: PALETTE_SWATCH[palette] }}
-            >
-              {current === palette && <Check className="size-4" aria-hidden />}
+            <span className="flex h-16" aria-hidden>
+              {PALETTE_SWATCH[palette].map((colour, index) => (
+                <span
+                  key={colour}
+                  className={index === 0 ? "flex-[2]" : "flex-1"}
+                  style={{ backgroundColor: colour }}
+                />
+              ))}
             </span>
-            {t(`palettes.${palette}`)}
+            <span className="flex items-center justify-between gap-3 px-4 py-3">
+              <span>
+                <span className="block text-sm font-semibold">{t(`palettes.${palette}`)}</span>
+                <span className="block text-xs text-muted">{t(`paletteNotes.${palette}`)}</span>
+              </span>
+              {current === palette && <Check className="size-5 shrink-0 text-accent" aria-hidden />}
+            </span>
           </button>
         ))}
       </div>

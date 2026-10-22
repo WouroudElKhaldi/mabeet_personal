@@ -160,7 +160,7 @@ export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, chil
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
-      <aside className="hidden border-e border-line bg-surface/60 px-3 py-5 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
+      <aside className="hidden border-e border-line bg-surface px-3 py-5 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
         {sidebar}
       </aside>
 
@@ -293,7 +293,7 @@ function NavLink({ item, active }: { item: ShellLink; active: boolean }) {
           transition={{ type: "spring", stiffness: 500, damping: 40 }}
         />
       )}
-      {active && <span className="absolute inset-y-2 start-0 w-1 rounded-full bg-accent" aria-hidden />}
+      {active && <span className="absolute inset-y-2 start-0 w-1 rounded-full bg-glow" aria-hidden />}
       <Icon className={clsx("relative size-[1.1rem]", active && "text-accent")} aria-hidden />
       <span className="relative truncate">{item.label}</span>
     </Link>
