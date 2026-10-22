@@ -96,3 +96,18 @@ export function deleteUser(db: Db, userId: string) {
 export function setLocale(db: Db, userId: string, locale: string) {
   return db.user.update({ where: { id: userId }, data: { locale }, select: { id: true } });
 }
+
+export function findProfile(db: Db, userId: string) {
+  return db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true, phone: true, locale: true, notificationsSeenAt: true },
+  });
+}
+
+export function updateProfile(db: Db, userId: string, data: { name: string; phone: string | null }) {
+  return db.user.update({ where: { id: userId }, data, select: { id: true } });
+}
+
+export function markNotificationsSeen(db: Db, userId: string, at: Date) {
+  return db.user.update({ where: { id: userId }, data: { notificationsSeenAt: at }, select: { id: true } });
+}

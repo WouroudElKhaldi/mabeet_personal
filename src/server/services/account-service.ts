@@ -37,3 +37,12 @@ export async function deleteMyAccount(user: { id: string; email: string }, typed
 export function setMyLocale(userId: string, locale: Locale) {
   return accounts.setLocale(prisma, userId, locale);
 }
+
+/** The signed-in person's own details, for the profile page in the dashboard or admin area. */
+export function getMyProfile(userId: string) {
+  return accounts.findProfile(prisma, userId);
+}
+
+export async function updateMyProfile(userId: string, input: { name: string; phone?: string | null }) {
+  await accounts.updateProfile(prisma, userId, { name: input.name, phone: input.phone ?? null });
+}

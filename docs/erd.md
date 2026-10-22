@@ -19,6 +19,7 @@ erDiagram
     String phone
     String locale
     PlatformRole platformRole
+    DateTime notificationsSeenAt
     DateTime createdAt
     DateTime updatedAt
   }

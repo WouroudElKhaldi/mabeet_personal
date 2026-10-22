@@ -196,6 +196,11 @@ export const settingsInput = z
   })
   .partial();
 
+export const profileInput = z.object({
+  name: z.string().trim().min(2).max(80),
+  phone: phone.nullish(),
+});
+
 export const hostProfileInput = z.object({
   displayName: optionalText(80),
   bio: optionalText(1500),

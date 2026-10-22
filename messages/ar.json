@@ -471,8 +471,7 @@
       "settings": "الإعدادات",
       "offerings": "التجارب والخدمات",
       "billing": "الفوترة",
-      "payouts": "المدفوعات",
-      "hostProfile": "ملفي كمضيف"
+      "payouts": "المدفوعات"
     },
     "overview": {
       "title": "اليوم",
@@ -1636,7 +1635,9 @@
     "adminArea": "الإدارة",
     "adminBadge": "مدير المنصة",
     "askAi": "اسأل الذكاء",
-    "adminVisiting": "تتصفّح هذا النشاط كمدير للمنصة. عودة إلى المضيفين"
+    "adminVisiting": "تتصفّح هذا النشاط كمدير للمنصة. عودة إلى المضيفين",
+    "profile": "ملفي الشخصي",
+    "notificationsUnread": "{count} إشعارات جديدة"
   },
   "hostProfile": {
     "title": "ملفي كمضيف",
@@ -1657,5 +1658,48 @@
     "saved": "تم الحفظ.",
     "yourHost": "مضيفك",
     "message": "راسله على واتساب"
+  },
+  "profile": {
+    "title": "ملفي الشخصي",
+    "intro": "بياناتك وكلمة مرورك. ترافقك في كل نشاط تعمل فيه.",
+    "details": "بياناتك",
+    "name": "الاسم الكامل",
+    "email": "البريد الإلكتروني",
+    "emailHint": "تسجّل الدخول به، لذا لا يمكن تغييره هنا.",
+    "phone": "الهاتف",
+    "save": "حفظ",
+    "saved": "تم الحفظ.",
+    "password": "كلمة المرور",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "passwordRules": "8 أحرف على الأقل.",
+    "passwordWrong": "كلمة المرور الحالية غير صحيحة.",
+    "changePassword": "غيّر كلمة المرور",
+    "passwordChanged": "تم تغيير كلمة المرور، وتم تسجيل الخروج من الأجهزة الأخرى."
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "intro": "الطلبات والحجوزات والإلغاءات والدفعات وتغييرات الفريق في هذا النشاط.",
+    "adminIntro": "طلبات التحويل والدفعات المتأخرة والطلبات الجديدة والتقييمات في كل الأنشطة.",
+    "empty": "لا شيء بعد. ستظهر هنا الطلبات والدفعات الجديدة.",
+    "unread": "جديد",
+    "someone": "أحدهم",
+    "aGuest": "ضيف",
+    "actions": {
+      "booking_requested": "طلب {guest} الحجز {reference}",
+      "booking_confirmed": "أكّد {actor} حجز {guest} {reference}",
+      "booking_awaiting_payment": "قبل {actor} طلب {guest}؛ بانتظار الدفع",
+      "booking_declined": "رفض {actor} طلب {guest} {reference}",
+      "booking_cancelled": "ألغى {actor} حجز {guest} {reference}",
+      "booking_cancelled_by_guest": "ألغى {guest} حجزه {reference}",
+      "payment_recorded": "سجّل {actor} دفعة من {guest} ({reference})",
+      "payment_online_confirmed": "دفع {guest} عبر الإنترنت عن {reference}",
+      "payment_online_late": "دفع {guest} متأخرًا عن {reference} وأُعيد المبلغ",
+      "review_submitted": "ترك {actor} تقييمًا",
+      "payout_requested": "طلب {actor} تحويل الأرباح",
+      "member_added": "أضاف {actor} عضوًا إلى الفريق",
+      "member_removed": "أزال {actor} عضوًا من الفريق",
+      "member_role_changed": "غيّر {actor} دور أحد الأعضاء"
+    }
   }
 }

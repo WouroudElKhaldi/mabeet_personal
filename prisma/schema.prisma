@@ -19,16 +19,18 @@ enum PlatformRole {
 }
 
 model User {
-  id            String       @id
-  name          String
-  email         String       @unique
-  emailVerified Boolean      @default(false)
-  image         String?
-  phone         String?
-  locale        String       @default("en")
-  platformRole  PlatformRole @default(USER)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                  String       @id
+  name                String
+  email               String       @unique
+  emailVerified       Boolean      @default(false)
+  image               String?
+  phone               String?
+  locale              String       @default("en")
+  platformRole        PlatformRole @default(USER)
+  /// When they last opened their notifications; newer activity shows as unread on the bell.
+  notificationsSeenAt DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   sessions           Session[]
   accounts           Account[]

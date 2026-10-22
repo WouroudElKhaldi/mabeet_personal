@@ -5,6 +5,7 @@ import { NAV_GROUPS, visibleNavItems } from "@/components/dashboard/nav-items";
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { AppShell, type ShellLink } from "@/components/shell/app-shell";
 import { requirePageTenant, requirePageUser } from "@/server/http/session";
+import { countBusinessUnread } from "@/server/services/notification-feed-service";
 import { getSettings } from "@/server/services/settings-service";
 import { listWorkspaces } from "@/server/services/team-service";
 
@@ -14,12 +15,13 @@ type LayoutProps = { children: ReactNode; params: Promise<{ businessId: string }
 export default async function DashboardLayout({ children, params }: LayoutProps) {
   const { businessId } = await params;
   const [ctx, user] = await Promise.all([requirePageTenant(businessId), requirePageUser()]);
-  const [t, tShell, memberships, visited] = await Promise.all([
+  const [t, tShell, memberships, visited, unread] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("shell"),
     listWorkspaces(ctx.userId),
     // A platform admin visiting a business they don't belong to: show it in the switcher too.
     ctx.platformAdmin ? getSettings(ctx) : null,
+    countBusinessUnread(ctx),
   ]);
   const workspaces = memberships.map((workspace) => ({
     id: workspace.businessId,
@@ -45,8 +47,8 @@ export default async function DashboardLayout({ children, params }: LayoutProps)
     .map((path) => `${base}${path}`);
 
   const userLinks: ShellLink[] = [
-    { href: "/account", label: tShell("account"), icon: "user" },
-    { href: "/account/notifications", label: tShell("notifications"), icon: "bell" },
+    { href: `${base}/profile`, label: tShell("profile"), icon: "user" },
+    { href: `${base}/notifications`, label: tShell("notifications"), icon: "bell" },
     ...(user.platformRole === "SUPER_ADMIN"
       ? [{ href: "/admin", label: tShell("admin"), icon: "shield" } satisfies ShellLink]
       : []),
@@ -72,6 +74,9 @@ export default async function DashboardLayout({ children, params }: LayoutProps)
       tabs={tabs}
       user={{ name: user.name, email: user.email }}
       userLinks={userLinks}
+      notificationsHref={`${base}/notifications`}
+      unread={unread}
+      profileHref={`${base}/profile`}
       cta={
         items.some((item) => item.key === "assistant")
           ? { href: `${base}/assistant`, label: tShell("askAi"), icon: "sparkles" }

@@ -17,7 +17,6 @@ export interface NavItem {
     | "team"
     | "assistant"
     | "keys"
-    | "hostProfile"
     | "settings";
   group: NavGroupKey;
   path: string;
@@ -52,7 +51,6 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "assistant", group: "ai", path: "/assistant", icon: "sparkles", anyOf: ["ai.use"] },
   { key: "keys", group: "ai", path: "/keys", icon: "bot", anyOf: ["ai.use"] },
   { key: "settings", group: "business", path: "/settings", icon: "settings", anyOf: ["settings.manage"] },
-  { key: "hostProfile", group: "business", path: "/host-profile", icon: "user", anyOf: [], ownerOnly: true },
 ];
 
 /** The pages a member may open: by permission, and money pages only for owners. */

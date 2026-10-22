@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { AppShell, type ShellGroup, type ShellLink } from "@/components/shell/app-shell";
 import { requirePageUser } from "@/server/http/session";
+import { countPlatformUnread } from "@/server/services/notification-feed-service";
 import { listWorkspaces } from "@/server/services/team-service";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,10 +16,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await requirePageUser();
   if (user.platformRole !== "SUPER_ADMIN") notFound();
-  const [t, tShell, workspaces] = await Promise.all([
+  const [t, tShell, workspaces, unread] = await Promise.all([
     getTranslations("admin.nav"),
     getTranslations("shell"),
     listWorkspaces(user.id),
+    countPlatformUnread(user),
   ]);
 
   const groups: ShellGroup[] = [
@@ -45,7 +47,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   ];
   const [firstWorkspace] = workspaces;
   const userLinks: ShellLink[] = [
-    { href: "/account", label: tShell("account"), icon: "user" },
+    { href: "/admin/profile", label: tShell("profile"), icon: "user" },
+    { href: "/admin/notifications", label: tShell("notifications"), icon: "bell" },
     ...(firstWorkspace
       ? [
           {
@@ -69,6 +72,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       tabs={["/admin", "/admin/hosts", "/admin/money", "/admin/health"]}
       user={{ name: user.name, email: user.email }}
       userLinks={userLinks}
+      notificationsHref="/admin/notifications"
+      unread={unread}
+      profileHref="/admin/profile"
     >
       {children}
     </AppShell>

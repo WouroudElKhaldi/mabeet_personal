@@ -471,8 +471,7 @@
       "settings": "Settings",
       "offerings": "Experiences & services",
       "billing": "Billing",
-      "payouts": "Payouts",
-      "hostProfile": "My host profile"
+      "payouts": "Payouts"
     },
     "overview": {
       "title": "Today",
@@ -1636,7 +1635,9 @@
     "adminArea": "Admin",
     "adminBadge": "Platform admin",
     "askAi": "Ask AI",
-    "adminVisiting": "You're viewing this business as platform admin. Back to hosts"
+    "adminVisiting": "You're viewing this business as platform admin. Back to hosts",
+    "profile": "My profile",
+    "notificationsUnread": "{count} new notifications"
   },
   "hostProfile": {
     "title": "My host profile",
@@ -1657,5 +1658,48 @@
     "saved": "Saved.",
     "yourHost": "Your host",
     "message": "Message on WhatsApp"
+  },
+  "profile": {
+    "title": "My profile",
+    "intro": "Your own details and password. They follow you across every business you work in.",
+    "details": "Your details",
+    "name": "Full name",
+    "email": "Email",
+    "emailHint": "You sign in with it, so it can't be changed here.",
+    "phone": "Phone",
+    "save": "Save",
+    "saved": "Saved.",
+    "password": "Password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "passwordRules": "At least 8 characters.",
+    "passwordWrong": "Your current password isn't right.",
+    "changePassword": "Change password",
+    "passwordChanged": "Password changed. Other devices were signed out."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "Requests, bookings, cancellations, payments and team changes in this business.",
+    "adminIntro": "Payout requests, late payments, new requests and reviews across every business.",
+    "empty": "Nothing yet. New requests and payments will show up here.",
+    "unread": "New",
+    "someone": "Someone",
+    "aGuest": "A guest",
+    "actions": {
+      "booking_requested": "{guest} asked to book {reference}",
+      "booking_confirmed": "{actor} confirmed {guest}'s booking {reference}",
+      "booking_awaiting_payment": "{actor} accepted {guest}'s request; waiting for payment",
+      "booking_declined": "{actor} declined {guest}'s request {reference}",
+      "booking_cancelled": "{actor} cancelled {guest}'s booking {reference}",
+      "booking_cancelled_by_guest": "{guest} cancelled their booking {reference}",
+      "payment_recorded": "{actor} recorded a payment for {guest} ({reference})",
+      "payment_online_confirmed": "{guest} paid online for {reference}",
+      "payment_online_late": "{guest} paid too late for {reference}; it was refunded",
+      "review_submitted": "{actor} left a review",
+      "payout_requested": "{actor} asked for a payout",
+      "member_added": "{actor} added someone to the team",
+      "member_removed": "{actor} removed someone from the team",
+      "member_role_changed": "{actor} changed someone's role"
+    }
   }
 }

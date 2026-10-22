@@ -95,6 +95,10 @@ interface AppShellProps {
   userLinks: ShellLink[];
   /** A highlighted shortcut in the top bar, e.g. the AI assistant. */
   cta?: ShellLink;
+  /** This area's own notifications page and profile page. */
+  notificationsHref: string;
+  unread: number;
+  profileHref: string;
   children: ReactNode;
 }
 
@@ -108,7 +112,20 @@ function useActive(groups: ShellGroup[]) {
 }
 
 /** The app frame for the host dashboard and the admin area: sidebar, top bar, phone drawer and tab bar. */
-export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, cta, children }: AppShellProps) {
+export function AppShell(props: AppShellProps) {
+  const {
+    area,
+    sidebarTop,
+    groups,
+    tabs,
+    user,
+    userLinks,
+    cta,
+    notificationsHref,
+    unread,
+    profileHref,
+    children,
+  } = props;
   const t = useTranslations("shell");
   const active = useActive(groups);
   const pathname = usePathname();
@@ -147,12 +164,17 @@ export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, cta,
           </div>
         ))}
       </nav>
-      <div className="flex items-center gap-3 border-t border-line px-2 pt-4">
-        <Avatar name={user.name} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{user.name}</p>
-          <p className="truncate text-xs text-muted">{user.email}</p>
-        </div>
+      <div className="flex items-center gap-1 border-t border-line pt-4">
+        <Link
+          href={profileHref}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+        >
+          <Avatar name={user.name} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">{user.name}</span>
+            <span className="block truncate text-xs text-muted">{user.email}</span>
+          </span>
+        </Link>
         <SignOutButton label={t("signOut")} />
       </div>
     </>
@@ -227,12 +249,17 @@ export function AppShell({ area, sidebarTop, groups, tabs, user, userLinks, cta,
             {t("viewSite")}
           </Link>
           <Link
-            href="/account/notifications"
-            aria-label={t("notifications")}
+            href={notificationsHref}
+            aria-label={unread > 0 ? t("notificationsUnread", { count: unread }) : t("notifications")}
             title={t("notifications")}
-            className="grid size-10 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            className="relative grid size-10 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-ink"
           >
             <Bell className="size-[1.1rem]" aria-hidden />
+            {unread > 0 && (
+              <span className="absolute end-1 top-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-danger px-1 text-[0.625rem] leading-none font-bold text-white">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
           </Link>
           <AppearanceMenu />
           <UserMenu user={user} links={userLinks} signOutLabel={t("signOut")} />

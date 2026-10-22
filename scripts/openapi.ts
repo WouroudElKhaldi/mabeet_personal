@@ -667,6 +667,14 @@ const OPERATIONS: Operation[] = [
     auth: "member",
     body: s.blockMoveInput,
   },
+  {
+    method: "patch",
+    path: "/api/me/profile",
+    summary: "Change the signed-in person's own name and phone",
+    tag: "Guests",
+    auth: "session",
+    body: s.profileInput,
+  },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {
     method: "post",
@@ -840,7 +848,7 @@ const document = {
   components: {
     securitySchemes: {
       session: { type: "apiKey", in: "cookie", name: "better-auth.session_token" },
-      apiKey: { type: "http", scheme: "bearer", description: "MCP key, mbt_â€¦" },
+      apiKey: { type: "http", scheme: "bearer", description: "MCP key, mbt_Ã¢â‚¬Â¦" },
       cronSecret: { type: "http", scheme: "bearer", description: "CRON_SECRET" },
     },
   },
