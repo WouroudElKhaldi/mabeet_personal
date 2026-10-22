@@ -6,6 +6,7 @@ import {
   addFeed,
   buildRoomExport,
   getCalendar,
+  moveBlock,
   removeBlock,
   syncFeed,
 } from "@/server/services/calendar-service";
@@ -73,6 +74,16 @@ describe("calendar sync, blocks and export", () => {
     const kazderni = await block(30, 2);
     await removeBlock(place.ctx, kazderni.id);
     await expect(block(30, 2)).resolves.toBeDefined();
+  });
+
+  it("moves closed dates by drag and drop, but never onto taken nights", async () => {
+    const closed = await block(20, 2);
+    await block(30, 2);
+    await moveBlock(place.ctx, closed.id, { roomId: place.room.id, range: stay(24, 2) });
+    expect(await prisma.occupancy.findUniqueOrThrow({ where: { id: closed.id } })).toMatchObject(stay(24, 2));
+    await expect(
+      moveBlock(place.ctx, closed.id, { roomId: place.room.id, range: stay(31, 2) }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
   });
 
   it("imports platform reservations, then drops the ones cancelled on the platform", async () => {

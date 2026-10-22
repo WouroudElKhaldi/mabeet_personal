@@ -61,6 +61,23 @@ export async function addBlock(ctx: TenantContext, input: BlockInput) {
   }
 }
 
+/** Drag and drop on the calendar: a block moves to other nights or another room, if they are free. */
+export async function moveBlock(
+  ctx: TenantContext,
+  blockId: string,
+  move: { roomId: string; range: DateRange },
+) {
+  requirePermission(ctx, "blocks.manage");
+  await requireRoom(ctx, move.roomId);
+  try {
+    if (!(await calendar.moveManualBlock(prisma, ctx.businessId, blockId, move))) throw notFound("Block");
+  } catch (error) {
+    if (isOverlapError(error)) throw conflict("Those nights are already booked or blocked");
+    throw error;
+  }
+  await recordAction(ctx, "block.moved", "occupancy", blockId);
+}
+
 export async function removeBlock(ctx: TenantContext, blockId: string) {
   requirePermission(ctx, "blocks.manage");
   if (!(await calendar.deactivateManualBlock(prisma, ctx.businessId, blockId))) throw notFound("Block");

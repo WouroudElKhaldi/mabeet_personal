@@ -46,6 +46,20 @@ export async function deactivateManualBlock(db: Db, businessId: string, blockId:
   return count > 0;
 }
 
+/** Moves a manual block to other dates or another room. The exclusion constraint refuses overlaps here. */
+export async function moveManualBlock(
+  db: Db,
+  businessId: string,
+  blockId: string,
+  move: { roomId: string; range: DateRange },
+) {
+  const { count } = await db.occupancy.updateMany({
+    where: { id: blockId, businessId, kind: "MANUAL", active: true },
+    data: { roomId: move.roomId, checkIn: move.range.checkIn, checkOut: move.range.checkOut },
+  });
+  return count > 0;
+}
+
 /** Room export: our own direct bookings (held or confirmed) and manual blocks. Never re-exports imported nights. */
 export function listExportableOccupancy(db: Db, roomId: string, from: Date) {
   return db.occupancy.findMany({

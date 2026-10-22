@@ -158,6 +158,8 @@ export const blockInput = z
   })
   .and(stayDates);
 
+export const blockMoveInput = z.object({ roomId: id }).and(stayDates);
+
 export const feedInput = z.object({ roomId: id, url: z.url().max(2000), source: feedSource });
 
 const optionalText = (max: number) => z.string().trim().max(max).nullish();

@@ -659,6 +659,14 @@ const OPERATIONS: Operation[] = [
     auth: "member",
     body: s.hostProfileInput,
   },
+  {
+    method: "patch",
+    path: "/api/workspaces/{businessId}/blocks/{blockId}",
+    summary: "Move closed dates to other nights or another room (calendar drag and drop)",
+    tag: "Calendar",
+    auth: "member",
+    body: s.blockMoveInput,
+  },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {
     method: "post",
