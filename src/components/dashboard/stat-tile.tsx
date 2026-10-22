@@ -39,11 +39,14 @@ export function StatTile({ label, value, note, ...stat }: StatTileProps) {
   }, [inView, reduced, value]);
 
   return (
-    <div ref={ref} className="relative overflow-hidden rounded-xl bg-surface p-5 ring-1 ring-line">
-      <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-accent to-glow" aria-hidden />
+    <div
+      ref={ref}
+      className="relative flex h-full flex-col overflow-hidden rounded-xl bg-surface p-5 ring-1 ring-line"
+    >
+      <span className="absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-accent to-glow" aria-hidden />
       <p className="text-sm font-semibold text-muted">{label}</p>
       <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{format(shown, stat, locale)}</p>
-      {note && <p className="mt-1 text-sm text-muted">{note}</p>}
+      {note && <p className="mt-auto pt-1 text-sm text-muted">{note}</p>}
     </div>
   );
 }

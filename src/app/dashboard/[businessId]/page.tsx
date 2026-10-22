@@ -48,10 +48,10 @@ export default async function OverviewPage({ params }: PageProps) {
 
       {report && (
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={t("kpis")}>
-          <div className="rise-in" style={stagger(1)}>
+          <div className="rise-in h-full" style={stagger(1)}>
             <StatTile label={t("occupancy")} value={report.occupancyRate} kind="percent" note={t("last90")} />
           </div>
-          <div className="rise-in" style={stagger(2)}>
+          <div className="rise-in h-full" style={stagger(2)}>
             <StatTile
               label={t("directRevenue")}
               value={report.directRevenueCents}
@@ -59,7 +59,7 @@ export default async function OverviewPage({ params }: PageProps) {
               currency={report.currency}
             />
           </div>
-          <div className="rise-in" style={stagger(3)}>
+          <div className="rise-in h-full" style={stagger(3)}>
             <StatTile
               label={t("commissionSaved")}
               value={report.commissionSavedCents}
@@ -68,7 +68,7 @@ export default async function OverviewPage({ params }: PageProps) {
               note={t("vsPlatforms")}
             />
           </div>
-          <div className="rise-in" style={stagger(4)}>
+          <div className="rise-in h-full" style={stagger(4)}>
             <StatTile label={t("nightsSold")} value={report.nightsSold} kind="count" />
           </div>
         </section>
