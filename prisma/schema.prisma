@@ -43,6 +43,7 @@ model User {
   oauthRefreshTokens OauthRefreshToken[]
   oauthAccessTokens  OauthAccessToken[]
   oauthConsents      OauthConsent[]
+  pushSubscriptions  PushSubscription[]
 }
 
 model Session {
@@ -886,4 +887,21 @@ model OauthConsent {
 model OauthClientAssertion {
   id        String   @id
   expiresAt DateTime
+}
+
+/// A phone or browser that receives push notifications. It follows either a signed-in person (every
+/// notification they would get by email) or, for guests without an account, one booking by its private link.
+model PushSubscription {
+  id           String   @id @default(cuid())
+  endpoint     String
+  p256dh       String
+  auth         String
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingToken String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([bookingToken])
+  @@index([endpoint])
 }

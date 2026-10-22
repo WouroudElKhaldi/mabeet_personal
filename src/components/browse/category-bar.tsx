@@ -5,6 +5,7 @@ import { CategoryIcon } from "@/components/place/category-icon";
 import { TAB_KIND } from "@/config/listing";
 import { searchHref, type SearchState } from "@/lib/search-url";
 import { FiltersDialog } from "./filters-dialog";
+import { categoryName } from "@/config/appearance";
 import { ScrollRail } from "./scroll-rail";
 
 interface Category {
@@ -46,7 +47,7 @@ export async function CategoryBar({ state, categories }: { state: SearchState; c
               )}
             >
               <CategoryIcon slug={category.slug} icon={category.icon} className="size-6" />
-              {locale === "ar" ? category.nameAr : category.nameEn}
+              {categoryName(category, locale)}
             </Link>
           );
         })}

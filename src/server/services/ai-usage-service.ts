@@ -6,6 +6,7 @@ import { render } from "@/server/email/templates";
 import { env } from "@/server/env";
 import { unavailable } from "@/server/errors";
 import * as usageRepo from "@/server/repositories/ai-usage-repository";
+import { pushToPeople } from "./push-service";
 
 // What the assistants cost, against the monthly budget (AI_MONTHLY_BUDGET_USD, $50 by default).
 
@@ -52,27 +53,36 @@ export async function recordAiUsage(
 }
 
 function alertAdmins(share: number, spentMicro: number, budgetMicroUsd: number, now: Date) {
-  inBackground("AI budget email", async () => {
-    const admins = await usageRepo.listSuperAdminEmails(prisma);
+  inBackground("AI budget alert", async () => {
+    const admins = await usageRepo.listSuperAdmins(prisma);
     if (admins.length === 0) return;
     const usd = (micro: number) => `$${(micro / MICRO).toFixed(2)}`;
     const month = now.toISOString().slice(0, 7);
     const full = share >= 1;
-    await sendEmail({
-      to: admins,
-      idempotencyKey: `ai-budget-${month}-${share}`,
-      ...render(full ? "AI budget reached: assistants paused" : "AI budget at 80%", {
-        kicker: "AI budget",
-        title: full ? "The assistants are paused until next month" : "AI spend is at 80% of the budget",
-        body: [
-          `This month: ${usd(spentMicro)} of ${usd(budgetMicroUsd)}.`,
-          full
-            ? "Guests and teams see a short notice instead of the assistant. Raise AI_MONTHLY_BUDGET_USD to turn it back on."
-            : "At 100% the assistants pause until the 1st. Raise AI_MONTHLY_BUDGET_USD if that is too soon.",
-        ],
-        action: { label: "Open the admin page", url: new URL("/admin", env.BETTER_AUTH_URL).toString() },
+    const title = full ? "The assistants are paused until next month" : "AI spend is at 80% of the budget";
+    const spent = `This month: ${usd(spentMicro)} of ${usd(budgetMicroUsd)}.`;
+    const adminPage = new URL("/admin", env.BETTER_AUTH_URL).toString();
+    await Promise.all([
+      sendEmail({
+        to: admins.map((admin) => admin.email),
+        idempotencyKey: `ai-budget-${month}-${share}`,
+        ...render(full ? "AI budget reached: assistants paused" : "AI budget at 80%", {
+          kicker: "AI budget",
+          title,
+          body: [
+            spent,
+            full
+              ? "Guests and teams see a short notice instead of the assistant. Raise AI_MONTHLY_BUDGET_USD to turn it back on."
+              : "At 100% the assistants pause until the 1st. Raise AI_MONTHLY_BUDGET_USD if that is too soon.",
+          ],
+          action: { label: "Open the admin page", url: adminPage },
+        }),
       }),
-    });
+      pushToPeople(
+        admins.map((admin) => admin.id),
+        () => ({ title, body: spent, url: adminPage }),
+      ),
+    ]);
   });
 }
 

@@ -27,6 +27,10 @@ const schema = z.object({
   STRIPE_PRICE_PRO: optional(z.string().startsWith("price_")),
   STRIPE_PRICE_BUSINESS: optional(z.string().startsWith("price_")),
   EMAIL_FROM: z.string().default("Mabeet <onboarding@resend.dev>"),
+  // Web push to phones (pnpm push:keys makes a pair). Without them, the "notify me" buttons stay hidden.
+  VAPID_PUBLIC_KEY: optional(z.string()),
+  VAPID_PRIVATE_KEY: optional(z.string()),
+  VAPID_SUBJECT: z.string().default("mailto:hello@mabeet.app"),
 });
 
 export const env = schema.parse(process.env);

@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/format";
 import { stagger } from "@/lib/motion";
 import type { PlaceCard as PlaceCardData } from "@/server/services/directory-service";
 import { FavoriteButton } from "./favorite-button";
+import { categoryName } from "@/config/appearance";
 import { PlaceArt } from "./place-art";
 
 interface PlaceCardProps {
@@ -39,7 +40,7 @@ export async function PlaceCard({ place, saved, signedIn, query = "", index = 0 
           )}
           {category && (
             <span className="absolute start-2.5 top-2.5 rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-soft">
-              {locale === "ar" ? category.nameAr : category.nameEn}
+              {categoryName(category, locale)}
             </span>
           )}
         </div>

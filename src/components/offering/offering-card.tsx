@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/format";
 import { stagger } from "@/lib/motion";
 import { formatSessionTime } from "@/lib/zoned-time";
 import type { OfferingCard as OfferingCardData } from "@/server/services/directory-service";
+import { categoryName } from "@/config/appearance";
 import { Duration } from "./duration";
 
 /** Same shape as a place card: square photo, title, category and duration, price, next date. */
@@ -30,7 +31,7 @@ export async function OfferingCard({ offering, index = 0 }: { offering: Offering
           )}
           {category && (
             <span className="absolute start-2.5 top-2.5 rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-soft">
-              {locale === "ar" ? category.nameAr : category.nameEn}
+              {categoryName(category, locale)}
             </span>
           )}
         </div>

@@ -4,20 +4,23 @@ import { formatSessionTime } from "@/lib/zoned-time";
 import { prisma } from "@/server/db/client";
 import { inBackground } from "@/server/email/background";
 import { sendEmail } from "@/server/email/send";
-import { type Detail, render } from "@/server/email/templates";
+import { isArabic } from "@/config/appearance";
+import { type Detail, type Message, render } from "@/server/email/templates";
 import { env } from "@/server/env";
+import type { PushMessage } from "@/server/push/send";
 import {
   findBookingForNotice,
   findSessionBookingForNotice,
   listBookingDeciders,
 } from "@/server/repositories/notification-repository";
+import { pushToGuest, pushToPeople } from "./push-service";
 
-// Who hears about what. Every notify* function queues its emails in the background and never throws:
-// a mail outage must not undo or slow down a booking. Guests get emails in the language they booked in;
-// each host gets them in their account's language.
+// Who hears about what. Every notify* function queues its emails and push notifications in the background and
+// never throws: a mail or push outage must not undo or slow down a booking. Guests get emails in the language they booked in;
+// each host gets them in their account's language. Lebanese readers get the Arabic emails.
 
 type Lang = "en" | "ar";
-const lang = (locale: string | null | undefined): Lang => (locale === "ar" ? "ar" : "en");
+const lang = (locale: string | null | undefined): Lang => (locale && isArabic(locale) ? "ar" : "en");
 const url = (path: string) => new URL(path, env.BETTER_AUTH_URL).toString();
 
 /** What every booking email needs, whether it books nights in a room or seats in a session. */
@@ -34,6 +37,8 @@ interface Notice {
   seats: number;
   guestName: string;
   guestEmail: string | null;
+  /** The guest's account, when they booked signed in; their devices get the push notifications too. */
+  guestUserId: string | null;
   guestNote: string | null;
   depositCents: number;
   currency: string;
@@ -89,6 +94,7 @@ async function stayNotice(bookingId: string): Promise<Notice | null> {
     seats: booking.guestCount,
     guestName: booking.guestName,
     guestEmail: booking.guestEmail ?? booking.guestUser?.email ?? null,
+    guestUserId: booking.guestUserId,
     guestNote: booking.guestNote,
     depositCents: booking.depositCents,
     currency: booking.currency,
@@ -123,6 +129,7 @@ async function sessionNotice(bookingId: string): Promise<Notice | null> {
     seats: booking.seats,
     guestName: booking.guestName,
     guestEmail: booking.guestEmail ?? booking.guestUser?.email ?? null,
+    guestUserId: booking.guestUserId,
     guestNote: booking.guestNote,
     depositCents: booking.depositCents,
     currency: booking.currency,
@@ -155,15 +162,21 @@ function thing(notice: Notice, l: Lang): string {
 const formatHold = (date: Date, l: Lang) =>
   new Intl.DateTimeFormat(l, { dateStyle: "medium", timeStyle: "short" }).format(date);
 
-/** Sends one email per language to the people who can confirm bookings. */
-async function emailHosts(
-  businessId: string,
-  build: (l: Lang) => { subject: string; idempotencyKey: string; message: Parameters<typeof render>[1] },
-) {
+type Letter = { subject: string; idempotencyKey: string; message: Message };
+
+/** The push version of an email: its title, first paragraph and button link. */
+const pushOf = (message: Message): PushMessage => ({
+  title: message.title,
+  body: message.body[0] ?? "",
+  url: message.action?.url ?? url("/"),
+});
+
+/** Tells the people who can confirm bookings: one email per language, and a push to each of their devices. */
+async function tellHosts(businessId: string, build: (l: Lang) => Letter) {
   const hosts = await listBookingDeciders(prisma, businessId);
   const languages = [...new Set(hosts.map((host) => lang(host.locale)))];
-  await Promise.all(
-    languages.map((l) => {
+  await Promise.all([
+    ...languages.map((l) => {
       const { subject, idempotencyKey, message } = build(l);
       return sendEmail({
         to: hosts.filter((host) => lang(host.locale) === l).map((host) => host.email),
@@ -171,65 +184,71 @@ async function emailHosts(
         ...render(subject, message, l),
       });
     }),
-  );
+    pushToPeople(
+      hosts.map((host) => host.id),
+      (locale) => pushOf(build(lang(locale)).message),
+    ),
+  ]);
+}
+
+/** Tells the guest by email, when they left one, and on every device following the booking. */
+async function tellGuest(notice: Notice, { subject, idempotencyKey, message }: Letter) {
+  await Promise.all([
+    notice.guestEmail
+      ? sendEmail({ to: notice.guestEmail, idempotencyKey, ...render(subject, message, notice.locale) })
+      : undefined,
+    pushToGuest(notice.publicToken, notice.guestUserId, pushOf(message)),
+  ]);
 }
 
 /** A guest asked for a booking: the guest gets a receipt, the people who can confirm get a nudge. */
 export function notifyBookingRequested(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("booking requested emails", async () => {
+  inBackground("booking requested notices", async () => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
-    const sends: Array<Promise<void>> = [];
-    if (notice.guestEmail) {
-      const l = notice.locale;
-      const held = notice.holdExpiresAt ? formatHold(notice.holdExpiresAt, l) : null;
-      const deposit = formatMoney(notice.depositCents, notice.currency, l);
-      const what = thing(notice, l);
-      const copy =
-        l === "ar"
-          ? {
-              subject: `طلبك لدى ${notice.businessName} (${notice.reference})`,
-              kicker: "طلب حجز",
-              title: `${what} لدى ${notice.businessName} محجوزة لك مؤقتًا`,
-              body: [
-                `مرحبًا ${notice.guestName}، وصل طلبك إلى المضيف. لا يمكن لأحد آخر أخذ ${what} ريثما يقرّر${held ? ` (حتى ${held})` : ""}.`,
-                `لتثبيت الحجز، أرسل العربون ${deposit}. ${notice.depositInstructions ?? "سيخبرك المضيف بطريقة الدفع."}`,
-              ],
-              action: "اعرض حجزك",
-              footnote: "احتفظ بهذا البريد: الرابط يعرض دائمًا آخر حالة لحجزك.",
-            }
-          : {
-              subject: `Your request to ${notice.businessName} (${notice.reference})`,
-              kicker: "Booking request",
-              title: `${what[0]!.toUpperCase()}${what.slice(1)} at ${notice.businessName} ${what.endsWith("s") ? "are" : "is"} held`,
-              body: [
-                `Hi ${notice.guestName}, the host has your request. Nobody else can take ${what} while they decide${held ? ` (until ${held})` : ""}.`,
-                `To secure it, send the ${deposit} deposit. ${notice.depositInstructions ?? "The host will tell you how to pay."}`,
-              ],
-              action: "See your booking",
-              footnote: "Keep this email: the link always shows your booking's latest status.",
-            };
-      sends.push(
-        sendEmail({
-          to: notice.guestEmail,
-          idempotencyKey: `requested-guest-${notice.id}`,
-          ...render(
-            copy.subject,
-            {
-              kicker: copy.kicker,
-              title: copy.title,
-              body: copy.body,
-              details: notice.details(l),
-              action: { label: copy.action, url: url(`/b/${notice.publicToken}`) },
-              footnote: copy.footnote,
-            },
-            l,
-          ),
-        }),
-      );
-    }
-    sends.push(
-      emailHosts(notice.businessId, (l) => ({
+    const l = notice.locale;
+    const held = notice.holdExpiresAt ? formatHold(notice.holdExpiresAt, l) : null;
+    const deposit = formatMoney(notice.depositCents, notice.currency, l);
+    const what = thing(notice, l);
+    const copy =
+      l === "ar"
+        ? {
+            subject: `طلبك لدى ${notice.businessName} (${notice.reference})`,
+            kicker: "طلب حجز",
+            title: `${what} لدى ${notice.businessName} محجوزة لك مؤقتًا`,
+            body: [
+              `مرحبًا ${notice.guestName}، وصل طلبك إلى المضيف. لا يمكن لأحد آخر أخذ ${what} ريثما يقرّر${held ? ` (حتى ${held})` : ""}.`,
+              `لتثبيت الحجز، أرسل العربون ${deposit}. ${notice.depositInstructions ?? "سيخبرك المضيف بطريقة الدفع."}`,
+            ],
+            action: "اعرض حجزك",
+            footnote: "احتفظ بهذا البريد: الرابط يعرض دائمًا آخر حالة لحجزك.",
+          }
+        : {
+            subject: `Your request to ${notice.businessName} (${notice.reference})`,
+            kicker: "Booking request",
+            title: `${what[0]!.toUpperCase()}${what.slice(1)} at ${notice.businessName} ${what.endsWith("s") ? "are" : "is"} held`,
+            body: [
+              `Hi ${notice.guestName}, the host has your request. Nobody else can take ${what} while they decide${held ? ` (until ${held})` : ""}.`,
+              `To secure it, send the ${deposit} deposit. ${notice.depositInstructions ?? "The host will tell you how to pay."}`,
+            ],
+            action: "See your booking",
+            footnote: "Keep this email: the link always shows your booking's latest status.",
+          };
+    const guestLetter: Letter = {
+      subject: copy.subject,
+      idempotencyKey: `requested-guest-${notice.id}`,
+      message: {
+        kicker: copy.kicker,
+        title: copy.title,
+        body: copy.body,
+        details: notice.details(l),
+        action: { label: copy.action, url: url(`/b/${notice.publicToken}`) },
+        footnote: copy.footnote,
+      },
+    };
+    await Promise.all([
+      tellGuest(notice, guestLetter),
+      tellHosts(notice.businessId, (l) => ({
         subject:
           l === "ar"
             ? `طلب جديد: ${notice.guestName}، ${notice.when(l)}`
@@ -253,8 +272,7 @@ export function notifyBookingRequested(bookingId: string, kind: Notice["kind"] =
           },
         },
       })),
-    );
-    await Promise.all(sends);
+    ]);
   });
 }
 
@@ -309,9 +327,9 @@ const STATUS_COPY: Record<Lang, Partial<Record<BookingStatus, StatusCopy>>> = {
 
 /** Tells the guest their booking moved: confirmed, declined, cancelled or expired. */
 export function notifyBookingStatus(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("booking status email", async () => {
+  inBackground("booking status notice", async () => {
     const notice = await load(kind, bookingId);
-    if (!notice?.guestEmail) return;
+    if (!notice) return;
     const l = notice.locale;
     const copy = STATUS_COPY[l][notice.status];
     if (!copy) return;
@@ -319,33 +337,29 @@ export function notifyBookingStatus(bookingId: string, kind: Notice["kind"] = "s
       notice.status === "CANCELLED" && notice.cancelReason
         ? [`${l === "ar" ? "السبب" : "Reason"}: ${notice.cancelReason}`]
         : [];
-    await sendEmail({
-      to: notice.guestEmail,
+    await tellGuest(notice, {
+      subject: `${copy.subject}: ${notice.businessName} (${notice.reference})`,
       idempotencyKey: `status-${notice.status}-${notice.id}`,
-      ...render(
-        `${copy.subject}: ${notice.businessName} (${notice.reference})`,
-        {
-          kicker: copy.subject,
-          title: copy.title,
-          body: [copy.body, ...reason],
-          details: notice.details(l),
-          action:
-            notice.status === "CONFIRMED"
-              ? { label: l === "ar" ? "اعرض حجزك" : "See your booking", url: url(`/b/${notice.publicToken}`) }
-              : { label: l === "ar" ? "ابحث عن غيره" : "Find something else", url: url("/search") },
-        },
-        l,
-      ),
+      message: {
+        kicker: copy.subject,
+        title: copy.title,
+        body: [copy.body, ...reason],
+        details: notice.details(l),
+        action:
+          notice.status === "CONFIRMED"
+            ? { label: l === "ar" ? "اعرض حجزك" : "See your booking", url: url(`/b/${notice.publicToken}`) }
+            : { label: l === "ar" ? "ابحث عن غيره" : "Find something else", url: url("/search") },
+      },
     });
   });
 }
 
 /** The guest cancelled from their booking page: the people who can confirm bookings are told. */
 export function notifyGuestCancelled(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("guest cancelled email", async () => {
+  inBackground("guest cancelled notice", async () => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
-    await emailHosts(notice.businessId, (l) => ({
+    await tellHosts(notice.businessId, (l) => ({
       subject:
         l === "ar"
           ? `ألغاه الضيف: ${notice.guestName}، ${notice.when(l)}`
@@ -379,37 +393,34 @@ export function notifyPaymentRecorded(
   paymentId: string,
   kind: Notice["kind"] = "stay",
 ): void {
-  inBackground("payment receipt email", async () => {
+  inBackground("payment receipt", async () => {
     const notice = await load(kind, bookingId);
-    if (!notice?.guestEmail) return;
+    if (!notice) return;
     const l = notice.locale;
     const amount = formatMoney(amountCents, notice.currency, l);
-    await sendEmail({
-      to: notice.guestEmail,
+    await tellGuest(notice, {
       idempotencyKey: `payment-${paymentId}`,
-      ...render(
+      subject:
         l === "ar"
           ? `تم استلام الدفعة: ${amount} عن ${notice.reference}`
           : `Payment received: ${amount} for ${notice.reference}`,
-        {
-          kicker: l === "ar" ? "تم استلام الدفعة" : "Payment received",
-          title:
-            l === "ar"
-              ? `استلم ${notice.businessName} مبلغ ${amount}`
-              : `${notice.businessName} received ${amount}`,
-          body: [
-            l === "ar"
-              ? "شكرًا لك. سجّل المضيف دفعتك على هذا الحجز."
-              : "Thank you. The host recorded your payment against this booking.",
-          ],
-          details: notice.details(l),
-          action: {
-            label: l === "ar" ? "اعرض حجزك" : "See your booking",
-            url: url(`/b/${notice.publicToken}`),
-          },
+      message: {
+        kicker: l === "ar" ? "تم استلام الدفعة" : "Payment received",
+        title:
+          l === "ar"
+            ? `استلم ${notice.businessName} مبلغ ${amount}`
+            : `${notice.businessName} received ${amount}`,
+        body: [
+          l === "ar"
+            ? "شكرًا لك. سجّل المضيف دفعتك على هذا الحجز."
+            : "Thank you. The host recorded your payment against this booking.",
+        ],
+        details: notice.details(l),
+        action: {
+          label: l === "ar" ? "اعرض حجزك" : "See your booking",
+          url: url(`/b/${notice.publicToken}`),
         },
-        l,
-      ),
+      },
     });
   });
 }

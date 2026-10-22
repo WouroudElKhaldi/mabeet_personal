@@ -1,9 +1,10 @@
+import { isArabic } from "@/config/appearance";
 import { BRAND } from "@/config/brand";
 
 // Plain, table-based HTML that renders the same in Gmail, Outlook and Apple Mail, plus a text version.
 // Every value that came from a user is escaped.
 
-const ACCENT = "#0f7a4f";
+const ACCENT = BRAND.accent;
 const INK = "#222222";
 const MUTED = "#6a6a6a";
 const LINE = "#ebebeb";
@@ -22,7 +23,7 @@ export interface Detail {
   value: string;
 }
 
-interface Message {
+export interface Message {
   /** Short line above the title, e.g. "Booking request". */
   kicker: string;
   title: string;
@@ -43,7 +44,7 @@ export interface RenderedEmail {
 
 /** Renders one email. Arabic is laid out right to left. */
 export function render(subject: string, message: Message, locale = "en"): RenderedEmail {
-  const rtl = locale === "ar";
+  const rtl = isArabic(locale);
   const dir = rtl ? "rtl" : "ltr";
   const align = rtl ? "right" : "left";
   // Arabic has no capitals, and letter spacing breaks its joined letters.

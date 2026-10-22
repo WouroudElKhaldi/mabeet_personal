@@ -27,7 +27,8 @@ describe("server error messages in the visitor's language", () => {
   it("reads the locale cookie first, then the browser language", () => {
     const request = (headers: Record<string, string>) => new Request("http://x", { headers });
     expect(requestLocale(request({ cookie: "a=1; locale=ar" }))).toBe("ar");
-    expect(requestLocale(request({ "accept-language": "ar-LB,ar;q=0.9" }))).toBe("ar");
+    expect(requestLocale(request({ "accept-language": "ar-LB,ar;q=0.9" }))).toBe("ar-LB");
+    expect(requestLocale(request({ "accept-language": "ar-EG" }))).toBe("ar");
     expect(requestLocale(request({ cookie: "locale=en", "accept-language": "ar" }))).toBe("en");
     expect(requestLocale(request({}))).toBe("en");
   });

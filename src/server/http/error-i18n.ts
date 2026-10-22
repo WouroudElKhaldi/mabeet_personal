@@ -1,5 +1,6 @@
-import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type Locale } from "@/config/appearance";
+import { LOCALE_COOKIE, type Locale, pickLocale } from "@/config/appearance";
 import ar from "../../../messages/ar.json";
+import arLb from "../../../messages/ar-LB.json";
 import en from "../../../messages/en.json";
 
 // Services throw plain English (it reads well in logs, tests and AI tool results). Just before an error
@@ -7,7 +8,11 @@ import en from "../../../messages/en.json";
 // visitor's language. A message with no template is passed through unchanged.
 
 type Catalogue = typeof en.serverErrors;
-const CATALOGUES: Record<Locale, Catalogue> = { en: en.serverErrors, ar: ar.serverErrors };
+const CATALOGUES: Record<Locale, Catalogue> = {
+  en: en.serverErrors,
+  ar: ar.serverErrors,
+  "ar-LB": arLb.serverErrors,
+};
 
 interface CompiledTemplate {
   key: keyof Catalogue["messages"];
@@ -59,8 +64,5 @@ export function requestLocale(request: Request): Locale {
     ?.split(";")
     .map((part) => part.trim().split("="))
     .find(([name]) => name === LOCALE_COOKIE)?.[1];
-  if (isLocale(saved)) return saved;
-  return (request.headers.get("accept-language") ?? "").toLowerCase().startsWith("ar")
-    ? "ar"
-    : DEFAULT_LOCALE;
+  return pickLocale(saved, request.headers.get("accept-language"));
 }

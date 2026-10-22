@@ -29,6 +29,7 @@ import { getCurrentUser } from "@/server/http/session";
 import { getPlace } from "@/server/services/directory-service";
 import { favoriteSlugs } from "@/server/services/favorite-service";
 import { listPublicReviews } from "@/server/services/review-service";
+import { categoryName } from "@/config/appearance";
 import { searchParams as searchSchema } from "@/server/validation/schemas";
 
 type PageProps = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string>> };
@@ -131,7 +132,7 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
                   className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ring-1 ring-line-strong"
                 >
                   <CategoryIcon slug={category.slug} className="size-4 text-accent" />
-                  {locale === "ar" ? category.nameAr : category.nameEn}
+                  {categoryName(category, locale)}
                 </li>
               ))}
             </ul>

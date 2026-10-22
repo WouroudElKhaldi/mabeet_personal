@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { ACCESSIBILITY, ACTIVITY_LEVELS, LANGUAGES, SKILL_LEVELS, TAGS } from "@/config/listing";
 import { useAction } from "@/hooks/use-action";
+import { categoryName } from "@/config/appearance";
 import { api } from "@/lib/api-client";
 
 export interface EditableOffering {
@@ -106,7 +107,7 @@ export function OfferingEditor({
     );
   };
 
-  const name = (category: Category) => (locale === "ar" ? category.nameAr : category.nameEn);
+  const name = (category: Category) => categoryName(category, locale);
 
   return (
     <form onSubmit={submit} className="grid gap-5">

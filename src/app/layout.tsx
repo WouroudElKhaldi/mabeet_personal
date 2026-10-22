@@ -3,9 +3,10 @@ import localFont from "next/font/local";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
+import { ServiceWorker } from "@/components/pwa/service-worker";
 import { AppearanceProvider } from "@/components/theme/appearance-provider";
 import { AppearanceScript } from "@/components/theme/appearance-script";
-import { isRtl, type Locale } from "@/config/appearance";
+import { isArabic, type Locale } from "@/config/appearance";
 import { BRAND } from "@/config/brand";
 import { getSitePalette } from "@/server/services/site-service";
 import "./globals.css";
@@ -60,7 +61,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang={locale}
-      dir={isRtl(locale) ? "rtl" : "ltr"}
+      dir={isArabic(locale) ? "rtl" : "ltr"}
       data-mode="light"
       data-palette={palette}
       suppressHydrationWarning
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-dvh">
         <NextIntlClientProvider>
           <AppearanceProvider>{children}</AppearanceProvider>
+          <ServiceWorker />
         </NextIntlClientProvider>
       </body>
     </html>

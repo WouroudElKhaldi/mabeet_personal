@@ -736,7 +736,8 @@
       "failed": "Some photos could not be uploaded.",
       "roomTitle": "Photos of this room",
       "roomHint": "Shown when a guest opens this room. The first one is its cover."
-    }
+    },
+    "phoneAlerts": "Phone notifications"
   },
   "account": {
     "eyebrow": "Your account",
@@ -749,7 +750,8 @@
       "trips": "Trips",
       "favorites": "Favourites",
       "activity": "Activity",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "notifications": "Notifications"
     },
     "noTrips": "No trips yet. Where to first?",
     "explore": "Explore places",
@@ -1324,5 +1326,25 @@
     "allow": "Allow",
     "deny": "Don't allow",
     "revokeHint": "You can disconnect it any time from your dashboard, under Connect your AI."
+  },
+  "pwa": {
+    "title": "Notifications on this device",
+    "accountBody": "Get told the moment something changes, even with Mabeet closed: new requests and cancellations if you host, and every update on your own trips.",
+    "bookingTitle": "Follow this booking",
+    "bookingBody": "We'll tell you on this device when the host answers, and about any change after that.",
+    "turnOn": "Turn on notifications",
+    "on": "On for this device",
+    "turnOff": "Turn off",
+    "blocked": "Notifications are blocked for Mabeet. Allow them in your browser's site settings, then come back.",
+    "unsupported": "This browser can't show notifications. Chrome, Edge, Firefox and Safari can.",
+    "needsInstall": "On iPhone and iPad, add Mabeet to your Home Screen first, then open it from there to turn these on.",
+    "installTitle": "Mabeet as an app",
+    "installBody": "Open Mabeet from your home screen, full screen, like any other app.",
+    "install": "Install the app",
+    "installed": "Installed on this device",
+    "iosSteps": "In Safari, tap Share, then Add to Home Screen.",
+    "manualSteps": "Use your browser's menu and choose Install app or Add to Home Screen.",
+    "offlineTitle": "You're offline",
+    "offlineBody": "Mabeet needs a connection to show live availability. Check your signal and try again."
   }
 }

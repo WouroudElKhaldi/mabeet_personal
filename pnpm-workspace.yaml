@@ -6,3 +6,4 @@ allowBuilds:
   unrs-resolver: true
   "@parcel/watcher": false
   "@swc/core": false
+  "@embedded-postgres/windows-x64": false

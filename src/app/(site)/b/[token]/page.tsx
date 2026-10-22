@@ -8,12 +8,14 @@ import { BoardingPass } from "@/components/brand/boarding-pass";
 import { Postmark } from "@/components/brand/postmark";
 import { GuestCancelButton } from "@/components/booking/guest-cancel-button";
 import { HoldCountdown } from "@/components/booking/hold-countdown";
+import { PhoneAlerts } from "@/components/pwa/phone-alerts";
 import { buttonClass } from "@/components/ui/button";
 import { todayUtc } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
 import { stagger } from "@/lib/motion";
 import { formatSessionTime } from "@/lib/zoned-time";
 import { getBookingForGuest } from "@/server/services/booking-service";
+import { pushPublicKey } from "@/server/services/push-service";
 import { getSessionBookingForGuest } from "@/server/services/session-booking-service";
 
 type PageProps = { params: Promise<{ token: string }> };
@@ -112,7 +114,11 @@ async function loadView(token: string, locale: string): Promise<GuestBookingView
 export default async function ConfirmationPage({ params }: PageProps) {
   const { token } = await params;
   const locale = await getLocale();
-  const [t, booking] = await Promise.all([getTranslations("confirmation"), loadView(token, locale)]);
+  const [t, tPwa, booking] = await Promise.all([
+    getTranslations("confirmation"),
+    getTranslations("pwa"),
+    loadView(token, locale),
+  ]);
   if (!booking) notFound();
 
   const money = (cents: number) => formatMoney(cents, booking.currency, locale);
@@ -186,6 +192,16 @@ export default async function ConfirmationPage({ params }: PageProps) {
           </a>
         )}
         <p className="mt-6 text-sm text-muted">{t("keepLink")}</p>
+        {!closed && (
+          <div className="mt-8">
+            <PhoneAlerts
+              api={`/api/public/bookings/${token}/push`}
+              publicKey={pushPublicKey()}
+              title={tPwa("bookingTitle")}
+              body={tPwa("bookingBody")}
+            />
+          </div>
+        )}
         {booking.cancellable && (
           <GuestCancelButton token={token} confirmed={booking.status === "CONFIRMED"} />
         )}

@@ -23,6 +23,7 @@ import { ACCESSIBILITY, keepKnown, LANGUAGES, TAGS } from "@/config/listing";
 import { findPageOr404 } from "@/server/http/page";
 import { getCurrentUser } from "@/server/http/session";
 import { getOffering } from "@/server/services/directory-service";
+import { categoryName } from "@/config/appearance";
 import { listOfferingReviews } from "@/server/services/review-service";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -107,7 +108,7 @@ export default async function OfferingPage({ params }: PageProps) {
         {offering.category && (
           <span className="inline-flex items-center gap-1.5 font-semibold">
             <CategoryIcon slug={offering.category.slug} className="size-4" />
-            {locale === "ar" ? offering.category.nameAr : offering.category.nameEn}
+            {categoryName(offering.category, locale)}
           </span>
         )}
         {offering.area && (

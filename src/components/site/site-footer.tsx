@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { InstallButton } from "@/components/pwa/install-button";
 import { BRAND } from "@/config/brand";
 import { Wordmark } from "./wordmark";
 
@@ -20,6 +21,9 @@ export async function SiteFooter() {
         <div className="max-w-sm">
           <Wordmark />
           <p className="mt-4 text-sm leading-relaxed text-muted">{t("about")}</p>
+          <div className="mt-5">
+            <InstallButton hints={false} />
+          </div>
         </div>
         <div className="grid content-start gap-2.5 text-sm">
           <p className="font-semibold">{t("guests")}</p>

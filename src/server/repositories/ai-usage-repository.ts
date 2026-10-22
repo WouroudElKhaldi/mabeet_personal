@@ -31,7 +31,6 @@ export async function sumCostSince(db: Db, since: Date): Promise<number> {
   return _sum.costMicroUsd ?? 0;
 }
 
-export async function listSuperAdminEmails(db: Db): Promise<string[]> {
-  const admins = await db.user.findMany({ where: { platformRole: "SUPER_ADMIN" }, select: { email: true } });
-  return admins.map((admin) => admin.email);
+export function listSuperAdmins(db: Db): Promise<Array<{ id: string; email: string }>> {
+  return db.user.findMany({ where: { platformRole: "SUPER_ADMIN" }, select: { id: true, email: true } });
 }

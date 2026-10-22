@@ -12,6 +12,7 @@ import { useAppearance } from "./appearance-provider";
 const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "ar", label: "العربية" },
+  { code: "ar-LB", label: "لبناني" },
 ] as const;
 
 /**

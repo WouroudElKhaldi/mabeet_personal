@@ -14,6 +14,7 @@ import {
 } from "@/config/listing";
 import { toDateRange } from "@/lib/dates";
 import { ALL_PERMISSIONS, type Permission } from "@/server/auth/permissions";
+import { isPushServiceUrl } from "@/server/push/send";
 
 const id = z.string().min(1).max(64);
 
@@ -318,3 +319,15 @@ export const sessionBookingRequest = z.object({
   guestEmail: z.email().max(254).nullish(),
   guestNote: z.string().trim().max(1000).nullish(),
 });
+
+const pushEndpoint = z.url().max(2048).refine(isPushServiceUrl, "Unsupported push service");
+
+/** A browser's PushSubscription.toJSON(), flattened to what the server stores. */
+export const pushSubscribe = z
+  .object({
+    endpoint: pushEndpoint,
+    keys: z.object({ p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(64) }),
+  })
+  .transform(({ endpoint, keys }) => ({ endpoint, ...keys }));
+
+export const pushUnsubscribe = z.object({ endpoint: z.string().max(2048) });

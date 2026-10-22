@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import { ACCESSIBILITY, TAGS } from "@/config/listing";
+import { categoryName } from "@/config/appearance";
 import { useAction } from "@/hooks/use-action";
 
 interface BusinessSettings {
@@ -110,7 +111,7 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
                   defaultChecked={selected.has(category.slug)}
                   className="sr-only"
                 />
-                {locale === "ar" ? category.nameAr : category.nameEn}
+                {categoryName(category, locale)}
               </label>
             ))}
           </div>

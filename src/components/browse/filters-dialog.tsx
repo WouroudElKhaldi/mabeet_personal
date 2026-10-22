@@ -8,6 +8,7 @@ import { type ReactNode, useRef, useState } from "react";
 import { AMENITIES } from "@/config/amenities";
 import { ACCESSIBILITY, TAGS } from "@/config/listing";
 import { inputClass } from "@/components/ui/field";
+import { categoryName } from "@/config/appearance";
 import { activeFilterCount, searchHref, type SearchState } from "@/lib/search-url";
 
 interface FilterCategory {
@@ -124,7 +125,7 @@ export function FiltersDialog({ state, categories }: { state: SearchState; categ
                     on={draft.category?.includes(category.slug) ?? false}
                     onToggle={() => toggle("category", category.slug)}
                   >
-                    {locale === "ar" ? category.nameAr : category.nameEn}
+                    {categoryName(category, locale)}
                   </Chip>
                 ))}
               </Chips>
