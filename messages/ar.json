@@ -1750,7 +1750,10 @@
       "member_added": "أضاف {actor} عضوًا إلى الفريق",
       "member_removed": "أزال {actor} عضوًا من الفريق",
       "member_role_changed": "غيّر {actor} دور أحد الأعضاء"
-    }
+    },
+    "viewAll": "عرض كل الإشعارات",
+    "failed": "تعذّر تحميل الإشعارات. حاول مجددًا.",
+    "loading": "جارٍ التحميل"
   },
   "meetHost": {
     "title": "تعرّف على مضيفك",

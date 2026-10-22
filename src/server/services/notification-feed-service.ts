@@ -49,13 +49,13 @@ async function seenAt(userId: string) {
 }
 
 /** One page of the feed, newest first; `page` starts at 1 and is clamped to the pages there are. */
-async function feed(scope: FeedScope, actions: string[], userId: string, page: number) {
+async function feed(scope: FeedScope, actions: string[], userId: string, page: number, size = PAGE_SIZE) {
   if (actions.length === 0) return { items: [], seenAt: null, page: 1, pages: 1 };
   const total = await countFeed(prisma, scope, actions);
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(total / size));
   const current = Math.min(Math.max(1, Math.floor(page)), pages);
   const [items, seen] = await Promise.all([
-    listFeed(prisma, scope, actions, { take: PAGE_SIZE, skip: (current - 1) * PAGE_SIZE }),
+    listFeed(prisma, scope, actions, { take: size, skip: (current - 1) * size }),
     seenAt(userId),
   ]);
   return { items, seenAt: seen, page: current, pages };
@@ -63,6 +63,18 @@ async function feed(scope: FeedScope, actions: string[], userId: string, page: n
 
 export function getBusinessNotifications(ctx: TenantContext, page = 1) {
   return feed({ businessId: ctx.businessId }, businessNews(ctx), ctx.userId, page);
+}
+
+/** The bell's card: the latest few. */
+const LATEST = 5;
+
+export function getLatestBusinessNotifications(ctx: TenantContext) {
+  return feed({ businessId: ctx.businessId }, businessNews(ctx), ctx.userId, 1, LATEST);
+}
+
+export function getLatestPlatformNotifications(actor: PlatformActor) {
+  requireSuperAdmin(actor);
+  return feed({ platform: true }, [...PLATFORM_NEWS], actor.id, 1, LATEST);
 }
 
 export async function countBusinessUnread(ctx: TenantContext): Promise<number> {

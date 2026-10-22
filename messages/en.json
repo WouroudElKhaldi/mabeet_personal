@@ -1750,7 +1750,10 @@
       "member_added": "{actor} added someone to the team",
       "member_removed": "{actor} removed someone from the team",
       "member_role_changed": "{actor} changed someone's role"
-    }
+    },
+    "viewAll": "View all notifications",
+    "failed": "Couldn't load notifications. Try again.",
+    "loading": "Loading"
   },
   "meetHost": {
     "title": "Meet your host",

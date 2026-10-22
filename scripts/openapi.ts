@@ -717,6 +717,34 @@ const OPERATIONS: Operation[] = [
     tag: "AI",
     auth: "session",
   },
+  {
+    method: "get",
+    path: "/api/workspaces/{businessId}/notifications",
+    summary: "The bell: the latest five notifications in this business",
+    tag: "Workspaces",
+    auth: "member",
+  },
+  {
+    method: "post",
+    path: "/api/workspaces/{businessId}/notifications",
+    summary: "Mark notifications read (the bell was opened)",
+    tag: "Workspaces",
+    auth: "member",
+  },
+  {
+    method: "get",
+    path: "/api/admin/notifications",
+    summary: "The admin bell: the latest five platform notifications",
+    tag: "Platform",
+    auth: "admin",
+  },
+  {
+    method: "post",
+    path: "/api/admin/notifications",
+    summary: "Mark platform notifications read",
+    tag: "Platform",
+    auth: "admin",
+  },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {
     method: "post",

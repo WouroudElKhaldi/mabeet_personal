@@ -39,6 +39,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AppearanceMenu } from "@/components/theme/appearance-menu";
 import { authClient } from "@/lib/auth-client";
+import { NotificationBell } from "./notification-bell";
 
 /** Icons by name, so server layouts can describe their navigation in plain data. */
 const ICONS = {
@@ -90,15 +91,18 @@ interface AppShellProps {
   groups: ShellGroup[];
   /** Up to four links for the phone's bottom bar; the rest live behind "More". */
   tabs: string[];
-  user: { name: string; email: string };
   /** Links in the user menu: account, admin, host dashboard… */
   userLinks: ShellLink[];
   /** A highlighted shortcut in the top bar, e.g. the AI assistant. */
   cta?: ShellLink;
-  /** This area's own notifications page and profile page. */
+  /** This area's notifications: the bell's card (feed API) and the full page. */
   notificationsHref: string;
+  notificationsFeed: string;
   unread: number;
   profileHref: string;
+  user: { id: string; name: string; email: string };
+  /** The admin area, whose notifications link to admin pages. */
+  admin?: boolean;
   children: ReactNode;
 }
 
@@ -122,8 +126,10 @@ export function AppShell(props: AppShellProps) {
     userLinks,
     cta,
     notificationsHref,
+    notificationsFeed,
     unread,
     profileHref,
+    admin = false,
     children,
   } = props;
   const t = useTranslations("shell");
@@ -248,19 +254,13 @@ export function AppShell(props: AppShellProps) {
             <ExternalLink className="size-4" aria-hidden />
             {t("viewSite")}
           </Link>
-          <Link
-            href={notificationsHref}
-            aria-label={unread > 0 ? t("notificationsUnread", { count: unread }) : t("notifications")}
-            title={t("notifications")}
-            className="relative grid size-10 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-          >
-            <Bell className="size-[1.1rem]" aria-hidden />
-            {unread > 0 && (
-              <span className="absolute end-1 top-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-danger px-1 text-[0.625rem] leading-none font-bold text-white">
-                {unread > 99 ? "99+" : unread}
-              </span>
-            )}
-          </Link>
+          <NotificationBell
+            feedEndpoint={notificationsFeed}
+            viewAllHref={notificationsHref}
+            unread={unread}
+            viewerId={user.id}
+            admin={admin}
+          />
           <AppearanceMenu />
           <UserMenu user={user} links={userLinks} signOutLabel={t("signOut")} />
         </header>

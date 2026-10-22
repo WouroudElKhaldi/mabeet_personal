@@ -72,9 +72,10 @@ export default async function DashboardLayout({ children, params }: LayoutProps)
       }
       groups={groups}
       tabs={tabs}
-      user={{ name: user.name, email: user.email }}
+      user={{ id: user.id, name: user.name, email: user.email }}
       userLinks={userLinks}
       notificationsHref={`${base}/notifications`}
+      notificationsFeed={`/api/workspaces/${businessId}/notifications`}
       unread={unread}
       profileHref={`${base}/profile`}
       cta={

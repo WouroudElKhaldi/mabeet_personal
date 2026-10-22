@@ -1750,7 +1750,10 @@
       "member_added": "{actor} زاد حدا عالفريق",
       "member_removed": "{actor} شال حدا من الفريق",
       "member_role_changed": "{actor} غيّر دور حدا"
-    }
+    },
+    "viewAll": "شوف كل الإشعارات",
+    "failed": "ما قدرنا نحمّل الإشعارات. جرّب كمان مرّة.",
+    "loading": "عم يحمّل"
   },
   "meetHost": {
     "title": "تعرّف عمضيفك",

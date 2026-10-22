@@ -62,9 +62,10 @@ export default async function DashboardIndex() {
         },
       ]}
       tabs={["/dashboard"]}
-      user={{ name: user.name, email: user.email }}
+      user={{ id: user.id, name: user.name, email: user.email }}
       userLinks={userLinks}
       notificationsHref={`/dashboard/${first.id}/notifications`}
+      notificationsFeed={`/api/workspaces/${first.id}/notifications`}
       unread={0}
       profileHref={`/dashboard/${first.id}/profile`}
     >

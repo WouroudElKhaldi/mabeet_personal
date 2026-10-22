@@ -70,9 +70,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       }
       groups={groups}
       tabs={["/admin", "/admin/hosts", "/admin/money", "/admin/health"]}
-      user={{ name: user.name, email: user.email }}
+      user={{ id: user.id, name: user.name, email: user.email }}
       userLinks={userLinks}
       notificationsHref="/admin/notifications"
+      notificationsFeed="/api/admin/notifications"
+      admin
       unread={unread}
       profileHref="/admin/profile"
     >

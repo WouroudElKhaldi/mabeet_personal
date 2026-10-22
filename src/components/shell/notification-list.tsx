@@ -1,3 +1,5 @@
+"use client";
+
 import { clsx } from "clsx";
 import {
   BellOff,
@@ -11,13 +13,13 @@ import {
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { useLocale, useTranslations } from "next-intl";
 
 export interface NotificationItem {
   id: string;
   action: string;
   userId: string | null;
-  createdAt: Date;
+  createdAt: Date | string;
   user: { name: string } | null;
   business: { id: string; name: string } | null;
   booking: { reference: string; guestName: string } | null;
@@ -50,20 +52,29 @@ function hrefFor(item: NotificationItem, admin: boolean): string | null {
   return `/dashboard/${businessId}/bookings?tab=all`;
 }
 
-/** The bell's list: newest first, unread ones marked, each linking to where to act. */
-export async function NotificationList({
+/**
+ * Notifications, newest first, unread ones marked, each linking to where to act. The full page and the bell's
+ * dropdown both use it; `compact` is the dropdown's tighter version.
+ */
+export function NotificationList({
   items,
   seenAt,
   viewerId,
   admin = false,
+  compact = false,
+  onNavigate,
 }: {
   items: NotificationItem[];
-  seenAt: Date | null;
+  seenAt: Date | string | null;
   viewerId: string;
   admin?: boolean;
+  compact?: boolean;
+  onNavigate?: () => void;
 }) {
-  const [t, locale] = await Promise.all([getTranslations("notifications"), getLocale()]);
+  const t = useTranslations("notifications");
+  const locale = useLocale();
   const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const seen = seenAt ? new Date(seenAt) : null;
   const ago = (date: Date) => {
     const minutes = Math.round((date.getTime() - Date.now()) / 60_000);
     if (Math.abs(minutes) < 60) return relative.format(minutes, "minute");
@@ -74,39 +85,54 @@ export async function NotificationList({
 
   if (items.length === 0) {
     return (
-      <div className="grid place-items-center gap-3 rounded-xl bg-surface px-6 py-16 text-center ring-1 ring-line">
-        <BellOff className="size-8 text-faint" aria-hidden />
-        <p className="text-muted">{t("empty")}</p>
+      <div
+        className={clsx(
+          "grid place-items-center gap-3 text-center",
+          compact ? "px-4 py-8" : "rounded-xl bg-surface px-6 py-16 ring-1 ring-line",
+        )}
+      >
+        <BellOff className={compact ? "size-6 text-faint" : "size-8 text-faint"} aria-hidden />
+        <p className="text-sm text-muted">{t("empty")}</p>
       </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-xl bg-surface ring-1 ring-line">
+    <ul
+      className={clsx(
+        "divide-y divide-line overflow-hidden",
+        !compact && "rounded-xl bg-surface ring-1 ring-line",
+      )}
+    >
       {items.map((item) => {
         const Icon = ICONS[item.action] ?? Inbox;
-        const unread = (!seenAt || item.createdAt > seenAt) && item.userId !== viewerId;
+        const at = new Date(item.createdAt);
+        const unread = (!seen || at > seen) && item.userId !== viewerId;
         const href = hrefFor(item, admin);
         const text = t(`actions.${item.action.replace(".", "_")}` as "actions.booking_requested", {
           actor: item.user?.name ?? t("someone"),
           guest: item.booking?.guestName ?? t("aGuest"),
           reference: item.booking?.reference ?? "",
         });
+        const row = clsx("flex items-center gap-3", compact ? "px-3 py-2.5" : "px-4 py-3");
         const body = (
           <>
             <span
               className={clsx(
-                "grid size-9 shrink-0 place-items-center rounded-full",
+                "grid shrink-0 place-items-center rounded-full",
+                compact ? "size-8" : "size-9",
                 unread ? "bg-accent text-accent-ink" : "bg-surface-2 text-muted",
               )}
             >
               <Icon className="size-4" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className={clsx("block text-sm", unread && "font-semibold")}>{text}</span>
+              <span className={clsx("block text-sm", compact && "line-clamp-2", unread && "font-semibold")}>
+                {text}
+              </span>
               <span className="block text-xs text-muted">
                 {admin && item.business ? `${item.business.name} · ` : ""}
-                {ago(item.createdAt)}
+                {ago(at)}
               </span>
             </span>
             {unread && <span className="size-2 shrink-0 rounded-full bg-glow" aria-label={t("unread")} />}
@@ -117,12 +143,13 @@ export async function NotificationList({
             {href ? (
               <Link
                 href={href}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
+                onClick={onNavigate}
+                className={clsx(row, "transition-colors hover:bg-surface-2")}
               >
                 {body}
               </Link>
             ) : (
-              <div className="flex items-center gap-3 px-4 py-3">{body}</div>
+              <div className={row}>{body}</div>
             )}
           </li>
         );
