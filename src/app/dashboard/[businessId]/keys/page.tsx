@@ -18,7 +18,7 @@ export default async function KeysPage({ params }: PageProps) {
   const when = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" });
 
   return (
-    <div className="grid gap-10">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10">
       <header className="rise-in">
         <h1 className="text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-muted">{t("intro")}</p>

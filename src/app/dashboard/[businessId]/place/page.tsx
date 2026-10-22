@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { PhotoManager } from "@/components/dashboard/photo-manager";
 import { PlaceEssentials } from "@/components/dashboard/place-essentials";
+import { SettingsForm } from "@/components/dashboard/settings-form";
 import { RoomEditor } from "@/components/dashboard/room-editor";
 import { SpecialPrices } from "@/components/dashboard/special-prices";
 import { PageHeader, Panel } from "@/components/shell/page-header";
@@ -10,6 +11,7 @@ import { can } from "@/server/auth/tenant-context";
 import { requirePageAccess } from "@/server/http/session";
 import { listGallery } from "@/server/services/photo-service";
 import { listRooms, listSpecialPrices } from "@/server/services/room-service";
+import { listCategories } from "@/server/services/directory-service";
 import { getSettings } from "@/server/services/settings-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
@@ -21,11 +23,12 @@ type PageProps = { params: Promise<{ businessId: string }> };
 export default async function PlacePage({ params }: PageProps) {
   const { businessId } = await params;
   const ctx = await requirePageAccess(businessId, ["settings.manage"]);
-  const [t, settings, photos, rooms] = await Promise.all([
+  const [t, settings, photos, rooms, categories] = await Promise.all([
     getTranslations("place"),
     getSettings(ctx),
     listGallery(ctx, {}),
     listRooms(ctx),
+    listCategories(),
   ]);
   const wholePlace = settings.bookingUnit === "WHOLE_PLACE";
   const unit = rooms.find((room) => room.kind === "WHOLE_PLACE");
@@ -71,6 +74,8 @@ export default async function PlacePage({ params }: PageProps) {
         <div className="rounded-xl bg-surface p-5 ring-1 ring-line">
           <PhotoManager businessId={businessId} photos={photos} />
         </div>
+
+        <SettingsForm businessId={businessId} part="place" settings={settings} categories={categories} />
       </div>
     </>
   );

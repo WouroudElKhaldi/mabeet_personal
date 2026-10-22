@@ -52,7 +52,7 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
   };
 
   return (
-    <div className="grid gap-8">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-8">
       {confirmDialog}
       <form onSubmit={create} className="grid gap-4 rounded-xl bg-surface p-5 ring-1 ring-line">
         <p className="flex items-center gap-2 font-display text-lg font-semibold">
@@ -101,21 +101,21 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="grid gap-4 rounded-xl bg-accent-soft p-5 ring-1 ring-accent-line"
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl bg-accent-soft p-5 ring-1 ring-accent-line"
           >
             <p className="flex items-center gap-2 font-semibold">
               <TriangleAlert className="size-4 text-warning" aria-hidden />
               {t("copyNow")}
             </p>
             <CopyField value={secret} label={t("secret")} />
-            <div className="grid gap-2">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
               <p className="text-sm font-semibold">{t("claudeCode")}</p>
               <CopyField
                 value={`claude mcp add --transport http mabeet ${mcpUrl} --header "Authorization: Bearer ${secret}"`}
                 label={t("claudeCode")}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
               <p className="text-sm font-semibold">{t("desktop")}</p>
               <CopyField
                 value={JSON.stringify({

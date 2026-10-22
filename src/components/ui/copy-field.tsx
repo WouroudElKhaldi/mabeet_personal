@@ -13,14 +13,14 @@ export function CopyField({ value, label }: { value: string; label: string }) {
     setTimeout(() => setCopied(false), 1800);
   };
   return (
-    <div className="flex items-center gap-2 rounded-md bg-surface-2 p-1.5 ps-3">
+    <div className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-md bg-surface-2 p-1.5 ps-3">
       <code className="min-w-0 flex-1 truncate text-xs" aria-label={label}>
         {value}
       </code>
       <button
         type="button"
         onClick={copy}
-        className="flex h-8 items-center gap-1.5 rounded-sm bg-surface px-3 text-xs font-semibold ring-1 ring-line transition-colors hover:bg-paper"
+        className="flex h-8 shrink-0 items-center gap-1.5 rounded-sm bg-surface px-3 text-xs font-semibold ring-1 ring-line transition-colors hover:bg-paper"
       >
         {copied ? (
           <Check className="size-3.5 text-success" aria-hidden />

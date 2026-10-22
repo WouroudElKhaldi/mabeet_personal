@@ -726,7 +726,7 @@
       "contact": "Contact",
       "phone": "Phone",
       "whatsapp": "WhatsApp number",
-      "bookingRules": "Booking rules",
+      "bookingRules": "Money and holds",
       "currency": "Currency",
       "commission": "Platform commission you avoid (%)",
       "commissionHint": "Used to show how much direct bookings save you.",
@@ -770,7 +770,11 @@
           "FULL": "The full amount"
         },
         "refundPolicy": "Refunds when a guest cancels"
-      }
+      },
+      "stayRules": "Arrival and house rules",
+      "saved": "Saved.",
+      "generalIntro": "How the business runs: currency, deposits, holds and payments. What guests read about the place is on",
+      "placeLink": "Your place"
     },
     "offerings": {
       "title": "Experiences & services",
@@ -1811,5 +1815,11 @@
     },
     "month": "This month",
     "noAccess": "Your role here doesn't include bookings."
+  },
+  "pagination": {
+    "label": "Pages",
+    "newer": "Newer",
+    "older": "Older",
+    "of": "Page {page} of {pages}"
   }
 }

@@ -29,11 +29,17 @@ export type FeedScope = { businessId: string } | { platform: true };
 const scopeWhere = (scope: FeedScope) => ("businessId" in scope ? { businessId: scope.businessId } : {});
 
 /** The newest notable events, with who did it and, for bookings, the guest and reference. */
-export async function listFeed(db: Db, scope: FeedScope, actions: readonly string[], take: number) {
+export async function listFeed(
+  db: Db,
+  scope: FeedScope,
+  actions: readonly string[],
+  page: { take: number; skip: number },
+) {
   const rows = await db.activityLog.findMany({
     where: { ...scopeWhere(scope), action: { in: [...actions] } },
-    orderBy: { createdAt: "desc" },
-    take,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: page.take,
+    skip: page.skip,
     include: {
       user: { select: { name: true } },
       business: { select: { id: true, name: true } },
@@ -52,6 +58,10 @@ export async function listFeed(db: Db, scope: FeedScope, actions: readonly strin
   ]);
   const bookings = new Map([...stays, ...seats].map((booking) => [booking.id, booking]));
   return rows.map((row) => ({ ...row, booking: row.entityId ? (bookings.get(row.entityId) ?? null) : null }));
+}
+
+export function countFeed(db: Db, scope: FeedScope, actions: readonly string[]) {
+  return db.activityLog.count({ where: { ...scopeWhere(scope), action: { in: [...actions] } } });
 }
 
 /** How many notable events arrived since a moment, not counting the person's own. */

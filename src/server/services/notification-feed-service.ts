@@ -2,7 +2,12 @@ import type { TenantContext } from "@/server/auth/tenant-context";
 import { can } from "@/server/auth/tenant-context";
 import { prisma } from "@/server/db/client";
 import * as accounts from "@/server/repositories/account-repository";
-import { countFeedSince, type FeedScope, listFeed } from "@/server/repositories/activity-repository";
+import {
+  countFeed,
+  countFeedSince,
+  type FeedScope,
+  listFeed,
+} from "@/server/repositories/activity-repository";
 import { type PlatformActor, requireSuperAdmin } from "./admin-service";
 
 // The bell: what happened that the person should know about, read from the activity log. Emails and push send
@@ -33,7 +38,7 @@ const PLATFORM_NEWS = [
   "review.submitted",
 ] as const;
 
-const FEED_SIZE = 60;
+const PAGE_SIZE = 20;
 
 function businessNews(ctx: TenantContext): string[] {
   return [...(can(ctx, "bookings.read") ? BOOKING_NEWS : []), ...(ctx.isOwner ? OWNER_NEWS : [])];
@@ -43,14 +48,21 @@ async function seenAt(userId: string) {
   return (await accounts.findProfile(prisma, userId))?.notificationsSeenAt ?? null;
 }
 
-async function feed(scope: FeedScope, actions: string[], userId: string) {
-  if (actions.length === 0) return { items: [], seenAt: null };
-  const [items, seen] = await Promise.all([listFeed(prisma, scope, actions, FEED_SIZE), seenAt(userId)]);
-  return { items, seenAt: seen };
+/** One page of the feed, newest first; `page` starts at 1 and is clamped to the pages there are. */
+async function feed(scope: FeedScope, actions: string[], userId: string, page: number) {
+  if (actions.length === 0) return { items: [], seenAt: null, page: 1, pages: 1 };
+  const total = await countFeed(prisma, scope, actions);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const current = Math.min(Math.max(1, Math.floor(page)), pages);
+  const [items, seen] = await Promise.all([
+    listFeed(prisma, scope, actions, { take: PAGE_SIZE, skip: (current - 1) * PAGE_SIZE }),
+    seenAt(userId),
+  ]);
+  return { items, seenAt: seen, page: current, pages };
 }
 
-export function getBusinessNotifications(ctx: TenantContext) {
-  return feed({ businessId: ctx.businessId }, businessNews(ctx), ctx.userId);
+export function getBusinessNotifications(ctx: TenantContext, page = 1) {
+  return feed({ businessId: ctx.businessId }, businessNews(ctx), ctx.userId, page);
 }
 
 export async function countBusinessUnread(ctx: TenantContext): Promise<number> {
@@ -65,9 +77,9 @@ export async function countBusinessUnread(ctx: TenantContext): Promise<number> {
   );
 }
 
-export function getPlatformNotifications(actor: PlatformActor) {
+export function getPlatformNotifications(actor: PlatformActor, page = 1) {
   requireSuperAdmin(actor);
-  return feed({ platform: true }, [...PLATFORM_NEWS], actor.id);
+  return feed({ platform: true }, [...PLATFORM_NEWS], actor.id, page);
 }
 
 export async function countPlatformUnread(actor: PlatformActor): Promise<number> {
