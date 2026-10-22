@@ -1,4 +1,5 @@
-import { AtSign, Bot, CalendarSync, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, AtSign, Bot, CalendarSync, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { CreateWorkspaceForm } from "@/components/account/create-workspace-form";
@@ -23,8 +24,8 @@ export default async function HostPage() {
   return (
     <div className="mx-auto grid max-w-7xl gap-16 px-4 pt-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
       <section>
-        <h1 className="rise-in text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] font-medium">
-          {t.rich("headline", { em: (chunk) => <em className="text-accent italic">{chunk}</em> })}
+        <h1 className="rise-in text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] font-semibold">
+          {t.rich("headline", { em: (chunk) => <em className="text-accent">{chunk}</em> })}
         </h1>
         <p className="rise-in mt-6 max-w-xl text-lg leading-relaxed text-muted" style={stagger(1)}>
           {t("intro")}
@@ -54,6 +55,13 @@ export default async function HostPage() {
             </ButtonLink>
           </div>
         )}
+        <Link
+          href="/pricing"
+          className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold underline underline-offset-4"
+        >
+          {t("seePlans")}
+          <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
+        </Link>
       </section>
     </div>
   );

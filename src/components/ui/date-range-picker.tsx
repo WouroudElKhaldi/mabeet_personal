@@ -101,7 +101,7 @@ export function DateRangePicker({ value, onChange, taken = new Set(), months = 2
               const month = shiftMonth(cursor, offset);
               return (
                 <div key={offset} className={clsx(offset > 0 && "hidden sm:block")}>
-                  <p className="mb-3 text-center font-display text-lg font-semibold">
+                  <p className="mb-3 text-center text-base font-semibold">
                     {monthName.format(new Date(Date.UTC(month.year, month.month, 1)))}
                   </p>
                   <div className="grid grid-cols-7 text-center text-xs font-semibold text-faint">
@@ -159,15 +159,15 @@ function DayCell({ day, start, end, disabled, taken, isToday, onPick, onHover }:
     <div
       className={clsx(
         "relative h-11",
-        inRange && "bg-accent-soft",
+        inRange && "bg-surface-2",
         isStart &&
           end &&
           end > day &&
-          "bg-gradient-to-r from-transparent from-50% to-accent-soft to-50% rtl:bg-gradient-to-l",
+          "bg-gradient-to-r from-transparent from-50% to-surface-2 to-50% rtl:bg-gradient-to-l",
         isEnd &&
           start &&
           start < day &&
-          "bg-gradient-to-l from-transparent from-50% to-accent-soft to-50% rtl:bg-gradient-to-r",
+          "bg-gradient-to-l from-transparent from-50% to-surface-2 to-50% rtl:bg-gradient-to-r",
       )}
     >
       <button
@@ -180,10 +180,8 @@ function DayCell({ day, start, end, disabled, taken, isToday, onPick, onHover }:
         aria-label={day}
         className={clsx(
           "relative mx-auto grid size-11 place-items-center rounded-full text-sm font-semibold transition-[background-color,transform,color] duration-200",
-          isStart || isEnd
-            ? "scale-100 bg-accent text-accent-ink shadow-soft"
-            : "hover:scale-105 hover:ring-1 hover:ring-ink/60",
-          disabled && "cursor-not-allowed text-faint hover:scale-100 hover:ring-0",
+          isStart || isEnd ? "bg-ink text-paper" : "hover:ring-1 hover:ring-ink",
+          disabled && "cursor-not-allowed text-faint hover:ring-0",
           taken && "line-through decoration-faint/70",
         )}
       >

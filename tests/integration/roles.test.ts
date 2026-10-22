@@ -89,6 +89,37 @@ describe("dynamic roles and permissions", () => {
     });
   });
 
+  it("stops 'add member' from changing an existing member's role, owners included", async () => {
+    const manager = await memberWith(place.business.id, ["team.manage", "bookings.read"]);
+    const viewerRole = await createRole(place.ctx, { name: "Viewer", permissions: ["bookings.read"] });
+    const owner = await prisma.user.findUniqueOrThrow({ where: { id: place.ctx.userId } });
+    await expect(addMember(manager, { email: owner.email, roleId: viewerRole.id })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    const ownerMembership = await prisma.membership.findUniqueOrThrow({
+      where: { id: place.ctx.membershipId },
+      include: { role: true },
+    });
+    expect(ownerMembership.role.isOwner).toBe(true);
+  });
+
+  it("lets a removed member be added back", async () => {
+    const staff = await memberWith(place.business.id, ["bookings.read"]);
+    const viewerRole = await createRole(place.ctx, { name: "Viewer", permissions: ["bookings.read"] });
+    await removeMember(place.ctx, staff.membershipId);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: staff.userId } });
+    const back = await addMember(place.ctx, { email: user.email, roleId: viewerRole.id });
+    expect(back).toMatchObject({ status: "ACTIVE", roleId: viewerRole.id });
+  });
+
+  it("deletes a role whose only members were removed", async () => {
+    const staff = await memberWith(place.business.id, ["bookings.read"]);
+    const membership = await prisma.membership.findUniqueOrThrow({ where: { id: staff.membershipId } });
+    await removeMember(place.ctx, staff.membershipId);
+    await expect(deleteRole(place.ctx, membership.roleId)).resolves.toBeUndefined();
+    expect(await prisma.role.findUnique({ where: { id: membership.roleId } })).toBeNull();
+  });
+
   it("takes access away as soon as a member is removed", async () => {
     const staff = await memberWith(place.business.id, ["bookings.read"]);
     await removeMember(place.ctx, staff.membershipId);

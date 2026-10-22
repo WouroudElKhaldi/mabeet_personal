@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { addDays, parseIsoDate, toIsoDate } from "@/lib/dates";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
@@ -39,6 +40,12 @@ export function CalendarBoard({ businessId, month, rooms, entries, canEditBlocks
   const t = useTranslations("dashboard.calendar");
   const locale = useLocale();
   const { run, pending } = useAction();
+  const tConfirm = useTranslations("confirm");
+  const [ask, confirmDialog] = useConfirm();
+  /** Runs `action` only after the person confirms. */
+  const confirmThen = async (options: ConfirmOptions, action: () => Promise<unknown>) => {
+    if ((await ask(options)).confirmed) run(action);
+  };
   const first = parseIsoDate(`${month}-01`);
   const nextMonth = toIsoDate(addDays(first, 32)).slice(0, 7);
   const previousMonth = toIsoDate(addDays(first, -1)).slice(0, 7);
@@ -62,6 +69,7 @@ export function CalendarBoard({ businessId, month, rooms, entries, canEditBlocks
 
   return (
     <div className="rounded-xl bg-surface ring-1 ring-line">
+      {confirmDialog}
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <Link
           href={`?month=${previousMonth}`}
@@ -128,7 +136,15 @@ export function CalendarBoard({ businessId, month, rooms, entries, canEditBlocks
                           disabled={pending}
                           aria-label={t("removeBlock")}
                           onClick={() =>
-                            run(() => api.delete(`/api/workspaces/${businessId}/blocks/${entry.id}`))
+                            void confirmThen(
+                              {
+                                title: tConfirm("removeBlock.title"),
+                                body: tConfirm("removeBlock.body"),
+                                confirmLabel: tConfirm("removeBlock.confirm"),
+                                danger: true,
+                              },
+                              () => api.delete(`/api/workspaces/${businessId}/blocks/${entry.id}`),
+                            )
                           }
                           className="ms-auto grid size-5 shrink-0 place-items-center rounded-full hover:bg-paper/20"
                         >

@@ -25,7 +25,7 @@ async function requireRoom(ctx: TenantContext, roomId: string) {
   return room;
 }
 
-export function getCalendar(ctx: TenantContext, range: DateRange, roomId?: string) {
+export async function getCalendar(ctx: TenantContext, range: DateRange, roomId?: string) {
   requirePermission(ctx, "calendar.read");
   return calendar.listOccupancy(prisma, ctx.businessId, range, roomId);
 }

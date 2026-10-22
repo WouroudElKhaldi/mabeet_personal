@@ -3,6 +3,7 @@
 const PERMISSIONS = {
   "rooms.read": "See rooms, rates and photos",
   "rooms.manage": "Create and edit rooms, rates and photos",
+  "offerings.manage": "Create and edit experiences, services and their sessions",
   "calendar.read": "See the calendar and availability",
   "blocks.manage": "Close and reopen dates",
   "feeds.manage": "Manage Airbnb and Booking.com calendar links",

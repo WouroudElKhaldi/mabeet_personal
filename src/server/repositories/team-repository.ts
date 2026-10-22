@@ -36,6 +36,11 @@ export function listMembers(db: Db, businessId: string) {
   });
 }
 
+/** Any membership of this user in this business, including removed ones. */
+export function findMembershipOfUser(db: Db, userId: string, businessId: string) {
+  return db.membership.findUnique({ where: { userId_businessId: { userId, businessId } } });
+}
+
 export function upsertMembership(db: Db, data: { userId: string; businessId: string; roleId: string }) {
   return db.membership.upsert({
     where: { userId_businessId: { userId: data.userId, businessId: data.businessId } },
@@ -80,13 +85,18 @@ export async function updateRole(
   return count > 0;
 }
 
-export async function deleteRole(db: Db, businessId: string, roleId: string) {
-  const { count } = await db.role.deleteMany({ where: { id: roleId, businessId, isOwner: false } });
+/**
+ * Deletes a role. Removed memberships still point at it (the foreign key is Restrict), so they go first:
+ * they grant nothing, and re-adding that person creates a fresh membership.
+ */
+export async function deleteRole(tx: Prisma.TransactionClient, businessId: string, roleId: string) {
+  await tx.membership.deleteMany({ where: { roleId, businessId, status: "REMOVED" } });
+  const { count } = await tx.role.deleteMany({ where: { id: roleId, businessId, isOwner: false } });
   return count > 0;
 }
 
-export function countActiveMembersWithRole(db: Db, roleId: string) {
-  return db.membership.count({ where: { roleId, status: "ACTIVE" } });
+export function countMembersWithRole(db: Db, roleId: string) {
+  return db.membership.count({ where: { roleId, status: { not: "REMOVED" } } });
 }
 
 export function findUserByEmail(db: Db, email: string) {

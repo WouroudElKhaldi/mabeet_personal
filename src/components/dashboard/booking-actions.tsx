@@ -1,16 +1,16 @@
 "use client";
 
 import type { BookingStatus } from "@prisma/client";
+import { MANUAL_PAYMENT_METHODS } from "@/config/enums";
 import { Check, HandCoins, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
-
-const METHODS = ["WHISH", "OMT", "CASH", "BANK_TRANSFER", "OTHER"] as const;
 
 interface BookingActionsProps {
   businessId: string;
@@ -19,6 +19,8 @@ interface BookingActionsProps {
   depositCents: number;
   canDecide: boolean;
   canRecordPayment: boolean;
+  /** Room stays and experience/service sessions have separate endpoints. */
+  kind?: "stay" | "session";
 }
 
 export function BookingActions({
@@ -28,12 +30,26 @@ export function BookingActions({
   depositCents,
   canDecide,
   canRecordPayment,
+  kind = "stay",
 }: BookingActionsProps) {
   const t = useTranslations("dashboard.bookings");
   const { run, pending, error } = useAction();
   const [recording, setRecording] = useState(false);
-  const base = `/api/workspaces/${businessId}/bookings/${bookingId}`;
-  const decide = (action: "confirm" | "decline" | "cancel") => run(() => api.post(`${base}/${action}`, {}));
+  const base = `/api/workspaces/${businessId}/${kind === "session" ? "session-bookings" : "bookings"}/${bookingId}`;
+  const tConfirm = useTranslations("confirm");
+  const [ask, confirmDialog] = useConfirm();
+  const decide = async (action: "confirm" | "decline" | "cancel") => {
+    if (action === "confirm") return run(() => api.post(`${base}/confirm`, {}));
+    const answer = await ask({
+      title: tConfirm(`${action}.title`),
+      body: tConfirm(`${action}.body`),
+      confirmLabel: tConfirm(`${action}.confirm`),
+      danger: true,
+      reason: { label: tConfirm("reasonOptional") },
+    });
+    if (answer.confirmed)
+      run(() => api.post(`${base}/${action}`, answer.reason ? { reason: answer.reason } : {}));
+  };
 
   const record = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -50,6 +66,7 @@ export function BookingActions({
 
   return (
     <div className="grid gap-3">
+      {confirmDialog}
       <div className="flex flex-wrap gap-2">
         {canDecide && status === "HELD" && (
           <>
@@ -99,7 +116,7 @@ export function BookingActions({
             <label className="grid gap-1 text-xs font-semibold text-muted">
               {t("method")}
               <select name="method" className={`${inputClass} h-10 w-40`}>
-                {METHODS.map((method) => (
+                {MANUAL_PAYMENT_METHODS.map((method) => (
                   <option key={method} value={method}>
                     {t(`methods.${method}`)}
                   </option>

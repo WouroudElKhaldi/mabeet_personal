@@ -3,14 +3,14 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { CopyField } from "@/components/ui/copy-field";
 import { AddFeedForm, FeedButtons } from "@/components/dashboard/feed-controls";
 import { env } from "@/server/env";
-import { requirePageTenant } from "@/server/http/session";
+import { requirePageAccess } from "@/server/http/session";
 import { getChannelSetup } from "@/server/services/calendar-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
 
 export default async function ChannelsPage({ params }: PageProps) {
   const { businessId } = await params;
-  const ctx = await requirePageTenant(businessId);
+  const ctx = await requirePageAccess(businessId, ["feeds.manage"]);
   const [t, locale, rooms] = await Promise.all([
     getTranslations("dashboard.channels"),
     getLocale(),
@@ -21,7 +21,7 @@ export default async function ChannelsPage({ params }: PageProps) {
   return (
     <div className="grid gap-8">
       <header className="rise-in">
-        <h1 className="text-4xl font-medium">{t("title")}</h1>
+        <h1 className="text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-muted">{t("intro")}</p>
       </header>
       {rooms.map((room) => (

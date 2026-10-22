@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import { auth } from "@/server/auth/better-auth";
 import type { TenantContext } from "@/server/auth/tenant-context";
+import type { Locale } from "@/config/appearance";
 import { env } from "@/server/env";
 import { AppError, invalid, notFound, unauthenticated } from "@/server/errors";
+import { localizeError, requestLocale } from "./error-i18n";
 import { resolveContext } from "@/server/services/team-service";
 
 type RouteContext = { params: Promise<Record<string, string>> };
@@ -16,21 +18,28 @@ export function route(handler: Handler): Handler {
     try {
       return await handler(request, context);
     } catch (error) {
-      return errorResponse(error);
+      return errorResponse(error, requestLocale(request));
     }
   };
 }
 
-function errorResponse(error: unknown): Response {
+/** Maps an error to JSON in the visitor's language. Unexpected errors are logged and never leak details. */
+function errorResponse(error: unknown, locale: Locale): Response {
   if (error instanceof ZodError) {
     return NextResponse.json(
-      { error: { code: "VALIDATION", message: "Invalid input", details: z.flattenError(error) } },
+      {
+        error: {
+          code: "VALIDATION",
+          message: localizeError("Invalid input", locale),
+          details: z.flattenError(error),
+        },
+      },
       { status: 400 },
     );
   }
   if (error instanceof AppError) {
     return NextResponse.json(
-      { error: { code: error.code, message: error.message, details: error.details } },
+      { error: { code: error.code, message: localizeError(error.message, locale), details: error.details } },
       { status: error.status },
     );
   }
@@ -79,9 +88,30 @@ export function requireCronSecret(request: Request): void {
 }
 
 /** Resolves the caller's membership in the workspace named by the URL. Non-members get 404, never 403. */
-export async function requireTenant(request: Request, businessId: string): Promise<TenantContext> {
+async function requireTenant(request: Request, businessId: string): Promise<TenantContext> {
   const user = await requireUser(request);
   const ctx = await resolveContext(user.id, businessId);
   if (!ctx) throw notFound("Workspace");
   return ctx;
+}
+
+interface TenantHandlerArgs<Params> {
+  request: Request;
+  ctx: TenantContext;
+  params: Params;
+}
+
+/**
+ * A workspace route: parses the URL params, then resolves the caller's membership in that business before the
+ * handler runs, so no workspace route can forget the tenant check. Non-members get 404.
+ */
+export function tenantRoute<Schema extends z.ZodType<{ businessId: string }>>(
+  schema: Schema,
+  handler: (args: TenantHandlerArgs<z.infer<Schema>>) => Promise<Response>,
+): Handler {
+  return route(async (request, context) => {
+    const params = await parseParams(context, schema);
+    const ctx = await requireTenant(request, params.businessId);
+    return handler({ request, ctx, params });
+  });
 }

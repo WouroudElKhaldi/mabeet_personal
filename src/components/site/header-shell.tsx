@@ -3,12 +3,12 @@
 import { clsx } from "clsx";
 import { type ReactNode, useEffect, useState } from "react";
 
-/** Sticky header that turns into frosted glass once the page scrolls. */
+/** Sticky white header with a hairline; a soft shadow appears once the page scrolls. */
 export function HeaderShell({ children }: { children: ReactNode }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setScrolled(window.scrollY > 4);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -17,8 +17,8 @@ export function HeaderShell({ children }: { children: ReactNode }) {
   return (
     <header
       className={clsx(
-        "sticky top-0 z-40 transition-[background-color,box-shadow,backdrop-filter] duration-500 ease-(--ease-out)",
-        scrolled ? "bg-paper/80 shadow-[0_1px_0_var(--line)] backdrop-blur-xl" : "bg-transparent",
+        "sticky top-0 z-40 border-b border-line bg-paper transition-shadow duration-200",
+        scrolled && "shadow-soft",
       )}
     >
       {children}

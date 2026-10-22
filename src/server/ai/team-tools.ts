@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BOOKING_STATUSES } from "@/config/enums";
 import { addDays, parseIsoDate, rangesOverlap, toDateRange, toIsoDate, todayUtc } from "@/lib/dates";
 import type { TenantContext } from "@/server/auth/tenant-context";
 import { getBusinessReport } from "@/server/services/analytics-service";
@@ -9,7 +10,9 @@ import {
   listBookings,
 } from "@/server/services/booking-service";
 import { addBlock, getCalendarBoard, getChannelSetup, removeBlock } from "@/server/services/calendar-service";
+import { getSchedule } from "@/server/services/offering-service";
 import { listReviewsForTeam } from "@/server/services/review-service";
+import { listSessionBookings } from "@/server/services/session-booking-service";
 import { listRooms } from "@/server/services/room-service";
 import { type AiTool, defineTool } from "./tool";
 
@@ -29,7 +32,7 @@ const defaultWindow = () => ({ checkIn: addDays(todayUtc(), -30), checkOut: addD
 
 const team = <Input extends z.ZodObject>(tool: AiTool<Input, TenantContext>) => defineTool(tool);
 
-export const TEAM_TOOLS = [
+const TEAM_TOOLS = [
   team({
     name: "list_rooms",
     description: "The business's rooms with capacity, nightly base rate (cents) and amenities.",
@@ -87,7 +90,7 @@ export const TEAM_TOOLS = [
     name: "list_bookings",
     description: "Bookings filtered by status and dates (at most 50). HELD means waiting for the owner.",
     input: z.object({
-      status: z.enum(["HELD", "CONFIRMED", "DECLINED", "EXPIRED", "CANCELLED"]).optional(),
+      status: z.enum(BOOKING_STATUSES).optional(),
       from: isoDate.optional(),
       to: isoDate.optional(),
     }),
@@ -109,7 +112,7 @@ export const TEAM_TOOLS = [
         checkIn: toIsoDate(booking.checkIn),
         checkOut: toIsoDate(booking.checkOut),
         guests: booking.guestCount,
-        guestName: booking.guestName,
+        guestName: guestWritten(booking.guestName),
         guestPhone: booking.guestPhone,
         totalCents: booking.totalCents,
         currency: booking.currency,
@@ -129,7 +132,7 @@ export const TEAM_TOOLS = [
         room: booking.room.name,
         checkIn: toIsoDate(booking.checkIn),
         checkOut: toIsoDate(booking.checkOut),
-        guestName: booking.guestName,
+        guestName: guestWritten(booking.guestName),
         guestPhone: booking.guestPhone,
         guestEmail: booking.guestEmail,
         guestNote: guestWritten(booking.guestNote),
@@ -158,11 +161,49 @@ export const TEAM_TOOLS = [
     run: async (_input, ctx) =>
       (await listReviewsForTeam(ctx)).map((review) => ({
         rating: review.rating,
-        room: review.room.name,
+        about: review.subject,
         comment: guestWritten(review.comment),
         ownerReply: review.ownerReply,
         hidden: review.status === "HIDDEN",
         date: toIsoDate(review.createdAt),
+      })),
+  }),
+  team({
+    name: "get_schedule",
+    description:
+      "Upcoming sessions of the business's experiences and services, with spots booked and capacity. Defaults to the next 14 days.",
+    input: z.object({ days: z.number().int().min(1).max(90).default(14) }),
+    requires: "bookings.read",
+    mutates: false,
+    run: async ({ days }, ctx) => {
+      const now = new Date();
+      return (await getSchedule(ctx, now, addDays(now, days))).map((session) => ({
+        offering: session.offering.title,
+        kind: session.offering.kind,
+        startsAt: session.startsAt,
+        booked: session.seatsTaken,
+        capacity: session.capacity,
+      }));
+    },
+  }),
+  team({
+    name: "list_experience_bookings",
+    description:
+      "Bookings for experiences and services (seats in a session), filtered by status. HELD means waiting for the owner.",
+    input: z.object({ status: z.enum(BOOKING_STATUSES).optional() }),
+    requires: "bookings.read",
+    mutates: false,
+    run: async ({ status }, ctx) =>
+      (await listSessionBookings(ctx, { status, take: 50 })).map((booking) => ({
+        reference: booking.reference,
+        status: booking.status,
+        offering: booking.offering.title,
+        startsAt: booking.session.startsAt,
+        guests: booking.seats,
+        guestName: guestWritten(booking.guestName),
+        guestPhone: booking.guestPhone,
+        totalCents: booking.totalCents,
+        currency: booking.currency,
       })),
   }),
   team({

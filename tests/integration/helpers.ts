@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Plan } from "@prisma/client";
 import { addDays, todayUtc } from "@/lib/dates";
 import { toPermissions, type Permission } from "@/server/auth/permissions";
 import type { TenantContext } from "@/server/auth/tenant-context";
@@ -27,10 +28,11 @@ async function ownerContext(user: { id: string }, businessId: string): Promise<T
   return ctx;
 }
 
-/** A workspace with one room, and its owner's context. */
-export async function createPlace(name = "Beit Test") {
+/** A workspace with one room, and its owner's context. On Business, so plan limits never get in the way. */
+export async function createPlace(name = "Beit Test", plan: Plan = "BUSINESS") {
   const owner = await createUser(`${name} owner`);
   const business = await createWorkspace(owner.id, { name });
+  await prisma.business.update({ where: { id: business.id }, data: { plan } });
   const ctx = await ownerContext(owner, business.id);
   const room = await createRoom(ctx, {
     name: "Cedar room",

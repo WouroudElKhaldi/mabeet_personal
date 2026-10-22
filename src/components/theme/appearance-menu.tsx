@@ -1,20 +1,66 @@
 "use client";
 
 import { clsx } from "clsx";
-import { Languages, Monitor, Moon, Palette as PaletteIcon, Sun } from "lucide-react";
+import { Check, Globe, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { setLocale } from "@/app/actions/locale";
-import { COLOR_MODES, type ColorMode, PALETTE_SWATCH, PALETTES } from "@/config/appearance";
 import { useAppearance } from "./appearance-provider";
 
-const MODE_ICON: Record<ColorMode, typeof Sun> = { system: Monitor, light: Sun, dark: Moon };
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "ar", label: "العربية" },
+] as const;
 
+/**
+ * Two header controls: a one-tap light/dark switch, and a language menu.
+ * The colour palette itself is chosen site-wide by the platform admin.
+ */
 export function AppearanceMenu() {
+  return (
+    <div className="flex items-center">
+      <ModeToggle />
+      <LanguageMenu />
+    </div>
+  );
+}
+
+function ModeToggle() {
   const t = useTranslations("appearance");
-  const { mode, palette, setMode, setPalette } = useAppearance();
+  const { mode, setMode } = useAppearance();
+  const next = mode === "dark" ? "light" : "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setMode(next)}
+      aria-label={t(next === "dark" ? "toDark" : "toLight")}
+      title={t(next === "dark" ? "toDark" : "toLight")}
+      className="grid size-10 place-items-center rounded-full text-ink transition-colors hover:bg-surface-2"
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={mode}
+          initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
+          animate={{ rotate: 0, opacity: 1, scale: 1 }}
+          exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
+          transition={{ duration: 0.18 }}
+          className="grid"
+        >
+          {mode === "dark" ? (
+            <Moon className="size-[1.15rem]" aria-hidden />
+          ) : (
+            <Sun className="size-[1.15rem]" aria-hidden />
+          )}
+        </motion.span>
+      </AnimatePresence>
+    </button>
+  );
+}
+
+function LanguageMenu() {
+  const t = useTranslations("appearance");
   const locale = useLocale();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -40,9 +86,10 @@ export function AppearanceMenu() {
     };
   }, [open]);
 
-  const switchLocale = (next: string) =>
+  const choose = (code: string) =>
     startTransition(async () => {
-      await setLocale(next);
+      setOpen(false);
+      await setLocale(code);
       router.refresh();
     });
 
@@ -51,90 +98,41 @@ export function AppearanceMenu() {
       <button
         type="button"
         aria-expanded={open}
-        aria-label={t("open")}
+        aria-haspopup="menu"
+        aria-label={t("language")}
+        title={t("language")}
         onClick={() => setOpen((value) => !value)}
         className="grid size-10 place-items-center rounded-full text-ink transition-colors hover:bg-surface-2"
       >
-        <PaletteIcon className="size-[1.15rem]" aria-hidden />
+        <Globe className="size-[1.15rem]" aria-hidden />
       </button>
       <AnimatePresence>
         {open && (
           <motion.div
-            role="dialog"
-            aria-label={t("title")}
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="absolute end-0 top-12 z-50 w-72 origin-top-right rounded-lg bg-surface p-4 shadow-lift ring-1 ring-line rtl:origin-top-left"
+            role="menu"
+            aria-label={t("language")}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute end-0 top-12 z-50 w-44 rounded-xl bg-surface p-1.5 shadow-lift ring-1 ring-line"
           >
-            <p className="mb-2 text-xs font-bold tracking-[0.14em] text-muted uppercase">{t("mode")}</p>
-            <div className="grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1">
-              {COLOR_MODES.map((option) => {
-                const Icon = MODE_ICON[option];
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={mode === option}
-                    onClick={() => setMode(option)}
-                    className="relative flex h-9 items-center justify-center gap-1.5 rounded-full text-sm font-semibold"
-                  >
-                    {mode === option && (
-                      <motion.span
-                        layoutId="mode-pill"
-                        className="absolute inset-0 rounded-full bg-surface shadow-soft"
-                        transition={{ type: "spring", stiffness: 500, damping: 36 }}
-                      />
-                    )}
-                    <Icon className="relative size-4" aria-hidden />
-                    <span className="relative">{t(option)}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <p className="mt-5 mb-2 text-xs font-bold tracking-[0.14em] text-muted uppercase">
-              {t("palette")}
-            </p>
-            <div className="flex gap-2.5">
-              {PALETTES.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={palette === option}
-                  aria-label={t(`palettes.${option}`)}
-                  title={t(`palettes.${option}`)}
-                  onClick={() => setPalette(option)}
-                  style={{ backgroundColor: PALETTE_SWATCH[option] }}
-                  className={clsx(
-                    "size-9 rounded-full ring-offset-2 ring-offset-surface transition-transform duration-300 ease-(--ease-spring) hover:scale-110",
-                    palette === option && "ring-2 ring-ink",
-                  )}
-                />
-              ))}
-            </div>
-
-            <p className="mt-5 mb-2 flex items-center gap-1.5 text-xs font-bold tracking-[0.14em] text-muted uppercase">
-              <Languages className="size-3.5" aria-hidden />
-              {t("language")}
-            </p>
-            <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
-              {(["en", "ar"] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={locale === option}
-                  onClick={() => switchLocale(option)}
-                  className={clsx(
-                    "h-9 rounded-full text-sm font-semibold transition-colors",
-                    locale === option ? "bg-surface shadow-soft" : "text-muted hover:text-ink",
-                  )}
-                >
-                  {option === "en" ? "English" : "العربية"}
-                </button>
-              ))}
-            </div>
+            {LANGUAGES.map(({ code, label }) => (
+              <button
+                key={code}
+                type="button"
+                role="menuitemradio"
+                aria-checked={locale === code}
+                onClick={() => choose(code)}
+                className={clsx(
+                  "flex h-10 w-full items-center justify-between rounded-lg px-3 text-sm transition-colors hover:bg-surface-2",
+                  locale === code && "font-semibold",
+                )}
+              >
+                {label}
+                {locale === code && <Check className="size-4 text-accent" aria-hidden />}
+              </button>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>

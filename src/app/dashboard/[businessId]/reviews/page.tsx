@@ -1,15 +1,14 @@
-import { Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ReviewControls } from "@/components/dashboard/review-controls";
 import { formatDate } from "@/lib/format";
-import { requirePageTenant } from "@/server/http/session";
+import { requirePageAccess } from "@/server/http/session";
 import { listReviewsForTeam } from "@/server/services/review-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
 
 export default async function ReviewsPage({ params }: PageProps) {
   const { businessId } = await params;
-  const ctx = await requirePageTenant(businessId);
+  const ctx = await requirePageAccess(businessId, ["reviews.reply"]);
   const [t, locale, reviews] = await Promise.all([
     getTranslations("dashboard.reviews"),
     getLocale(),
@@ -18,7 +17,7 @@ export default async function ReviewsPage({ params }: PageProps) {
 
   return (
     <div className="grid gap-8">
-      <h1 className="rise-in text-4xl font-medium">{t("title")}</h1>
+      <h1 className="rise-in text-4xl font-semibold">{t("title")}</h1>
       {reviews.length === 0 ? (
         <p className="rounded-lg bg-surface p-8 text-center text-muted ring-1 ring-line">{t("empty")}</p>
       ) : (
@@ -27,24 +26,16 @@ export default async function ReviewsPage({ params }: PageProps) {
             <li key={review.id} className="grid gap-3 rounded-lg bg-surface p-5 ring-1 ring-line">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold">
-                  {review.booking.guestName}{" "}
+                  {review.guestName}{" "}
                   <span className="text-sm font-normal text-muted">
-                    · {review.room.name} · {formatDate(review.createdAt, locale)}
+                    · {review.subject} · {formatDate(review.createdAt, locale)}
                   </span>
                 </p>
                 <p
-                  className="flex items-center gap-1 font-semibold"
+                  className="rounded-full bg-surface-2 px-2.5 py-1 text-sm font-bold tabular-nums"
                   aria-label={t("rating", { rating: review.rating })}
                 >
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <Star
-                      key={index}
-                      aria-hidden
-                      className={
-                        index < review.rating ? "size-4 fill-glow stroke-glow" : "size-4 stroke-line-strong"
-                      }
-                    />
-                  ))}
+                  {review.rating}/5
                 </p>
               </div>
               <p className="leading-relaxed">{review.comment}</p>

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { z } from "zod";
+import { BoardingPass } from "@/components/brand/boarding-pass";
 import { GuestDetailsForm } from "@/components/booking/guest-details-form";
-import { PlaceArt } from "@/components/place/place-art";
 import { toDateRange } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
 import { findPageOr404 } from "@/server/http/page";
@@ -43,7 +43,7 @@ export default async function BookPage({ params, searchParams }: PageProps) {
   const money = (cents: number) => formatMoney(cents, quote.currency, locale);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-280 px-4 pt-6 sm:px-6 lg:px-10">
       <Link
         href={`/p/${slug}`}
         className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-ink"
@@ -51,9 +51,9 @@ export default async function BookPage({ params, searchParams }: PageProps) {
         <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
         {place.name}
       </Link>
-      <h1 className="rise-in mt-4 text-4xl font-medium sm:text-5xl">{t("title")}</h1>
+      <h1 className="rise-in font-poster mt-4 text-[clamp(1.75rem,3.2vw,2.25rem)]">{t("title")}</h1>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_360px]">
+      <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-20">
         <section className="min-w-0">
           {quote.free ? (
             <GuestDetailsForm
@@ -79,39 +79,28 @@ export default async function BookPage({ params, searchParams }: PageProps) {
           )}
         </section>
 
-        <aside className="h-fit overflow-hidden rounded-xl bg-surface ring-1 ring-line lg:sticky lg:top-24">
-          <PlaceArt seed={place.slug} className="h-36 w-full" />
-          <div className="grid gap-4 p-5">
-            <div>
-              <p className="font-display text-xl font-semibold">{place.name}</p>
-              <p className="text-sm text-muted">{room.name}</p>
-            </div>
-            <dl className="grid gap-2 border-t border-line pt-4 text-[0.9375rem]">
-              <SummaryRow label={t("dates")} value={formatStayDates(range.checkIn, range.checkOut, locale)} />
-              <SummaryRow label={t("guests")} value={String(stay.guests)} />
-              <SummaryRow label={t("nights")} value={String(quote.nights.length)} />
-              <SummaryRow label={t("total")} value={money(quote.totalCents)} strong />
-            </dl>
-            <p className="rounded-md bg-accent-soft px-4 py-3 text-sm">
-              {t.rich("depositNote", {
-                amount: money(quote.depositCents),
-                strong: (chunk) => <strong>{chunk}</strong>,
-              })}
-            </p>
-          </div>
+        <aside className="h-fit lg:sticky lg:top-28">
+          <BoardingPass
+            kicker={t("title")}
+            title={place.name}
+            subtitle={room.name}
+            fields={[
+              { label: t("dates"), value: formatStayDates(range.checkIn, range.checkOut, locale) },
+              { label: t("guests"), value: String(stay.guests) },
+              { label: t("nights"), value: String(quote.nights.length) },
+              { label: t("total"), value: money(quote.totalCents) },
+            ]}
+            stub={
+              <p className="text-sm leading-relaxed">
+                {t.rich("depositNote", {
+                  amount: money(quote.depositCents),
+                  strong: (chunk) => <strong>{chunk}</strong>,
+                })}
+              </p>
+            }
+          />
         </aside>
       </div>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div
-      className={strong ? "flex justify-between border-t border-line pt-2 font-bold" : "flex justify-between"}
-    >
-      <dt className={strong ? undefined : "text-muted"}>{label}</dt>
-      <dd className="tabular-nums">{value}</dd>
     </div>
   );
 }

@@ -7,7 +7,7 @@ const MESSAGES_PER_MINUTE = 8;
 
 /** The public trip concierge. Rate limited per address because every call costs money. */
 export const POST = route(async (request) => {
-  enforceRateLimit(`concierge:${clientAddress(request)}`, MESSAGES_PER_MINUTE, 60_000);
+  await enforceRateLimit(`concierge:${clientAddress(request)}`, MESSAGES_PER_MINUTE, 60_000);
   const { messages } = await parseBody(request, chatInput);
   return json(await askConcierge(messages));
 });

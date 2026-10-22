@@ -59,3 +59,28 @@ export function listRoomExports(db: Db, businessId: string) {
     orderBy: { createdAt: "asc" },
   });
 }
+
+/** Special prices from `from` on, one row per night, in date order. */
+export function listRateOverrides(db: Db, businessId: string, roomId: string, from: Date) {
+  return db.rateOverride.findMany({
+    where: { businessId, roomId, date: { gte: from } },
+    orderBy: { date: "asc" },
+    select: { date: true, rateCents: true },
+  });
+}
+
+/** Sets every night in `nights` to `rateCents`, or back to the base rate when it is null. Run in a transaction. */
+export async function setRateOverrides(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  roomId: string,
+  nights: Date[],
+  rateCents: number | null,
+) {
+  await tx.rateOverride.deleteMany({ where: { roomId, date: { in: nights } } });
+  if (rateCents !== null) {
+    await tx.rateOverride.createMany({
+      data: nights.map((date) => ({ businessId, roomId, date, rateCents })),
+    });
+  }
+}

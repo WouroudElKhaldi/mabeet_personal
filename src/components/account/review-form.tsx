@@ -1,7 +1,6 @@
 "use client";
 
 import { clsx } from "clsx";
-import { Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useAction } from "@/hooks/use-action";
@@ -9,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 
-export function ReviewForm({ bookingId }: { bookingId: string }) {
+/** Reviews a stay (bookingId) or seats in an experience or service (sessionBookingId). */
+export function ReviewForm(target: { bookingId: string } | { sessionBookingId: string }) {
   const t = useTranslations("account.review");
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -18,14 +18,17 @@ export function ReviewForm({ bookingId }: { bookingId: string }) {
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const comment = new FormData(event.currentTarget).get("comment");
-    run(() => api.post("/api/me/reviews", { bookingId, rating, comment }));
+    run(() => api.post("/api/me/reviews", { ...target, rating, comment }));
   };
 
   return (
     <form onSubmit={submit} className="grid gap-3 border-t border-line pt-4">
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold">{t("title")}</legend>
-        <div className="flex gap-1" onMouseLeave={() => setHovered(0)}>
+        <legend className="mb-2 text-sm font-semibold">
+          {t("bookingId" in target ? "title" : "titleExperience")}
+        </legend>
+        {/* A 1 to 5 scale as numbered buttons, filled up to the chosen score. */}
+        <div className="flex gap-1.5" onMouseLeave={() => setHovered(0)}>
           {[1, 2, 3, 4, 5].map((value) => (
             <button
               key={value}
@@ -34,17 +37,17 @@ export function ReviewForm({ bookingId }: { bookingId: string }) {
               aria-pressed={rating === value}
               onMouseEnter={() => setHovered(value)}
               onClick={() => setRating(value)}
-              className="transition-transform duration-200 ease-(--ease-spring) hover:scale-125"
+              className={clsx(
+                "grid size-10 place-items-center rounded-lg text-sm font-bold tabular-nums ring-1 transition-colors",
+                value <= (hovered || rating)
+                  ? "bg-accent text-accent-ink ring-accent"
+                  : "bg-surface text-muted ring-line-strong hover:text-ink",
+              )}
             >
-              <Star
-                aria-hidden
-                className={clsx(
-                  "size-7",
-                  value <= (hovered || rating) ? "fill-glow stroke-glow" : "stroke-line-strong",
-                )}
-              />
+              {value}
             </button>
           ))}
+          <span className="ms-2 self-center text-xs text-muted">{t("scale")}</span>
         </div>
       </fieldset>
       <textarea

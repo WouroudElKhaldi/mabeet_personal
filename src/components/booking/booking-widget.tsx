@@ -8,12 +8,13 @@ import { useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { DateRangePicker, type StayRange } from "@/components/ui/date-range-picker";
 import { GuestCounter } from "@/components/ui/guest-counter";
+import { Skeleton } from "@/components/ui/skeleton";
 import { parseIsoDate } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
 import { PriceBreakdown } from "./price-breakdown";
 import { useRoomQuote, useTakenNights } from "./use-room-calendar";
 
-export interface BookableRoom {
+interface BookableRoom {
   id: string;
   name: string;
   capacity: number;
@@ -58,26 +59,22 @@ export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetP
   const canBook = Boolean(bookHref && quote?.free);
 
   return (
-    <div className="rounded-xl bg-surface p-5 shadow-lift ring-1 ring-line sm:p-6">
-      <p className="font-display text-2xl">
+    <div className="rounded-xl bg-surface p-6 shadow-lift ring-1 ring-line-strong">
+      <p className="text-[1.375rem]">
         <span className="font-semibold">{formatMoney(room.baseRateCents, currency, locale)}</span>{" "}
         <span className="text-base text-muted">{t("perNight")}</span>
       </p>
 
       {rooms.length > 1 && (
         <fieldset className="mt-5">
-          <legend className="mb-2 text-xs font-bold tracking-[0.14em] text-muted uppercase">
-            {t("room")}
-          </legend>
+          <legend className="mb-2 text-xs font-bold">{t("room")}</legend>
           <div className="grid gap-2">
             {rooms.map((option) => (
               <label
                 key={option.id}
                 className={clsx(
-                  "flex cursor-pointer items-center justify-between rounded-md px-4 py-3 ring-1 transition-[box-shadow,background-color]",
-                  option.id === room.id
-                    ? "bg-accent-soft ring-2 ring-accent"
-                    : "ring-line hover:ring-line-strong",
+                  "flex cursor-pointer items-center justify-between rounded-lg px-4 py-3 ring-1 transition-shadow",
+                  option.id === room.id ? "ring-2 ring-ink" : "ring-line-strong hover:ring-ink/50",
                 )}
               >
                 <input
@@ -100,13 +97,11 @@ export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetP
         type="button"
         onClick={() => setPickingDates((open) => !open)}
         aria-expanded={pickingDates}
-        className="mt-5 flex w-full items-center gap-3 rounded-md px-4 py-3 text-start ring-1 ring-line-strong transition-shadow hover:ring-ink/50"
+        className="mt-5 flex w-full items-center gap-3 rounded-t-lg px-4 py-3 text-start ring-1 ring-line-strong transition-shadow hover:ring-ink/50"
       >
         <CalendarDays className="size-5 text-muted" aria-hidden />
         <span className="grid">
-          <span className="text-[0.6875rem] font-bold tracking-[0.12em] text-muted uppercase">
-            {t("dates")}
-          </span>
+          <span className="text-[0.625rem] font-bold tracking-wide uppercase">{t("dates")}</span>
           <span className={clsx("font-semibold", !range.checkOut && "font-normal text-faint")}>
             {range.checkIn && range.checkOut
               ? formatStayDates(parseIsoDate(range.checkIn), parseIsoDate(range.checkOut), locale)
@@ -131,10 +126,17 @@ export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetP
         )}
       </AnimatePresence>
 
-      <div className="mt-4 rounded-md px-4 py-3 ring-1 ring-line-strong">
+      <div className="rounded-b-lg px-4 py-3 ring-1 ring-line-strong">
         <GuestCounter value={guests} onChange={setGuests} label={t("guests")} max={room.capacity} />
       </div>
 
+      {range.checkIn && range.checkOut && !quote && (
+        <div className="mt-5 grid gap-2 border-t border-line pt-4" aria-hidden>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
       <AnimatePresence>
         {quote && (
           <div className="mt-5">
@@ -158,14 +160,14 @@ export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetP
         <button
           type="button"
           onClick={() => setPickingDates(true)}
-          className="mt-5 h-14 w-full rounded-full bg-surface-2 font-semibold text-muted"
+          className="mt-5 h-12 w-full rounded-lg bg-accent font-semibold text-accent-ink transition-colors hover:bg-accent-strong"
         >
           {t("pickDatesFirst")}
         </button>
       )}
 
-      <p className="mt-4 flex items-start gap-2 text-sm text-muted">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+      <p className="mt-4 flex items-start justify-center gap-2 text-center text-sm text-muted">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
         {t("noChargeYet")}
       </p>
     </div>

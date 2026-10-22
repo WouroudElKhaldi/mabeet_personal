@@ -14,7 +14,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="rise-in">
           <p className="text-sm font-bold tracking-[0.14em] text-muted uppercase">{t("eyebrow")}</p>
-          <h1 className="mt-2 text-4xl font-medium sm:text-5xl">
+          <h1 className="mt-2 text-4xl font-semibold sm:text-5xl">
             {t("hello", { name: user.name.split(" ")[0] ?? "" })}
           </h1>
         </div>

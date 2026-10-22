@@ -3,6 +3,7 @@ import { type DateRange, toIsoDate } from "@/lib/dates";
 import { prisma } from "@/server/db/client";
 import { notFound } from "@/server/errors";
 import * as directory from "@/server/repositories/directory-repository";
+import * as offeringsRepo from "@/server/repositories/offering-repository";
 import { quoteStay } from "./pricing";
 
 // The public face of every listed place. The web search page, the guest AI chat and the guest MCP
@@ -173,3 +174,66 @@ export async function getPlacesByIds(businessIds: string[]) {
     ),
   );
 }
+
+// ---------- Experiences and services ----------
+
+export interface OfferingQuery extends Omit<offeringsRepo.OfferingFilters, "from" | "to"> {
+  range?: DateRange;
+  limit: number;
+}
+
+type ListedOffering = Awaited<ReturnType<typeof offeringsRepo.findListedOfferings>>[number];
+
+const NO_RATING = { average: 0, count: 0 };
+
+function toOfferingCard(offering: ListedOffering, rating = NO_RATING) {
+  return {
+    id: offering.id,
+    slug: offering.slug,
+    kind: offering.kind,
+    title: offering.title,
+    area: offering.area,
+    currency: offering.business.currency,
+    hostName: offering.business.name,
+    photo: offering.photos[0] ?? null,
+    category: offering.category,
+    tags: offering.tags,
+    priceCents: offering.priceCents,
+    priceUnit: offering.priceUnit,
+    durationMinutes: offering.durationMinutes,
+    nextStartsAt: offering.sessions[0]?.startsAt ?? null,
+    timezone: offering.business.timezone,
+    rating,
+  };
+}
+
+export type OfferingCard = ReturnType<typeof toOfferingCard>;
+
+/** Listed experiences or services that still have a session coming up (inside the dates, when given). */
+export async function searchOfferings(query: OfferingQuery, now = new Date()): Promise<OfferingCard[]> {
+  const { range, limit, ...filters } = query;
+  const from = range && range.checkIn > now ? range.checkIn : now;
+  const rows = await offeringsRepo.findListedOfferings(
+    prisma,
+    { ...filters, from, to: range?.checkOut },
+    limit,
+  );
+  const ratings = await directory.findOfferingRatingSummaries(
+    prisma,
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => toOfferingCard(row, ratings.get(row.id)));
+}
+
+const SESSIONS_SHOWN = 40;
+
+/** One experience or service with its upcoming sessions and seats left. Cached per request. */
+export const getOffering = cache(async (slug: string, now = new Date()) => {
+  const offering = await offeringsRepo.findPublicOffering(prisma, slug);
+  if (!offering) throw notFound("Experience");
+  const [sessions, ratings] = await Promise.all([
+    offeringsRepo.listOpenSessions(prisma, offering.id, now, SESSIONS_SHOWN),
+    directory.findOfferingRatingSummaries(prisma, [offering.id]),
+  ]);
+  return { ...offering, sessions, rating: ratings.get(offering.id) ?? NO_RATING };
+});

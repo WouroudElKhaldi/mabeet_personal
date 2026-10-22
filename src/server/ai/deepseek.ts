@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { env } from "@/server/env";
-import { AppError } from "@/server/errors";
+import { unavailable } from "@/server/errors";
 import type { AiTool } from "./tool";
 
 // DeepSeek speaks the OpenAI chat-completions format, so swapping providers means changing this file only.
@@ -10,7 +10,7 @@ const MODEL = "deepseek-chat";
 const TIMEOUT_MS = 45_000;
 const MAX_OUTPUT_TOKENS = 900;
 
-export interface ToolCall {
+interface ToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
@@ -40,7 +40,13 @@ const completionSchema = z.object({
       }),
     )
     .min(1),
+  usage: z.object({ prompt_tokens: z.number(), completion_tokens: z.number() }).optional(),
 });
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+}
 
 function toFunction(tool: AiTool) {
   return {
@@ -50,7 +56,7 @@ function toFunction(tool: AiTool) {
 }
 
 export async function complete(messages: ChatMessage[], tools: readonly AiTool[]) {
-  if (!env.DEEPSEEK_API_KEY) throw new AppError("VALIDATION", "The assistant is not set up yet.");
+  if (!env.DEEPSEEK_API_KEY) throw unavailable("The assistant is not set up yet.");
   const response = await fetch(ENDPOINT, {
     method: "POST",
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -65,8 +71,11 @@ export async function complete(messages: ChatMessage[], tools: readonly AiTool[]
   });
   if (!response.ok) {
     console.error("DeepSeek error", response.status, await response.text().catch(() => ""));
-    throw new AppError("VALIDATION", "The assistant is busy right now. Please try again in a moment.");
+    throw unavailable("The assistant is busy right now. Please try again in a moment.");
   }
-  const [choice] = completionSchema.parse(await response.json()).choices;
-  return choice!.message;
+  const { choices, usage } = completionSchema.parse(await response.json());
+  return {
+    message: choices[0]!.message,
+    usage: { promptTokens: usage?.prompt_tokens ?? 0, completionTokens: usage?.completion_tokens ?? 0 },
+  };
 }

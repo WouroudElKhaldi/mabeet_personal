@@ -11,6 +11,8 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self'",
+  // Google Maps embeds on place and experience pages.
+  "frame-src https://maps.google.com https://www.google.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

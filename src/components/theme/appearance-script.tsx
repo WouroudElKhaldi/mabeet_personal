@@ -1,18 +1,15 @@
-import { APPEARANCE_STORAGE_KEY } from "@/config/appearance";
+import { COLOR_MODE_STORAGE_KEY } from "@/config/appearance";
 
 /**
- * Runs before first paint so the saved mode and palette never flash.
- * Kept tiny and dependency-free on purpose; the provider takes over after hydration.
+ * Runs before first paint so the visitor's light/dark choice never flashes.
+ * The palette is not here: the server renders the site-wide palette straight onto <html>.
  */
 const script = `(() => {
   try {
-    const saved = JSON.parse(localStorage.getItem(${JSON.stringify(APPEARANCE_STORAGE_KEY)}) || "{}");
-    const mode = saved.mode === "light" || saved.mode === "dark"
-      ? saved.mode
+    const saved = localStorage.getItem(${JSON.stringify(COLOR_MODE_STORAGE_KEY)});
+    document.documentElement.dataset.mode = saved === "light" || saved === "dark"
+      ? saved
       : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    const root = document.documentElement;
-    root.dataset.mode = mode;
-    root.dataset.palette = saved.palette || "cedar";
   } catch {}
 })();`;
 

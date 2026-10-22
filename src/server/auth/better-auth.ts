@@ -1,14 +1,38 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { jwt } from "better-auth/plugins";
 import { prisma } from "@/server/db/client";
+import { emailEnabled } from "@/server/email/send";
 import { env } from "@/server/env";
+import { MCP_RESOURCE, MCP_SCOPES, pickedWorkspace } from "@/server/services/mcp-oauth-service";
+import { sendPasswordResetEmail, sendVerificationEmail } from "@/server/services/notification-service";
+
+const OAUTH_SCOPES = ["openid", "profile", "email", "offline_access", MCP_SCOPES.read, MCP_SCOPES.write];
 
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
-  emailAndPassword: { enabled: true, minPasswordLength: 10 },
+  // The jwt plugin's session-to-JWT endpoint is not needed: AI apps get tokens through OAuth.
+  disabledPaths: ["/token"],
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: 10,
+    // Only demand a verified email once email can actually be delivered (RESEND_API_KEY is set).
+    requireEmailVerification: emailEnabled(),
+    sendResetPassword: ({ user, url }) =>
+      sendPasswordResetEmail(user.email, user.name, url, (user as { locale?: string }).locale),
+    revokeSessionsOnPasswordReset: true,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: ({ user, url }) =>
+      sendVerificationEmail(user.email, user.name, url, (user as { locale?: string }).locale),
+  },
   user: {
     additionalFields: {
       platformRole: { type: "string", input: false, defaultValue: "USER" },
@@ -16,8 +40,44 @@ export const auth = betterAuth({
       locale: { type: "string", required: false, defaultValue: "en" },
     },
   },
-  session: { expiresIn: 60 * 60 * 24 * 14, updateAge: 60 * 60 * 24 },
+  session: {
+    expiresIn: 60 * 60 * 24 * 14,
+    updateAge: 60 * 60 * 24,
+    additionalFields: { mcpBusinessId: { type: "string", required: false, input: false } },
+  },
   rateLimit: { enabled: true, window: 60, max: 30 },
   advanced: { useSecureCookies: process.env.NODE_ENV === "production" },
-  plugins: [nextCookies()],
+  plugins: [
+    jwt(),
+    // AI apps (MCP clients) connect with OAuth: sign in, pick a workspace, allow access. See mcp-oauth-service.
+    oauthProvider({
+      loginPage: "/sign-in",
+      consentPage: "/oauth/consent",
+      scopes: OAUTH_SCOPES,
+      resources: [{ identifier: MCP_RESOURCE, name: "Mabeet host MCP", allowedScopes: OAUTH_SCOPES }],
+      // MCP clients register themselves; PKCE keeps a stolen authorization code useless.
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      clientRegistrationRequirePKCE: true,
+      clientRegistrationDefaultScopes: [MCP_SCOPES.read],
+      clientRegistrationAllowedScopes: OAUTH_SCOPES,
+      clientRegistrationDefaultApplicationType: "infer",
+      // Every registered app may ask for tokens for the MCP server, and only for it.
+      clientRegistrationDefaultResources: [MCP_RESOURCE],
+      clientRegistrationAllowedResources: [MCP_RESOURCE],
+      postLogin: {
+        page: "/oauth/workspace",
+        // Always ask which workspace, every time an app connects; continue once a valid one is picked.
+        shouldRedirect: async ({ user, session, isContinuation }) =>
+          !(isContinuation && (await pickedWorkspace(user.id, session.mcpBusinessId))),
+        consentReferenceId: async ({ user, session }) => {
+          const businessId = await pickedWorkspace(user.id, session.mcpBusinessId);
+          if (!businessId) throw new Error("Pick a workspace first");
+          return businessId;
+        },
+      },
+      customAccessTokenClaims: ({ referenceId }) => (referenceId ? { business_id: referenceId } : {}),
+    }),
+    nextCookies(),
+  ],
 });

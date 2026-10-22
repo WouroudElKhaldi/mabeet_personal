@@ -8,14 +8,20 @@ import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
 import { toggleFavorite } from "@/app/actions/favorites";
 
+/**
+ * `overlay` sits on a photo: a white-outlined heart over a dark fill, readable on any image.
+ * Without it, a labelled "Save" button for plain backgrounds such as the place page.
+ */
 export function FavoriteButton({
   slug,
   initial,
   signedIn,
+  overlay = false,
 }: {
   slug: string;
   initial: boolean;
   signedIn: boolean;
+  overlay?: boolean;
 }) {
   const t = useTranslations("place");
   const router = useRouter();
@@ -36,27 +42,45 @@ export function FavoriteButton({
     });
   };
 
+  const heart = (
+    <motion.span
+      key={String(saved)}
+      initial={{ scale: saved ? 0.6 : 1 }}
+      animate={{ scale: 1 }}
+      transition={{ type: "spring", stiffness: 600, damping: 18 }}
+      className="grid"
+    >
+      <Heart
+        aria-hidden
+        strokeWidth={overlay ? 2.25 : 2}
+        className={clsx(
+          overlay ? "size-6 drop-shadow-sm" : "size-4",
+          saved
+            ? "fill-accent stroke-accent"
+            : overlay
+              ? "fill-black/40 stroke-white"
+              : "fill-transparent stroke-ink",
+        )}
+      />
+    </motion.span>
+  );
+
   return (
     <motion.button
       type="button"
-      whileTap={{ scale: 0.8 }}
+      whileTap={{ scale: 0.85 }}
       onClick={toggle}
       disabled={pending}
       aria-pressed={saved}
       aria-label={saved ? t("unsave") : t("save")}
-      className="grid size-10 place-items-center rounded-full bg-paper/75 backdrop-blur-md transition-colors hover:bg-paper"
+      className={clsx(
+        overlay
+          ? "grid size-9 place-items-center transition-transform hover:scale-110"
+          : "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold underline underline-offset-4 hover:bg-surface-2",
+      )}
     >
-      <motion.span
-        key={String(saved)}
-        initial={{ scale: saved ? 0.4 : 1 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 600, damping: 14 }}
-      >
-        <Heart
-          className={clsx("size-[1.15rem]", saved ? "fill-danger stroke-danger" : "stroke-ink")}
-          aria-hidden
-        />
-      </motion.span>
+      {heart}
+      {!overlay && <span>{saved ? t("unsave") : t("save")}</span>}
     </motion.button>
   );
 }

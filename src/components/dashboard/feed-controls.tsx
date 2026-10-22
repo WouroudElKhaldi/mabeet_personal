@@ -1,20 +1,27 @@
 "use client";
 
 import { RefreshCw, Trash2 } from "lucide-react";
+import { FEED_SOURCES } from "@/config/enums";
 import { useTranslations } from "next-intl";
+import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
 
-const SOURCES = ["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"] as const;
-
 export function FeedButtons({ businessId, feedId }: { businessId: string; feedId: string }) {
   const t = useTranslations("dashboard.channels");
   const { run, pending, error } = useAction();
   const base = `/api/workspaces/${businessId}/feeds/${feedId}`;
+  const tConfirm = useTranslations("confirm");
+  const [ask, confirmDialog] = useConfirm();
+  /** Runs `action` only after the person confirms. */
+  const confirmThen = async (options: ConfirmOptions, action: () => Promise<unknown>) => {
+    if ((await ask(options)).confirmed) run(action);
+  };
   return (
     <div className="flex items-center gap-1">
+      {confirmDialog}
       <Button
         size="sm"
         variant="ghost"
@@ -29,7 +36,17 @@ export function FeedButtons({ businessId, feedId }: { businessId: string; feedId
         variant="ghost"
         disabled={pending}
         aria-label={t("remove")}
-        onClick={() => run(() => api.delete(base))}
+        onClick={() =>
+          void confirmThen(
+            {
+              title: tConfirm("removeFeed.title"),
+              body: tConfirm("removeFeed.body"),
+              confirmLabel: tConfirm("removeFeed.confirm"),
+              danger: true,
+            },
+            () => api.delete(base),
+          )
+        }
       >
         <Trash2 className="size-4" aria-hidden />
       </Button>
@@ -58,7 +75,7 @@ export function AddFeedForm({ businessId, roomId }: { businessId: string; roomId
   return (
     <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[150px_1fr_auto]">
       <select name="source" aria-label={t("source")} className={`${inputClass} h-11`}>
-        {SOURCES.map((source) => (
+        {FEED_SOURCES.map((source) => (
           <option key={source} value={source}>
             {t(`sources.${source}`)}
           </option>

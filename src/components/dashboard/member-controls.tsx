@@ -2,7 +2,9 @@
 
 import { UserMinus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
@@ -15,24 +17,53 @@ interface RoleOption {
 export function MemberControls({
   businessId,
   membershipId,
+  memberName,
   roleId,
   roles,
 }: {
   businessId: string;
   membershipId: string;
+  memberName: string;
   roleId: string;
   roles: RoleOption[];
 }) {
   const t = useTranslations("dashboard.team");
+  const tConfirm = useTranslations("confirm");
   const { run, pending, error } = useAction();
+  const [ask, confirmDialog] = useConfirm();
+  const [selected, setSelected] = useState(roleId);
   const base = `/api/workspaces/${businessId}/members/${membershipId}`;
+
+  const changeRole = async (nextRoleId: string) => {
+    const role = roles.find((option) => option.id === nextRoleId)?.name ?? "";
+    const answer = await ask({
+      title: tConfirm("changeRole.title", { name: memberName, role }),
+      body: tConfirm("changeRole.body"),
+      confirmLabel: tConfirm("changeRole.confirm"),
+    });
+    if (!answer.confirmed) return;
+    setSelected(nextRoleId);
+    run(() => api.patch(base, { roleId: nextRoleId }));
+  };
+
+  const remove = async () => {
+    const answer = await ask({
+      title: tConfirm("removeMember.title", { name: memberName }),
+      body: tConfirm("removeMember.body"),
+      confirmLabel: tConfirm("removeMember.confirm"),
+      danger: true,
+    });
+    if (answer.confirmed) run(() => api.delete(base));
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {confirmDialog}
       <select
         aria-label={t("role")}
-        defaultValue={roleId}
+        value={selected}
         disabled={pending}
-        onChange={(event) => run(() => api.patch(base, { roleId: event.target.value }))}
+        onChange={(event) => void changeRole(event.target.value)}
         className={`${inputClass} h-10 w-44`}
       >
         {roles.map((role) => (
@@ -46,7 +77,7 @@ export function MemberControls({
         variant="ghost"
         aria-label={t("remove")}
         disabled={pending}
-        onClick={() => run(() => api.delete(base))}
+        onClick={() => void remove()}
       >
         <UserMinus className="size-4" aria-hidden />
       </Button>

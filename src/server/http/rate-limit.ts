@@ -1,31 +1,31 @@
+import { prisma } from "@/server/db/client";
 import { AppError } from "@/server/errors";
+import { deleteExpiredWindows, hitWindow } from "@/server/repositories/rate-limit-repository";
 
-// Fixed-window limiter kept in memory. Good for one server process (local, a single VM);
-// on serverless with many instances, swap the store for Postgres or Redis behind the same function.
+// Fixed-window limits kept in Postgres, so every server instance (serverless included) shares one count.
 
-const windows = new Map<string, { count: number; resetAt: number }>();
-const MAX_TRACKED_KEYS = 10_000;
-
-export function enforceRateLimit(key: string, limit: number, windowMs: number, now = Date.now()): void {
-  const current = windows.get(key);
-  if (!current || current.resetAt <= now) {
-    if (windows.size >= MAX_TRACKED_KEYS) windows.clear();
-    windows.set(key, { count: 1, resetAt: now + windowMs });
-    return;
-  }
-  current.count += 1;
-  if (current.count > limit) {
+export async function enforceRateLimit(key: string, limit: number, windowMs: number): Promise<void> {
+  const { count, resetAt } = await hitWindow(prisma, key, windowMs);
+  if (count > limit) {
     throw new AppError("RATE_LIMITED", "Too many requests. Please slow down.", {
-      retryAfterSeconds: Math.ceil((current.resetAt - now) / 1000),
+      retryAfterSeconds: Math.max(1, Math.ceil((resetAt.getTime() - Date.now()) / 1000)),
     });
   }
 }
 
-/** Best-effort client address behind a proxy. */
+/** Drops windows that ended more than an hour ago. */
+export function cleanUpRateLimits(now = new Date()) {
+  return deleteExpiredWindows(prisma, new Date(now.getTime() - 3_600_000));
+}
+
+/**
+ * The client's address. On Vercel, x-real-ip and the first x-forwarded-for entry are set by the platform
+ * and cannot be forged by the caller; behind your own proxy, make sure it overwrites these headers.
+ */
 export function clientAddress(request: Request): string {
   return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "local"
   );
 }

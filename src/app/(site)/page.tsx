@@ -1,134 +1,107 @@
-import {
-  ArrowRight,
-  BadgePercent,
-  CalendarCheck,
-  HandCoins,
-  MessageCircleHeart,
-  Sparkles,
-} from "lucide-react";
-import { getTranslations } from "next-intl/server";
-import { CategoryRail } from "@/components/place/category-rail";
-import { PlaceGrid } from "@/components/place/place-grid";
-import { HeroLandscape } from "@/components/site/hero-landscape";
+import { BadgePercent, CalendarCheck } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
+import { ArchWindow } from "@/components/brand/arch-window";
+import { BoardingPass } from "@/components/brand/boarding-pass";
+import { Postmark } from "@/components/brand/postmark";
+import { ConciergeBand } from "@/components/brand/concierge-band";
+import { DirectReceipts } from "@/components/brand/direct-receipts";
+import { Browse } from "@/components/browse/browse";
 import { SearchBar } from "@/components/site/search-bar";
-import { ButtonLink } from "@/components/ui/button";
-import { getCurrentUser } from "@/server/http/session";
-import { listCategories, searchPlaces } from "@/server/services/directory-service";
+import { addDays, todayUtc } from "@/lib/dates";
+import { formatMoney, formatStayDates } from "@/lib/format";
 import { stagger } from "@/lib/motion";
-import { favoriteSlugs } from "@/server/services/favorite-service";
+import { searchPlaces } from "@/server/services/directory-service";
+import { searchParams as searchSchema } from "@/server/validation/schemas";
 
-export default async function HomePage() {
-  const user = await getCurrentUser();
-  const [t, categories, places, saved] = await Promise.all([
+const WEEKEND_NIGHTS = 2;
+
+/** The coming Friday (or the one after, if today is Friday), for the sample boarding pass. */
+function nextFriday(today: Date): Date {
+  return addDays(today, (5 - today.getUTCDay() + 7) % 7 || 7);
+}
+
+/** The poster hero with real listings in a triple-arch window, then browsing, then the story of booking direct. */
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const state = searchSchema.parse(await searchParams);
+  const [t, locale, places] = await Promise.all([
     getTranslations("home"),
-    listCategories(),
-    searchPlaces({ guests: 1, limit: 8 }),
-    favoriteSlugs(user?.id),
+    getLocale(),
+    searchPlaces({ guests: 1, limit: 3 }),
   ]);
-
-  const steps = [
-    { icon: BadgePercent, title: t("steps.noFees.title"), body: t("steps.noFees.body") },
-    { icon: CalendarCheck, title: t("steps.held.title"), body: t("steps.held.body") },
-    { icon: HandCoins, title: t("steps.deposit.title"), body: t("steps.deposit.body") },
-  ];
+  // The hero is built from real listings: their photos in the arches, one of them on the pass.
+  const featured = places[1] ?? places[0];
+  const checkIn = nextFriday(todayUtc());
+  const checkOut = addDays(checkIn, WEEKEND_NIGHTS);
 
   return (
     <>
-      <section className="relative -mt-18 overflow-hidden pt-18">
-        <HeroLandscape />
-        <div className="relative mx-auto max-w-7xl px-4 pt-16 pb-40 sm:px-6 sm:pt-24 lg:px-8 lg:pb-52">
-          <p className="rise-in inline-flex items-center gap-2 rounded-full bg-surface/70 px-3.5 py-1.5 text-xs font-bold tracking-[0.12em] text-muted uppercase ring-1 ring-line backdrop-blur">
-            <span className="size-1.5 rounded-full bg-accent" />
+      <section className="mx-auto grid max-w-360 items-center gap-12 px-4 pt-10 pb-6 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:px-10 lg:pt-14">
+        <div className="min-w-0">
+          <p className="rise-in inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent">
+            <BadgePercent className="size-4" aria-hidden />
             {t("eyebrow")}
           </p>
           <h1
-            className="rise-in mt-6 max-w-4xl text-[clamp(2.75rem,7vw,5.75rem)] leading-[0.95] font-medium"
+            className="rise-in font-poster mt-5 max-w-2xl text-[clamp(2.5rem,5.4vw,4.5rem)] leading-[0.98] font-extrabold [font-stretch:118%] rtl:[font-stretch:100%]"
             style={stagger(1)}
           >
-            {t.rich("title", { em: (chunk) => <em className="font-normal text-accent italic">{chunk}</em> })}
+            {t.rich("title", { em: (chunk) => <em>{chunk}</em> })}
           </h1>
-          <p className="rise-in mt-6 max-w-xl text-lg leading-relaxed text-muted" style={stagger(2)}>
+          <p className="rise-in mt-5 max-w-xl text-lg leading-relaxed text-muted" style={stagger(2)}>
             {t("subtitle")}
           </p>
-          <div className="rise-in mt-10" style={stagger(3)}>
-            <SearchBar />
+          <div className="rise-in mt-8" style={stagger(3)}>
+            <SearchBar
+              defaults={{
+                area: state.area,
+                checkIn: state.checkIn,
+                checkOut: state.checkOut,
+                guests: state.guests,
+              }}
+              type={state.type}
+            />
           </div>
+        </div>
+
+        <div className="relative mx-auto hidden w-full max-w-xl pb-16 lg:block">
+          <ArchWindow
+            photos={places.slice(0, 3).map((place) => place.photo)}
+            seed="hero"
+            priority
+            className="ms-auto w-[78%]"
+          />
+          <Postmark className="absolute -end-6 -top-10 size-28 rotate-12" spin />
+          {featured && featured.nightlyFromCents !== null && (
+            <BoardingPass
+              className="rise-in absolute -start-24 bottom-0 w-64 -rotate-3"
+              kicker={t("pass.kicker")}
+              title={featured.name.replace(/\s*\(demo\)$/, "")}
+              subtitle={featured.area}
+              fields={[
+                { label: t("pass.dates"), value: formatStayDates(checkIn, checkOut, locale) },
+                { label: t("pass.guests"), value: "2" },
+                {
+                  label: t("pass.total"),
+                  value: formatMoney(featured.nightlyFromCents * WEEKEND_NIGHTS, featured.currency, locale),
+                },
+                { label: t("pass.fees"), value: formatMoney(0, featured.currency, locale) },
+              ]}
+              stub={
+                <p className="flex items-center gap-2 text-sm font-semibold text-accent">
+                  <CalendarCheck className="size-4" aria-hidden />
+                  {t("pass.heldNote")}
+                </p>
+              }
+            />
+          )}
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <CategoryRail categories={categories} />
-        <div className="mt-10 mb-8 flex items-end justify-between gap-4">
-          <h2 className="text-3xl font-medium sm:text-4xl">{t("featured")}</h2>
-          <ButtonLink href="/search" variant="ghost" size="sm">
-            {t("seeAll")}
-            <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
-          </ButtonLink>
-        </div>
-        {places.length > 0 ? (
-          <PlaceGrid places={places} savedSlugs={saved} signedIn={Boolean(user)} />
-        ) : (
-          <p className="rounded-lg bg-surface p-10 text-center text-muted ring-1 ring-line">{t("empty")}</p>
-        )}
-      </section>
+      <Browse state={state} basePath="/" showSearch={false} />
 
-      <section className="mx-auto mt-28 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
-          <div>
-            <h2 className="text-4xl leading-tight font-medium sm:text-5xl">
-              {t.rich("directTitle", { em: (chunk) => <em className="text-accent italic">{chunk}</em> })}
-            </h2>
-            <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">{t("directBody")}</p>
-          </div>
-          <ol className="grid gap-4">
-            {steps.map(({ icon: Icon, title, body }, index) => (
-              <li
-                key={title}
-                className="group flex gap-5 rounded-lg bg-surface p-6 ring-1 ring-line transition-[transform,box-shadow] duration-500 ease-(--ease-out) hover:-translate-y-1 hover:shadow-lift"
-              >
-                <span className="font-display text-4xl leading-none font-light text-faint tabular-nums">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <h3 className="flex items-center gap-2 text-xl font-semibold">
-                    <Icon className="size-5 text-accent" aria-hidden />
-                    {title}
-                  </h3>
-                  <p className="mt-1.5 leading-relaxed text-muted">{body}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
+      <DirectReceipts />
 
-      <section className="mx-auto mt-28 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-xl bg-ink px-6 py-14 text-paper sm:px-14 sm:py-20">
-          <div className="absolute -end-24 -top-24 size-80 rounded-full bg-accent opacity-40 blur-3xl motion-safe:animate-[drift_14s_ease-in-out_infinite]" />
-          <div className="relative grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <p className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.14em] uppercase opacity-70">
-                <Sparkles className="size-4" aria-hidden />
-                {t("concierge.eyebrow")}
-              </p>
-              <h2 className="mt-4 text-4xl leading-tight font-medium sm:text-5xl">{t("concierge.title")}</h2>
-              <p className="mt-4 max-w-md text-lg leading-relaxed opacity-75">{t("concierge.body")}</p>
-              <ButtonLink href="/assistant" className="mt-8" size="lg">
-                <MessageCircleHeart className="size-5" aria-hidden />
-                {t("concierge.cta")}
-              </ButtonLink>
-            </div>
-            <div className="grid gap-3 text-[0.9375rem]">
-              <p className="ms-auto max-w-sm rounded-2xl rounded-ee-sm bg-paper/10 px-4 py-3 backdrop-blur">
-                {t("concierge.sampleQuestion")}
-              </p>
-              <p className="max-w-sm rounded-2xl rounded-es-sm bg-accent px-4 py-3 text-accent-ink">
-                {t("concierge.sampleAnswer")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ConciergeBand />
     </>
   );
 }

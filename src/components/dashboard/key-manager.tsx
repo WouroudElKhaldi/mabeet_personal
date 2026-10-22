@@ -3,6 +3,7 @@
 import { KeyRound, Trash2, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
+import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CopyField } from "@/components/ui/copy-field";
@@ -27,6 +28,12 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
   const t = useTranslations("assistant.keys");
   const locale = useLocale();
   const { run, pending, error } = useAction();
+  const tConfirm = useTranslations("confirm");
+  const [ask, confirmDialog] = useConfirm();
+  /** Runs `action` only after the person confirms. */
+  const confirmThen = async (options: ConfirmOptions, action: () => Promise<unknown>) => {
+    if ((await ask(options)).confirmed) run(action);
+  };
   const [secret, setSecret] = useState<string | null>(null);
 
   const create = (event: React.FormEvent<HTMLFormElement>) => {
@@ -46,6 +53,7 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
 
   return (
     <div className="grid gap-8">
+      {confirmDialog}
       <form onSubmit={create} className="grid gap-4 rounded-xl bg-surface p-5 ring-1 ring-line">
         <p className="flex items-center gap-2 font-display text-lg font-semibold">
           <KeyRound className="size-4 text-accent" aria-hidden />
@@ -134,7 +142,7 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
       </AnimatePresence>
 
       <section className="grid gap-3">
-        <h2 className="text-2xl font-medium">{t("yourKeys")}</h2>
+        <h2 className="text-2xl font-semibold">{t("yourKeys")}</h2>
         {keys.length === 0 ? (
           <p className="text-muted">{t("noKeys")}</p>
         ) : (
@@ -159,7 +167,17 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
                   size="sm"
                   variant="ghost"
                   disabled={pending}
-                  onClick={() => run(() => api.delete(`/api/workspaces/${businessId}/keys/${key.id}`))}
+                  onClick={() =>
+                    void confirmThen(
+                      {
+                        title: tConfirm("revokeKey.title", { name: key.name }),
+                        body: tConfirm("revokeKey.body"),
+                        confirmLabel: tConfirm("revokeKey.confirm"),
+                        danger: true,
+                      },
+                      () => api.delete(`/api/workspaces/${businessId}/keys/${key.id}`),
+                    )
+                  }
                 >
                   <Trash2 className="size-4" aria-hidden />
                   {t("revoke")}

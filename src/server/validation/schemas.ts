@@ -1,5 +1,17 @@
 import { z } from "zod";
+import { BOOKING_STATUSES, CURRENCIES, FEED_SOURCES, MANUAL_PAYMENT_METHODS } from "@/config/enums";
 import { AMENITIES } from "@/config/amenities";
+import { PALETTES } from "@/config/appearance";
+import {
+  ACCESSIBILITY,
+  ACTIVITY_LEVELS,
+  keepKnown,
+  LANGUAGES,
+  LISTING_TABS,
+  PRICE_UNITS,
+  SKILL_LEVELS,
+  TAGS,
+} from "@/config/listing";
 import { toDateRange } from "@/lib/dates";
 import { ALL_PERMISSIONS, type Permission } from "@/server/auth/permissions";
 
@@ -31,7 +43,7 @@ export const bookingRequest = z
 export const decision = z.object({ reason: z.string().trim().max(500).optional() });
 
 export const bookingFilters = z.object({
-  status: z.enum(["HELD", "CONFIRMED", "DECLINED", "EXPIRED", "CANCELLED"]).optional(),
+  status: z.enum(BOOKING_STATUSES).optional(),
   roomId: id.optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
@@ -54,6 +66,17 @@ export const roomInput = z.object({
 });
 
 export const roomUpdate = roomInput.partial().extend({ active: z.boolean().optional() });
+
+const MAX_PRICE_NIGHTS = 366;
+
+/** A special price for each night in a range, or null to go back to the base rate. */
+export const specialPriceInput = z
+  .object({ checkIn: isoDate, checkOut: isoDate, rateCents: cents.nullable() })
+  .refine(
+    ({ checkIn, checkOut }) =>
+      checkOut > checkIn && Date.parse(checkOut) - Date.parse(checkIn) <= MAX_PRICE_NIGHTS * 86_400_000,
+    { message: `Pick up to ${MAX_PRICE_NIGHTS} nights, ending after they start`, path: ["checkOut"] },
+  );
 
 export const workspaceInput = z.object({
   name: z.string().trim().min(2).max(80),
@@ -86,18 +109,41 @@ export const dateWindow = windowFields.transform(({ from, to }) =>
   toDateRange({ checkIn: from, checkOut: to }),
 );
 
+/** "a,b,c" in the URL -> only the known values, so a shared link never breaks the page. */
+const csvOf = <T extends string>(allowed: readonly T[]) =>
+  z
+    .string()
+    .max(600)
+    .optional()
+    .transform((value) => keepKnown(allowed, value ? value.split(",") : []))
+    .catch([]);
+
+const slugList = z
+  .string()
+  .max(600)
+  .optional()
+  .transform((value) => (value ? value.split(",").filter((slug) => /^[a-z0-9-]{1,40}$/.test(slug)) : []))
+  .catch([]);
+
+const price = z.coerce.number().int().min(1).max(100_000).optional().catch(undefined);
+
 /** Public search; anything malformed is dropped rather than failing the page. */
 export const searchParams = z.object({
+  type: z.enum(LISTING_TABS).catch("all"),
   area: z.string().trim().max(60).optional().catch(undefined),
   q: z.string().trim().max(120).optional().catch(undefined),
-  category: z.string().max(40).optional().catch(undefined),
+  category: slugList,
+  tags: csvOf(TAGS),
+  amenities: csvOf(AMENITIES),
+  access: csvOf(ACCESSIBILITY),
   guests: z.coerce.number().int().min(1).max(30).catch(1),
-  maxPrice: z.coerce.number().int().min(1).max(100_000).optional().catch(undefined),
+  minPrice: price,
+  maxPrice: price,
   checkIn: isoDate.optional().catch(undefined),
   checkOut: isoDate.optional().catch(undefined),
 });
 
-const feedSource = z.enum(["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"]);
+const feedSource = z.enum(FEED_SOURCES);
 
 export const calendarQuery = windowFields
   .and(z.object({ roomId: id.optional() }))
@@ -123,7 +169,7 @@ export const settingsInput = z
     address: optionalText(200),
     phone: phone.nullish(),
     whatsapp: phone.nullish(),
-    currency: z.enum(["USD", "LBP", "EUR"]),
+    currency: z.enum(CURRENCIES),
     lbpRate: z.number().int().min(1).max(10_000_000).nullish(),
     commissionRateBps: z.number().int().min(0).max(5_000),
     depositPercent: z.number().int().min(0).max(100),
@@ -135,12 +181,17 @@ export const settingsInput = z
     cancellationPolicy: optionalText(2000),
     listedPublicly: z.boolean(),
     categories: z.array(z.string().min(1).max(40)).max(6),
+    tags: z.array(z.enum(TAGS)).max(TAGS.length),
+    accessibility: z.array(z.enum(ACCESSIBILITY)).max(ACCESSIBILITY.length),
+    minGuestAge: z.number().int().min(0).max(99).nullable(),
+    latitude: z.number().min(-90).max(90).nullable(),
+    longitude: z.number().min(-180).max(180).nullable(),
   })
   .partial();
 
 export const paymentInput = z.object({
   amountCents: z.number().int().min(1).max(100_000_000),
-  method: z.enum(["CASH", "WHISH", "OMT", "BANK_TRANSFER", "OTHER"]),
+  method: z.enum(MANUAL_PAYMENT_METHODS),
   note: z.string().trim().max(300).nullish(),
 });
 
@@ -159,14 +210,20 @@ export const reviewUpdate = z.union([
   z.object({ hiddenReason: z.string().trim().min(3).max(300).nullable() }),
 ]);
 
-export const reviewInput = z.object({
-  bookingId: id,
-  rating: z.number().int().min(1).max(5),
-  cleanliness: z.number().int().min(1).max(5).optional(),
-  location: z.number().int().min(1).max(5).optional(),
-  value: z.number().int().min(1).max(5).optional(),
-  comment: z.string().trim().min(10).max(2000),
-});
+/** A review names the stay (bookingId) or the seats in a session (sessionBookingId), never both. */
+export const reviewInput = z
+  .object({
+    bookingId: id.optional(),
+    sessionBookingId: id.optional(),
+    rating: z.number().int().min(1).max(5),
+    cleanliness: z.number().int().min(1).max(5).optional(),
+    location: z.number().int().min(1).max(5).optional(),
+    value: z.number().int().min(1).max(5).optional(),
+    comment: z.string().trim().min(10).max(2000),
+  })
+  .refine((input) => Boolean(input.bookingId) !== Boolean(input.sessionBookingId), {
+    message: "Name either a stay or an experience booking",
+  });
 
 export const chatInput = z.object({
   messages: z
@@ -185,3 +242,79 @@ export const keyInput = z.object({
 });
 
 export const keyParams = workspaceParams.extend({ keyId: id });
+
+export const businessStatusInput = z.object({ status: z.enum(["ACTIVE", "SUSPENDED"]) });
+
+export const siteSettingsInput = z.object({ palette: z.enum(PALETTES) });
+
+/** A paid plan to start through Stripe Checkout. */
+export const checkoutInput = z.object({ plan: z.enum(["PRO", "BUSINESS"]) });
+
+const categoryFields = z.object({
+  nameEn: z.string().trim().min(2).max(40),
+  nameAr: z.string().trim().min(2).max(40),
+  icon: z.string().trim().min(1).max(40),
+  position: z.number().int().min(0).max(999),
+});
+
+/** A new category. Its slug and kind never change afterwards: listings and links point at them. */
+export const categoryInput = categoryFields.extend({
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and dashes")
+    .max(40),
+  kind: z.enum(["HOME", "EXPERIENCE", "SERVICE"]),
+});
+export const categoryUpdate = categoryFields.partial();
+export const categoryParams = z.object({ slug: z.string().min(1).max(40) });
+
+// ---------- Experiences and services ----------
+
+const listItems = z.array(z.string().trim().min(1).max(160)).max(12);
+
+export const offeringInput = z.object({
+  kind: z.enum(["EXPERIENCE", "SERVICE"]),
+  title: z.string().trim().min(3).max(100),
+  description: z.string().trim().max(4000).nullish(),
+  categorySlug: z.string().max(40).nullish(),
+  area: z.string().trim().max(80).nullish(),
+  meetingPoint: z.string().trim().max(200).nullish(),
+  latitude: z.number().min(-90).max(90).nullish(),
+  longitude: z.number().min(-180).max(180).nullish(),
+  durationMinutes: z.number().int().min(15).max(1440),
+  priceCents: cents,
+  priceUnit: z.enum(PRICE_UNITS),
+  maxGuests: z.number().int().min(1).max(100),
+  minAge: z.number().int().min(0).max(99).nullish(),
+  activityLevel: z.enum(ACTIVITY_LEVELS).nullish(),
+  skillLevel: z.enum(SKILL_LEVELS).nullish(),
+  included: listItems.default([]),
+  notIncluded: listItems.default([]),
+  accessibility: z.array(z.enum(ACCESSIBILITY)).max(ACCESSIBILITY.length).default([]),
+  languages: z.array(z.enum(LANGUAGES)).max(LANGUAGES.length).default([]),
+  tags: z.array(z.enum(TAGS)).max(TAGS.length).default([]),
+  cancellationHours: z.number().int().min(0).max(720).default(24),
+});
+
+export const offeringUpdate = offeringInput.partial().extend({ active: z.boolean().optional() });
+
+export const offeringParams = workspaceParams.extend({ offeringId: id });
+export const sessionParams = workspaceParams.extend({ sessionId: id });
+export const sessionBookingParams = workspaceParams.extend({ bookingId: id });
+
+/** Schedule one session per date at the same local start time. */
+export const sessionsInput = z.object({
+  dates: z.array(isoDate).min(1).max(60),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  capacity: z.number().int().min(1).max(500),
+});
+
+export const sessionBookingRequest = z.object({
+  sessionId: id,
+  seats: z.number().int().min(1).max(100),
+  guestName: z.string().trim().min(2).max(80),
+  guestPhone: phone,
+  guestEmail: z.email().max(254).nullish(),
+  guestNote: z.string().trim().max(1000).nullish(),
+});

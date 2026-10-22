@@ -1,4 +1,4 @@
-import { CalendarPlus, Heart, HeartOff, type LucideIcon, Star } from "lucide-react";
+import { CalendarPlus, Heart, HeartOff, type LucideIcon, MessageSquareQuote } from "lucide-react";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { requirePageUser } from "@/server/http/session";
@@ -8,7 +8,7 @@ const ACTIONS = {
   "booking.requested": CalendarPlus,
   "favorite.added": Heart,
   "favorite.removed": HeartOff,
-  "review.submitted": Star,
+  "review.submitted": MessageSquareQuote,
 } satisfies Record<string, LucideIcon>;
 
 type KnownAction = keyof typeof ACTIONS;

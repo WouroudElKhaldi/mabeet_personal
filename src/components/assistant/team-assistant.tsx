@@ -8,6 +8,7 @@ export function TeamAssistant({ businessId }: { businessId: string }) {
   return (
     <ChatPanel
       endpoint={`/api/workspaces/${businessId}/assistant`}
+      speaker={t("speaker")}
       greeting={t("greeting")}
       suggestions={[t("suggestions.weekend"), t("suggestions.month"), t("suggestions.requests")]}
     />

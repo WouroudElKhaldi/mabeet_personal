@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "@/server/auth/better-auth";
+import type { Permission } from "@/server/auth/permissions";
 import type { TenantContext } from "@/server/auth/tenant-context";
 import { resolveContext } from "@/server/services/team-service";
 
@@ -24,3 +25,13 @@ export const requirePageTenant = cache(async (businessId: string): Promise<Tenan
   if (!ctx) notFound();
   return ctx;
 });
+
+/**
+ * A dashboard page that needs one of `anyOf`. A member without it gets the 404 page, exactly like
+ * a non-member, instead of a crash into the error page when a service refuses.
+ */
+export async function requirePageAccess(businessId: string, anyOf: readonly Permission[]) {
+  const ctx = await requirePageTenant(businessId);
+  if (!anyOf.some((permission) => ctx.permissions.has(permission))) notFound();
+  return ctx;
+}

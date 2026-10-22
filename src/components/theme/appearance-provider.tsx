@@ -1,40 +1,31 @@
 "use client";
 
 import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useState } from "react";
-import { APPEARANCE_STORAGE_KEY, type ColorMode, type Palette } from "@/config/appearance";
+import { COLOR_MODE_STORAGE_KEY, type ColorMode } from "@/config/appearance";
 
-interface Appearance {
+interface AppearanceContextValue {
   mode: ColorMode;
-  palette: Palette;
-}
-
-interface AppearanceContextValue extends Appearance {
   setMode: (mode: ColorMode) => void;
-  setPalette: (palette: Palette) => void;
 }
-
-const DEFAULT_APPEARANCE: Appearance = { mode: "system", palette: "cedar" };
 
 const AppearanceContext = createContext<AppearanceContextValue | null>(null);
 
-function readSaved(): Appearance {
+const systemMode = (): ColorMode => (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+function readSaved(): ColorMode | null {
   try {
-    return { ...DEFAULT_APPEARANCE, ...JSON.parse(localStorage.getItem(APPEARANCE_STORAGE_KEY) ?? "{}") };
+    const saved = localStorage.getItem(COLOR_MODE_STORAGE_KEY);
+    return saved === "light" || saved === "dark" ? saved : null;
   } catch {
-    return DEFAULT_APPEARANCE;
+    return null;
   }
 }
 
-const systemPrefersDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
-
-function apply({ mode, palette }: Appearance) {
-  const root = document.documentElement;
-  const resolved = mode === "system" ? (systemPrefersDark() ? "dark" : "light") : mode;
+function apply(mode: ColorMode) {
   const update = () => {
-    root.dataset.mode = resolved;
-    root.dataset.palette = palette;
+    document.documentElement.dataset.mode = mode;
   };
-  // A soft cross-fade between themes where the browser supports it.
+  // A soft cross-fade between modes where the browser supports it.
   if ("startViewTransition" in document && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     document.startViewTransition(update);
   } else {
@@ -42,37 +33,40 @@ function apply({ mode, palette }: Appearance) {
   }
 }
 
+/** Light or dark is the visitor's choice; until they make one, it follows their device. */
 export function AppearanceProvider({ children }: { children: ReactNode }) {
-  const [appearance, setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE);
-
-  useEffect(() => setAppearance(readSaved()), []);
+  const [mode, setModeState] = useState<ColorMode>("light");
+  const [chosen, setChosen] = useState(false);
 
   useEffect(() => {
-    if (appearance.mode !== "system") return;
-    const query = matchMedia("(prefers-color-scheme: dark)");
-    const follow = () => apply(appearance);
-    query.addEventListener("change", follow);
-    return () => query.removeEventListener("change", follow);
-  }, [appearance]);
-
-  const update = useCallback((next: Partial<Appearance>) => {
-    setAppearance((current) => {
-      const merged = { ...current, ...next };
-      localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(merged));
-      apply(merged);
-      return merged;
-    });
+    const saved = readSaved();
+    setModeState(saved ?? systemMode());
+    setChosen(saved !== null);
   }, []);
 
-  const value = useMemo<AppearanceContextValue>(
-    () => ({
-      ...appearance,
-      setMode: (mode) => update({ mode }),
-      setPalette: (palette) => update({ palette }),
-    }),
-    [appearance, update],
-  );
+  useEffect(() => {
+    if (chosen) return;
+    const query = matchMedia("(prefers-color-scheme: dark)");
+    const follow = () => {
+      setModeState(systemMode());
+      apply(systemMode());
+    };
+    query.addEventListener("change", follow);
+    return () => query.removeEventListener("change", follow);
+  }, [chosen]);
 
+  const setMode = useCallback((next: ColorMode) => {
+    try {
+      localStorage.setItem(COLOR_MODE_STORAGE_KEY, next);
+    } catch {
+      // Private mode or blocked storage: the choice still applies for this visit.
+    }
+    setModeState(next);
+    setChosen(true);
+    apply(next);
+  }, []);
+
+  const value = useMemo<AppearanceContextValue>(() => ({ mode, setMode }), [mode, setMode]);
   return <AppearanceContext value={value}>{children}</AppearanceContext>;
 }
 

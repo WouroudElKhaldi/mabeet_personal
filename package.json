@@ -14,12 +14,18 @@
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:all": "vitest run",
+    "db:start": "tsx scripts/local-db.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test"
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test",
+    "smoke": "tsx --env-file=.env scripts/smoke.ts",
+    "docs:erd": "tsx scripts/erd.ts",
+    "docs:openapi": "tsx --env-file-if-exists=.env scripts/openapi.ts",
+    "docs": "pnpm docs:erd && pnpm docs:openapi && prettier --write docs --log-level warn"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "1.7.12",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "^6.19.3",
     "better-auth": "^1.7.12",
@@ -42,6 +48,7 @@
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^5.0.5",
     "dotenv": "^18.0.8",
+    "embedded-postgres": "18.4.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
     "eslint-config-prettier": "^10.1.8",
@@ -55,6 +62,6 @@
     "vitest": "^5.0.5"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx --env-file=.env prisma/seed.ts"
   }
 }

@@ -5,7 +5,9 @@ export function createPayment(
   db: Db,
   payment: {
     businessId: string;
-    bookingId: string;
+    /** Exactly one of these: a stay or a session booking. */
+    bookingId?: string;
+    sessionBookingId?: string;
     amountCents: number;
     currency: string;
     method: PaymentMethod;

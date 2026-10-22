@@ -7,10 +7,11 @@ import {
   toPermissions,
 } from "@/server/auth/permissions";
 import { type Channel, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isUniqueViolation, prisma } from "@/server/db/client";
+import { isUniqueViolation, prisma, runInTransaction } from "@/server/db/client";
 import { conflict, forbidden, invalid, notFound } from "@/server/errors";
 import * as team from "@/server/repositories/team-repository";
 import { recordAction } from "./audit";
+import { assertPlanAllowsAnother } from "./billing-service";
 
 type MembershipWithRole = Membership & { role: Role };
 
@@ -32,6 +33,12 @@ function contextFrom(membership: MembershipWithRole, channel: Channel, writeAcce
 export async function resolveContext(userId: string, businessId: string, channel: Channel = "web") {
   const membership = await team.findActiveMembership(prisma, userId, businessId);
   return membership && contextFrom(membership, channel);
+}
+
+/** Resolves the member behind an OAuth access token: their own permissions, read-only unless the token may write. */
+export async function resolveTokenContext(userId: string, businessId: string, canWrite: boolean) {
+  const membership = await team.findActiveMembership(prisma, userId, businessId);
+  return membership && contextFrom(membership, "mcp", canWrite);
 }
 
 /** Resolves the member behind an API key. Read-only keys keep only the read part of the member's permissions. */
@@ -99,10 +106,10 @@ export async function deleteRole(ctx: TenantContext, roleId: string) {
   const role = await team.findRole(prisma, ctx.businessId, roleId);
   if (!role) throw notFound("Role");
   if (role.isOwner) throw forbidden("The owner role cannot be deleted");
-  if ((await team.countActiveMembersWithRole(prisma, roleId)) > 0) {
+  if ((await team.countMembersWithRole(prisma, roleId)) > 0) {
     throw conflict("Move the members on this role to another role first");
   }
-  await team.deleteRole(prisma, ctx.businessId, roleId);
+  await runInTransaction((tx) => team.deleteRole(tx, ctx.businessId, roleId));
   await recordAction(ctx, "role.deleted", "role", roleId);
 }
 
@@ -131,6 +138,12 @@ export async function addMember(ctx: TenantContext, input: { email: string; role
   const role = await findAssignableRole(ctx, input.roleId);
   const user = await team.findUserByEmail(prisma, input.email);
   if (!user) throw invalid("No account uses this email yet. Ask them to sign up first.");
+  // Adding never changes an existing member's role: that goes through changeMemberRole and its owner checks.
+  const existing = await team.findMembershipOfUser(prisma, user.id, ctx.businessId);
+  if (existing && existing.status !== "REMOVED") {
+    throw conflict("This person is already on the team. Change their role from the team list instead.");
+  }
+  await assertPlanAllowsAnother(ctx.businessId, "members");
   const membership = await team.upsertMembership(prisma, {
     userId: user.id,
     businessId: ctx.businessId,

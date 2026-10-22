@@ -39,9 +39,9 @@ export function StatTile({ label, value, note, ...stat }: StatTileProps) {
   }, [inView, reduced, value]);
 
   return (
-    <div ref={ref} className="rounded-lg bg-surface p-5 ring-1 ring-line">
+    <div ref={ref} className="rounded-xl bg-surface p-5 ring-1 ring-line">
       <p className="text-sm font-semibold text-muted">{label}</p>
-      <p className="mt-2 font-display text-4xl font-medium tabular-nums">{format(shown, stat, locale)}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{format(shown, stat, locale)}</p>
       {note && <p className="mt-1 text-sm text-muted">{note}</p>}
     </div>
   );

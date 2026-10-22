@@ -1,20 +1,32 @@
 import type { ReviewStatus } from "@prisma/client";
 import type { Db } from "@/server/db/client";
 
+const PUBLIC_REVIEW = {
+  id: true,
+  rating: true,
+  comment: true,
+  ownerReply: true,
+  createdAt: true,
+  author: { select: { name: true } },
+  room: { select: { name: true } },
+} as const;
+
+/** Reviews of a place's stays. Experiences and services have their own (listOfferingReviews). */
 export function listPublishedReviews(db: Db, businessId: string, take: number) {
   return db.review.findMany({
-    where: { businessId, status: "PUBLISHED" },
+    where: { businessId, offeringId: null, status: "PUBLISHED" },
     orderBy: { createdAt: "desc" },
     take,
-    select: {
-      id: true,
-      rating: true,
-      comment: true,
-      ownerReply: true,
-      createdAt: true,
-      author: { select: { name: true } },
-      room: { select: { name: true } },
-    },
+    select: PUBLIC_REVIEW,
+  });
+}
+
+export function listOfferingReviews(db: Db, offeringId: string, take: number) {
+  return db.review.findMany({
+    where: { offeringId, status: "PUBLISHED" },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: PUBLIC_REVIEW,
   });
 }
 
@@ -22,7 +34,12 @@ export function listBusinessReviews(db: Db, businessId: string, status?: ReviewS
   return db.review.findMany({
     where: { businessId, status },
     orderBy: { createdAt: "desc" },
-    include: { room: { select: { name: true } }, booking: { select: { reference: true, guestName: true } } },
+    include: {
+      room: { select: { name: true } },
+      offering: { select: { title: true } },
+      booking: { select: { reference: true, guestName: true } },
+      sessionBooking: { select: { reference: true, guestName: true } },
+    },
   });
 }
 
@@ -48,12 +65,28 @@ export function findReviewableBooking(db: Db, guestUserId: string, bookingId: st
   });
 }
 
+/** Seats the guest held in a session, confirmed; reviewable once the session has ended. */
+export function findReviewableSessionBooking(db: Db, guestUserId: string, sessionBookingId: string) {
+  return db.sessionBooking.findFirst({
+    where: { id: sessionBookingId, guestUserId, status: "CONFIRMED" },
+    select: {
+      id: true,
+      businessId: true,
+      offeringId: true,
+      session: { select: { endsAt: true } },
+      review: { select: { id: true } },
+    },
+  });
+}
+
 export function createReview(
   db: Db,
   review: {
     businessId: string;
-    roomId: string;
-    bookingId: string;
+    roomId?: string;
+    bookingId?: string;
+    offeringId?: string;
+    sessionBookingId?: string;
     authorId: string;
     rating: number;
     cleanliness?: number;

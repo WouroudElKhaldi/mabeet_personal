@@ -11,6 +11,7 @@ import { findActiveBusinessBySlug } from "@/server/repositories/business-reposit
 import { findRateOverrides, findRoom, lockActiveRoom } from "@/server/repositories/room-repository";
 import { assertTransition } from "./booking-status";
 import { recordAction } from "./audit";
+import { notifyBookingRequested, notifyBookingStatus, notifyGuestCancelled } from "./notification-service";
 import { refreshRoomFeeds } from "./calendar-service";
 import { quoteStay } from "./pricing";
 
@@ -38,6 +39,8 @@ export interface BookingRequest {
   guestEmail: string | null;
   guestNote: string | null;
   guestUserId: string | null;
+  /** The language the guest is browsing in; their emails use it. */
+  locale?: string;
 }
 
 /**
@@ -50,11 +53,12 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
   const business = await findActiveBusinessBySlug(prisma, businessSlug);
   if (!business) throw notFound("Place");
 
+  let expiredIds: string[] = [];
   try {
     const booking = await runInTransaction(async (tx) => {
       const room = await lockRoomForBooking(tx, business.id, request.roomId);
       assertRoomFits(room, request);
-      await bookings.expireStaleHolds(tx, now, room.id);
+      expiredIds = await bookings.expireStaleHolds(tx, now, room.id);
       await assertNoImportedOverlap(tx, room.id, request.range);
 
       const overrides = await findRateOverrides(tx, room.id, request.range);
@@ -65,7 +69,7 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
         depositPercent: business.depositPercent,
       });
 
-      return bookings.createHeldBooking(tx, {
+      const held = await bookings.createHeldBooking(tx, {
         ...stay,
         businessId: business.id,
         roomId: room.id,
@@ -76,14 +80,18 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
         publicToken: secureToken(),
         holdExpiresAt: new Date(now.getTime() + business.holdHours * 3_600_000),
       });
+      // Same transaction: the guest never gets an error for a booking that was in fact created.
+      await logActivity(tx, {
+        userId: request.guestUserId,
+        businessId: business.id,
+        action: "booking.requested",
+        entity: "booking",
+        entityId: held.id,
+      });
+      return held;
     });
-    await logActivity(prisma, {
-      userId: request.guestUserId,
-      businessId: business.id,
-      action: "booking.requested",
-      entity: "booking",
-      entityId: booking.id,
-    });
+    notifyBookingRequested(booking.id);
+    expiredIds.forEach((id) => notifyBookingStatus(id));
     return booking;
   } catch (error) {
     if (isOverlapError(error)) throw conflict(DATES_TAKEN);
@@ -152,6 +160,7 @@ async function decide(
     });
   });
   await recordAction(ctx, `booking.${status.toLowerCase()}`, "booking", bookingId);
+  notifyBookingStatus(bookingId);
   return booking;
 }
 
@@ -183,7 +192,7 @@ export async function listBookings(ctx: TenantContext, filters: bookings.Booking
 }
 
 /** Hides guest contact details from team members without the guests.contact permission. */
-function presentForStaff<T extends Pick<Booking, "guestPhone" | "guestEmail">>(
+export function presentForStaff<T extends Pick<Booking, "guestPhone" | "guestEmail">>(
   ctx: TenantContext,
   booking: T,
 ): T {
@@ -195,6 +204,37 @@ function presentForStaff<T extends Pick<Booking, "guestPhone" | "guestEmail">>(
   };
 }
 
+/**
+ * The guest cancels through their private link: while the request is held or confirmed, and before check-in.
+ * The room is locked like any other change, the nights are freed, and both sides get an email.
+ */
+export async function cancelStayAsGuest(publicToken: string, reason: string | null, now = new Date()) {
+  const booking = await runInTransaction(async (tx) => {
+    const current = await bookings.findBookingByPublicToken(tx, publicToken);
+    if (!current) return null;
+    await lockActiveRoom(tx, current.businessId, current.roomId);
+    assertTransition(current.status, "CANCELLED");
+    if (current.checkIn <= todayUtc(now)) throw conflict("This stay has already started.");
+    const updated = await bookings.changeStatus(tx, current.businessId, current.id, {
+      status: "CANCELLED",
+      cancelReason: reason ?? undefined,
+    });
+    await logActivity(tx, {
+      userId: current.guestUserId,
+      businessId: current.businessId,
+      action: "booking.cancelled_by_guest",
+      entity: "booking",
+      entityId: current.id,
+    });
+    return updated;
+  });
+  if (booking) {
+    notifyBookingStatus(booking.id);
+    notifyGuestCancelled(booking.id);
+  }
+  return booking;
+}
+
 export function getBookingForGuest(publicToken: string) {
   return bookings.findBookingByPublicToken(prisma, publicToken);
 }
@@ -203,6 +243,9 @@ export function listMyBookings(userId: string) {
   return bookings.listGuestBookings(prisma, userId);
 }
 
-export function expireAllStaleHolds(now = new Date()) {
-  return bookings.expireStaleHolds(prisma, now);
+/** Cron: expires unanswered holds and tells each guest. Returns how many expired. */
+export async function expireAllStaleHolds(now = new Date()) {
+  const ids = await runInTransaction((tx) => bookings.expireStaleHolds(tx, now));
+  ids.forEach((id) => notifyBookingStatus(id));
+  return ids.length;
 }

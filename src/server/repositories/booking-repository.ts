@@ -25,6 +25,8 @@ export interface NewHeldBooking {
   reference: string;
   publicToken: string;
   holdExpiresAt: Date;
+  /** The guest's language, for their emails. Defaults to English. */
+  locale?: string;
 }
 
 /** Inserts the booking and its DIRECT occupancy row. The exclusion constraint rejects overlaps here. */
@@ -49,17 +51,18 @@ export function createHeldBooking(tx: Prisma.TransactionClient, booking: NewHeld
   });
 }
 
-/** Expires holds the owner never answered and frees their nights. Returns how many expired. */
-export async function expireStaleHolds(db: Db, now: Date, roomId?: string) {
-  const stale = await db.booking.findMany({
+/** Expires holds the owner never answered and frees their nights. Returns the expired booking ids. */
+export async function expireStaleHolds(db: Db, now: Date, roomId?: string): Promise<string[]> {
+  // One UPDATE that re-checks status: a hold confirmed a moment earlier is never touched.
+  const expired = await db.booking.updateManyAndReturn({
     where: { status: "HELD", holdExpiresAt: { lt: now }, ...(roomId && { roomId }) },
+    data: { status: "EXPIRED" },
     select: { id: true },
   });
-  const ids = stale.map((booking) => booking.id);
-  if (ids.length === 0) return 0;
-  await db.booking.updateMany({ where: { id: { in: ids } }, data: { status: "EXPIRED" } });
+  const ids = expired.map((booking) => booking.id);
+  if (ids.length === 0) return ids;
   await db.occupancy.updateMany({ where: { bookingId: { in: ids } }, data: { active: false } });
-  return ids.length;
+  return ids;
 }
 
 export function findOverlappingImported(db: Db, roomId: string, range: DateRange) {

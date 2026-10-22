@@ -4,7 +4,7 @@ import { LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -12,10 +12,12 @@ import { authClient, safeNextPath } from "@/lib/auth-client";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const t = useTranslations("auth");
+  const locale = useLocale();
   const router = useRouter();
   const next = safeNextPath(useSearchParams().get("next"));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -26,10 +28,40 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setError(null);
     const result =
       mode === "sign-up"
-        ? await authClient.signUp.email({ name: String(form.get("name")), email, password })
-        : await authClient.signIn.email({ email, password });
+        ? await authClient.signUp.email({
+            name: String(form.get("name")),
+            email,
+            password,
+            locale,
+            callbackURL: next,
+          })
+        : await authClient.signIn.email({ email, password, callbackURL: next });
     if (result.error) {
-      setError(mode === "sign-in" ? t("wrongCredentials") : (result.error.message ?? t("genericError")));
+      const unverified = result.error.code === "EMAIL_NOT_VERIFIED" || result.error.status === 403;
+      setError(
+        unverified
+          ? t("notVerified")
+          : mode === "sign-in"
+            ? t("wrongCredentials")
+            : result.error.code === "USER_ALREADY_EXISTS" ||
+                result.error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"
+              ? t("emailTaken")
+              : result.error.code?.startsWith("PASSWORD_TOO")
+                ? t("passwordHint")
+                : t("genericError"),
+      );
+      setPending(false);
+      return;
+    }
+    // Signing in to connect an AI app: the OAuth flow continues at the address the server returns.
+    const oauthNext = (result.data as { url?: string } | null)?.url;
+    if (new URLSearchParams(window.location.search).has("client_id") && oauthNext) {
+      window.location.assign(oauthNext);
+      return;
+    }
+    // With email verification on, sign-up creates the account but no session until the link is opened.
+    if (mode === "sign-up" && !result.data?.token) {
+      setSentTo(email);
       setPending(false);
       return;
     }
@@ -38,6 +70,21 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   };
 
   const other = mode === "sign-in" ? "sign-up" : "sign-in";
+
+  if (sentTo) {
+    return (
+      <div role="status" className="grid gap-4 rounded-2xl bg-accent-soft p-6">
+        <p className="text-lg font-semibold">{t("checkInbox.title")}</p>
+        <p className="text-muted">{t("checkInbox.body", { email: sentTo })}</p>
+        <Link
+          href={`/sign-in?next=${encodeURIComponent(next)}`}
+          className="font-semibold underline underline-offset-4"
+        >
+          {t("checkInbox.back")}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={submit} className="grid gap-5">
@@ -54,6 +101,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
         hint={mode === "sign-up" ? t("passwordHint") : undefined}
       />
+      {mode === "sign-in" && (
+        <Link
+          href="/forgot-password"
+          className="-mt-2 justify-self-end text-sm font-semibold underline underline-offset-4"
+        >
+          {t("forgotLink")}
+        </Link>
+      )}
       <AnimatePresence>
         {error && (
           <motion.p

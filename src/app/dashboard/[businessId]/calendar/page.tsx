@@ -3,7 +3,7 @@ import { BlockForm } from "@/components/dashboard/block-form";
 import { CalendarBoard, type CalendarEntry } from "@/components/dashboard/calendar-board";
 import { addDays, parseIsoDate, toIsoDate, todayUtc } from "@/lib/dates";
 import { can } from "@/server/auth/tenant-context";
-import { requirePageTenant } from "@/server/http/session";
+import { requirePageAccess } from "@/server/http/session";
 import { getCalendarBoard } from "@/server/services/calendar-service";
 
 type PageProps = { params: Promise<{ businessId: string }>; searchParams: Promise<{ month?: string }> };
@@ -14,7 +14,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps) 
   const { businessId } = await params;
   const requested = (await searchParams).month;
   const month = requested && MONTH.test(requested) ? requested : toIsoDate(todayUtc()).slice(0, 7);
-  const ctx = await requirePageTenant(businessId);
+  const ctx = await requirePageAccess(businessId, ["calendar.read"]);
   const from = parseIsoDate(`${month}-01`);
   const range = { checkIn: from, checkOut: addDays(from, 32) };
   const [t, { rooms, occupancy }] = await Promise.all([
@@ -35,7 +35,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps) 
 
   return (
     <div className="grid gap-6">
-      <h1 className="rise-in text-4xl font-medium">{t("title")}</h1>
+      <h1 className="rise-in text-4xl font-semibold">{t("title")}</h1>
       <CalendarBoard
         businessId={businessId}
         month={month}

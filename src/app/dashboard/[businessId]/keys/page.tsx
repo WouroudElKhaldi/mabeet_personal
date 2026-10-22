@@ -1,14 +1,14 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { KeyManager } from "@/components/dashboard/key-manager";
 import { env } from "@/server/env";
-import { requirePageTenant } from "@/server/http/session";
+import { requirePageAccess } from "@/server/http/session";
 import { listKeys, listToolCalls } from "@/server/services/api-key-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
 
 export default async function KeysPage({ params }: PageProps) {
   const { businessId } = await params;
-  const ctx = await requirePageTenant(businessId);
+  const ctx = await requirePageAccess(businessId, ["ai.use"]);
   const [t, locale, keys, calls] = await Promise.all([
     getTranslations("assistant.keys"),
     getLocale(),
@@ -20,7 +20,7 @@ export default async function KeysPage({ params }: PageProps) {
   return (
     <div className="grid gap-10">
       <header className="rise-in">
-        <h1 className="text-4xl font-medium">{t("title")}</h1>
+        <h1 className="text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-muted">{t("intro")}</p>
       </header>
       <KeyManager
@@ -33,7 +33,7 @@ export default async function KeysPage({ params }: PageProps) {
         }))}
       />
       <section className="grid gap-3">
-        <h2 className="text-2xl font-medium">{t("auditTitle")}</h2>
+        <h2 className="text-2xl font-semibold">{t("auditTitle")}</h2>
         <p className="text-sm text-muted">{t("auditHint")}</p>
         {calls.length === 0 ? (
           <p className="text-muted">{t("noCalls")}</p>

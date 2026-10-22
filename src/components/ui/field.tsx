@@ -2,9 +2,9 @@ import { clsx } from "clsx";
 import { type ComponentProps, type ReactNode, useId } from "react";
 
 export const inputClass = clsx(
-  "peer h-12 w-full rounded-md bg-surface px-4 text-[0.9375rem] text-ink ring-1 ring-line-strong",
-  "placeholder:text-faint transition-shadow duration-200",
-  "focus:ring-2 focus:ring-accent focus:outline-none",
+  "peer h-12 w-full rounded-lg bg-surface px-4 text-[0.9375rem] text-ink ring-1 ring-line-strong",
+  "placeholder:text-faint transition-shadow duration-150 hover:ring-ink/40",
+  "focus:ring-2 focus:ring-ink focus:outline-none",
   "aria-invalid:ring-danger",
 );
 

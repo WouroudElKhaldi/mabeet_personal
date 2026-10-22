@@ -3,14 +3,14 @@ import { AddMemberForm, MemberControls } from "@/components/dashboard/member-con
 import { RoleEditor } from "@/components/dashboard/role-editor";
 import { ALL_PERMISSIONS } from "@/server/auth/permissions";
 import { can } from "@/server/auth/tenant-context";
-import { requirePageTenant } from "@/server/http/session";
+import { requirePageAccess } from "@/server/http/session";
 import { listMembers, listRoleOptions, listRoles } from "@/server/services/team-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
 
 export default async function TeamPage({ params }: PageProps) {
   const { businessId } = await params;
-  const ctx = await requirePageTenant(businessId);
+  const ctx = await requirePageAccess(businessId, ["team.manage", "roles.manage"]);
   const canManageTeam = can(ctx, "team.manage");
   const canManageRoles = can(ctx, "roles.manage");
   const [t, members, roleOptions, roles] = await Promise.all([
@@ -23,11 +23,11 @@ export default async function TeamPage({ params }: PageProps) {
 
   return (
     <div className="grid gap-12">
-      <h1 className="rise-in text-4xl font-medium">{t("title")}</h1>
+      <h1 className="rise-in text-4xl font-semibold">{t("title")}</h1>
 
       {canManageTeam && (
         <section className="grid gap-4">
-          <h2 className="text-2xl font-medium">{t("members")}</h2>
+          <h2 className="text-2xl font-semibold">{t("members")}</h2>
           <ul className="grid gap-2">
             {members.map((member) => (
               <li
@@ -49,6 +49,7 @@ export default async function TeamPage({ params }: PageProps) {
                   <MemberControls
                     businessId={businessId}
                     membershipId={member.id}
+                    memberName={member.user.name}
                     roleId={member.role.id}
                     roles={roleOptions}
                   />
@@ -63,7 +64,7 @@ export default async function TeamPage({ params }: PageProps) {
       {canManageRoles && (
         <section className="grid gap-4">
           <div>
-            <h2 className="text-2xl font-medium">{t("roles")}</h2>
+            <h2 className="text-2xl font-semibold">{t("roles")}</h2>
             <p className="mt-1 max-w-2xl text-muted">{t("rolesIntro")}</p>
           </div>
           {roles.map((role) => (

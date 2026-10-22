@@ -7,8 +7,8 @@ export async function AuthPage({ mode }: { mode: "sign-in" | "sign-up" }) {
   const t = await getTranslations("auth");
   return (
     <>
-      <h1 className="rise-in text-4xl font-medium">{t(`${mode}.title`)}</h1>
-      <p className="mt-2 mb-8 text-muted">{t(`${mode}.subtitle`)}</p>
+      <h1 className="rise-in font-poster text-[2rem]">{t(`${mode}.title`)}</h1>
+      <p className="mt-3 mb-9 text-muted">{t(`${mode}.subtitle`)}</p>
       <Suspense>
         <AuthForm mode={mode} />
       </Suspense>

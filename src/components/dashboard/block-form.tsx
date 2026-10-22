@@ -1,13 +1,15 @@
 "use client";
 
 import { Lock } from "lucide-react";
+import { BLOCK_SOURCES } from "@/config/enums";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
 
-const SOURCES = ["", "KAZDERNI", "OTHER"] as const;
+/** "" means a plain block with no source. */
+const SOURCES = ["", ...BLOCK_SOURCES] as const;
 
 /** Close dates by hand: maintenance, a walk-in, or a booking taken on Kazderni or by phone. */
 export function BlockForm({

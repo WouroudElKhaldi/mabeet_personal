@@ -3,9 +3,9 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Rating } from "@/components/ui/rating";
 import { formatMoney } from "@/lib/format";
+import { stagger } from "@/lib/motion";
 import type { PlaceCard as PlaceCardData } from "@/server/services/directory-service";
 import { FavoriteButton } from "./favorite-button";
-import { stagger } from "@/lib/motion";
 import { PlaceArt } from "./place-art";
 
 interface PlaceCardProps {
@@ -17,62 +17,61 @@ interface PlaceCardProps {
   index?: number;
 }
 
+/** A square photo, then three short lines: name and rating, area, price. */
 export async function PlaceCard({ place, saved, signedIn, query = "", index = 0 }: PlaceCardProps) {
   const [t, locale] = await Promise.all([getTranslations("place"), getLocale()]);
   const stayTotal = place.offers[0]?.stayTotalCents ?? null;
+  const category = place.categories[0];
   return (
     <article className="group rise-in relative" style={stagger(index)}>
-      <Link href={`/p/${place.slug}${query}`} className="block focus-visible:outline-offset-4">
-        <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-surface-2">
+      <Link href={`/p/${place.slug}${query}`} className="block rounded-xl">
+        <div className="relative aspect-square overflow-hidden rounded-xl bg-surface-2">
           {place.photo ? (
             <Image
               src={place.photo.url}
               alt={place.photo.alt ?? place.name}
               fill
-              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-              className="object-cover transition-transform duration-[1200ms] ease-(--ease-out) group-hover:scale-[1.06]"
+              sizes="(min-width: 1536px) 16vw, (min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="object-cover transition-transform duration-500 ease-(--ease-out) group-hover:scale-[1.04]"
             />
           ) : (
-            <PlaceArt
-              seed={place.slug}
-              className="size-full transition-transform duration-[1200ms] ease-(--ease-out) group-hover:scale-[1.06]"
-            />
+            <PlaceArt seed={place.slug} className="size-full" />
           )}
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          {place.categories[0] && (
-            <span className="absolute start-3 top-3 rounded-full bg-paper/80 px-3 py-1 text-xs font-bold backdrop-blur-md">
-              {locale === "ar" ? place.categories[0].nameAr : place.categories[0].nameEn}
+          {category && (
+            <span className="absolute start-2.5 top-2.5 rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-soft">
+              {locale === "ar" ? category.nameAr : category.nameEn}
             </span>
           )}
         </div>
-        <div className="mt-3.5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate font-display text-lg leading-tight font-semibold">{place.name}</h3>
-            <p className="truncate text-sm text-muted">{place.area}</p>
+        <div className="mt-2.5 grid text-sm leading-snug">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate font-semibold tracking-normal">{place.name}</h3>
+            <Rating average={place.rating.average} count={place.rating.count} label={t("new")} compact />
           </div>
-          <Rating average={place.rating.average} count={place.rating.count} label={t("new")} />
-        </div>
-        <p className="mt-1.5 text-[0.9375rem]">
-          {stayTotal !== null ? (
-            <>
-              <span className="font-bold">{formatMoney(stayTotal, place.currency, locale)}</span>{" "}
-              <span className="text-muted">{t("total")}</span>
-            </>
-          ) : (
-            place.nightlyFromCents !== null && (
+          <p className="truncate text-muted">{place.area}</p>
+          <p className="mt-0.5">
+            {stayTotal !== null ? (
               <>
-                <span className="text-muted">{t("from")}</span>{" "}
-                <span className="font-bold">
-                  {formatMoney(place.nightlyFromCents, place.currency, locale)}
+                <span className="font-semibold underline underline-offset-2">
+                  {formatMoney(stayTotal, place.currency, locale)}
                 </span>{" "}
-                <span className="text-muted">{t("perNight")}</span>
+                <span className="text-muted">{t("total")}</span>
               </>
-            )
-          )}
-        </p>
+            ) : (
+              place.nightlyFromCents !== null && (
+                <>
+                  <span className="font-semibold">
+                    {formatMoney(place.nightlyFromCents, place.currency, locale)}
+                  </span>{" "}
+                  <span className="text-muted">{t("perNight")}</span>
+                </>
+              )
+            )}
+          </p>
+        </div>
       </Link>
-      <div className="absolute end-3 top-3">
-        <FavoriteButton slug={place.slug} initial={saved} signedIn={signedIn} />
+      <div className="absolute end-1.5 top-1.5">
+        <FavoriteButton slug={place.slug} initial={saved} signedIn={signedIn} overlay />
       </div>
     </article>
   );

@@ -1,14 +1,16 @@
 "use client";
 
 import { clsx } from "clsx";
+import { CURRENCIES } from "@/config/enums";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
+import { ACCESSIBILITY, TAGS } from "@/config/listing";
 import { useAction } from "@/hooks/use-action";
 
-export interface BusinessSettings {
+interface BusinessSettings {
   name: string;
   description: string | null;
   area: string | null;
@@ -26,19 +28,29 @@ export interface BusinessSettings {
   cancellationPolicy: string | null;
   listedPublicly: boolean;
   categories: Array<{ categorySlug: string }>;
+  tags: string[];
+  accessibility: string[];
+  minGuestAge: number | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 interface SettingsFormProps {
   businessId: string;
   settings: BusinessSettings;
-  categories: Array<{ slug: string; nameEn: string; nameAr: string }>;
+  categories: Array<{ slug: string; kind: string; nameEn: string; nameAr: string }>;
 }
 
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim() || null;
 const number = (data: FormData, key: string) => Number(data.get(key));
+const optionalNumber = (data: FormData, key: string) => {
+  const raw = String(data.get(key) ?? "").trim();
+  return raw === "" ? null : Number(raw);
+};
 
 export function SettingsForm({ businessId, settings, categories }: SettingsFormProps) {
   const t = useTranslations("dashboard.settings");
+  const tListing = useTranslations("listing");
   const locale = useLocale();
   const { run, pending, error } = useAction();
 
@@ -64,11 +76,17 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         cancellationPolicy: text(data, "cancellationPolicy"),
         listedPublicly: data.get("listedPublicly") === "on",
         categories: data.getAll("categories"),
+        tags: data.getAll("tags"),
+        accessibility: data.getAll("accessibility"),
+        minGuestAge: optionalNumber(data, "minGuestAge"),
+        latitude: optionalNumber(data, "latitude"),
+        longitude: optionalNumber(data, "longitude"),
       }),
     );
   };
 
   const selected = new Set(settings.categories.map((category) => category.categorySlug));
+  const homeCategories = categories.filter((category) => category.kind === "HOME");
 
   return (
     <form onSubmit={submit} className="grid gap-8">
@@ -80,7 +98,7 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         <fieldset className="sm:col-span-2">
           <legend className="mb-2 text-sm font-semibold">{t("categories")}</legend>
           <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
+            {homeCategories.map((category) => (
               <label
                 key={category.slug}
                 className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm ring-1 ring-line has-checked:bg-accent-soft has-checked:font-semibold has-checked:ring-accent"
@@ -108,6 +126,53 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         </label>
       </Group>
 
+      <Group title={t("thingsToKnow")}>
+        <ChipGroup
+          legend={t("tags")}
+          hint={t("tagsHint")}
+          name="tags"
+          options={TAGS.map((tag) => ({ value: tag, label: tListing(`tags.${tag}`) }))}
+          selected={settings.tags}
+        />
+        <ChipGroup
+          legend={t("accessibility")}
+          name="accessibility"
+          options={ACCESSIBILITY.map((key) => ({ value: key, label: tListing(`accessibility.${key}`) }))}
+          selected={settings.accessibility}
+        />
+        <Input
+          label={t("minGuestAge")}
+          name="minGuestAge"
+          type="number"
+          min="0"
+          max="99"
+          defaultValue={settings.minGuestAge}
+          hint={t("minGuestAgeHint")}
+        />
+      </Group>
+
+      <Group title={t("location")}>
+        <Input
+          label={t("latitude")}
+          name="latitude"
+          type="number"
+          step="any"
+          min="-90"
+          max="90"
+          defaultValue={settings.latitude}
+        />
+        <Input
+          label={t("longitude")}
+          name="longitude"
+          type="number"
+          step="any"
+          min="-180"
+          max="180"
+          defaultValue={settings.longitude}
+        />
+        <p className="text-sm text-muted sm:col-span-2">{t("locationHint")}</p>
+      </Group>
+
       <Group title={t("contact")}>
         <Input label={t("phone")} name="phone" type="tel" defaultValue={settings.phone} />
         <Input label={t("whatsapp")} name="whatsapp" type="tel" defaultValue={settings.whatsapp} />
@@ -117,9 +182,11 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         <label className="grid gap-1 text-sm font-semibold">
           {t("currency")}
           <select name="currency" defaultValue={settings.currency} className={inputClass}>
-            <option value="USD">USD</option>
-            <option value="LBP">LBP</option>
-            <option value="EUR">EUR</option>
+            {CURRENCIES.map((currency) => (
+              <option key={currency} value={currency}>
+                {currency}
+              </option>
+            ))}
           </select>
         </label>
         <Input
@@ -230,5 +297,43 @@ function Area({
         {...props}
       />
     </label>
+  );
+}
+
+function ChipGroup({
+  legend,
+  hint,
+  name,
+  options,
+  selected,
+}: {
+  legend: string;
+  hint?: string;
+  name: string;
+  options: Array<{ value: string; label: string }>;
+  selected: string[];
+}) {
+  return (
+    <fieldset className="sm:col-span-2">
+      <legend className="mb-1 text-sm font-semibold">{legend}</legend>
+      {hint && <p className="mb-2 text-xs text-muted">{hint}</p>}
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm ring-1 ring-line has-checked:bg-accent-soft has-checked:font-semibold has-checked:ring-accent"
+          >
+            <input
+              type="checkbox"
+              name={name}
+              value={option.value}
+              defaultChecked={selected.includes(option.value)}
+              className="sr-only"
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

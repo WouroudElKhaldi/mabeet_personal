@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { BarChart, ShareBar } from "@/components/dashboard/bar-chart";
 import { BookingRow } from "@/components/dashboard/booking-row";
+import { SessionBookingRow } from "@/components/dashboard/session-booking-row";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { addDays, todayUtc } from "@/lib/dates";
 import { stagger } from "@/lib/motion";
@@ -8,6 +9,8 @@ import { can } from "@/server/auth/tenant-context";
 import { requirePageTenant } from "@/server/http/session";
 import { type Channel, getBusinessReport } from "@/server/services/analytics-service";
 import { listBookings } from "@/server/services/booking-service";
+import { listSessionBookings } from "@/server/services/session-booking-service";
+import { getTimezone } from "@/server/services/settings-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
 
@@ -25,16 +28,20 @@ export default async function OverviewPage({ params }: PageProps) {
   const [t, locale] = await Promise.all([getTranslations("dashboard.overview"), getLocale()]);
   const today = todayUtc();
   const last90 = { checkIn: addDays(today, -90), checkOut: addDays(today, 1) };
-  const [report, pending] = await Promise.all([
+  const canRead = can(ctx, "bookings.read");
+  const [report, pending, pendingSessions, timezone] = await Promise.all([
     can(ctx, "analytics.read") ? getBusinessReport(ctx, last90) : null,
-    can(ctx, "bookings.read") ? listBookings(ctx, { status: "HELD", take: 20, skip: 0 }) : [],
+    canRead ? listBookings(ctx, { status: "HELD", take: 20, skip: 0 }) : [],
+    canRead ? listSessionBookings(ctx, { status: "HELD", take: 20 }) : [],
+    getTimezone(ctx),
   ]);
+  const waiting = pending.length + pendingSessions.length;
   const monthName = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
 
   return (
     <div className="grid gap-10">
       <header className="rise-in">
-        <h1 className="text-4xl font-medium">{t("title")}</h1>
+        <h1 className="text-4xl font-semibold">{t("title")}</h1>
         <p className="mt-1 text-muted">{t("subtitle")}</p>
       </header>
 
@@ -68,13 +75,16 @@ export default async function OverviewPage({ params }: PageProps) {
 
       {can(ctx, "bookings.read") && (
         <section>
-          <h2 className="text-2xl font-medium">{t("requests", { count: pending.length })}</h2>
-          {pending.length === 0 ? (
+          <h2 className="text-2xl font-semibold">{t("requests", { count: waiting })}</h2>
+          {waiting === 0 ? (
             <p className="mt-4 rounded-lg bg-surface p-6 text-muted ring-1 ring-line">{t("noRequests")}</p>
           ) : (
             <ul className="mt-4 grid gap-3">
               {pending.map((booking) => (
                 <BookingRow key={booking.id} ctx={ctx} booking={booking} />
+              ))}
+              {pendingSessions.map((booking) => (
+                <SessionBookingRow key={booking.id} ctx={ctx} booking={booking} timezone={timezone} />
               ))}
             </ul>
           )}

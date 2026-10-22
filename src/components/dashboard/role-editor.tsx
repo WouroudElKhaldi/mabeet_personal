@@ -2,13 +2,14 @@
 
 import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { api } from "@/lib/api-client";
 import type { Permission } from "@/server/auth/permissions";
 import { useAction } from "@/hooks/use-action";
 
-export interface EditableRole {
+interface EditableRole {
   id: string;
   name: string;
   description: string | null;
@@ -30,6 +31,12 @@ export function RoleEditor({ businessId, role, grantable, allPermissions }: Role
   const t = useTranslations("dashboard.team");
   const tPermission = useTranslations("permissions");
   const { run, pending, error } = useAction();
+  const tConfirm = useTranslations("confirm");
+  const [ask, confirmDialog] = useConfirm();
+  /** Runs `action` only after the person confirms. */
+  const confirmThen = async (options: ConfirmOptions, action: () => Promise<unknown>) => {
+    if ((await ask(options)).confirmed) run(action);
+  };
   const locked = role?.isOwner ?? false;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -52,6 +59,7 @@ export function RoleEditor({ businessId, role, grantable, allPermissions }: Role
 
   return (
     <form onSubmit={submit} className="grid gap-4">
+      {confirmDialog}
       <fieldset disabled={locked || pending} className="grid gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-semibold">
@@ -111,7 +119,17 @@ export function RoleEditor({ businessId, role, grantable, allPermissions }: Role
               size="sm"
               variant="ghost"
               disabled={pending}
-              onClick={() => run(() => api.delete(`/api/workspaces/${businessId}/roles/${role.id}`))}
+              onClick={() =>
+                void confirmThen(
+                  {
+                    title: tConfirm("deleteRole.title", { name: role.name }),
+                    body: tConfirm("deleteRole.body"),
+                    confirmLabel: tConfirm("deleteRole.confirm"),
+                    danger: true,
+                  },
+                  () => api.delete(`/api/workspaces/${businessId}/roles/${role.id}`),
+                )
+              }
             >
               <Trash2 className="size-4" aria-hidden />
               {t("deleteRole")}
