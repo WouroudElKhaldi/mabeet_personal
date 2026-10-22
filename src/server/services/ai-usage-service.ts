@@ -14,7 +14,7 @@ const MICRO = 1_000_000;
 /** Share of the budget at which admins get a warning email. */
 const WARN_AT = 0.8;
 
-export type AiSurface = "concierge" | "team";
+export type AiSurface = "concierge" | "team" | "report";
 
 const monthStart = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 const budgetMicro = () => Math.round(env.AI_MONTHLY_BUDGET_USD * MICRO);

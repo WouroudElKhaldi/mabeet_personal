@@ -55,6 +55,32 @@ function toFunction(tool: AiTool) {
   };
 }
 
+/** One answer as a JSON object (DeepSeek's JSON mode), for reports that the app lays out itself. */
+export async function completeJson(messages: ChatMessage[], maxTokens: number) {
+  if (!env.DEEPSEEK_API_KEY) throw unavailable("The assistant is not set up yet.");
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    signal: AbortSignal.timeout(90_000),
+    headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
+    body: JSON.stringify({
+      model: MODEL,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!response.ok) {
+    console.error("DeepSeek error", response.status, await response.text().catch(() => ""));
+    throw unavailable("The assistant is busy right now. Please try again in a moment.");
+  }
+  const { choices, usage } = completionSchema.parse(await response.json());
+  return {
+    content: choices[0]!.message.content ?? "{}",
+    usage: { promptTokens: usage?.prompt_tokens ?? 0, completionTokens: usage?.completion_tokens ?? 0 },
+  };
+}
+
 export async function complete(messages: ChatMessage[], tools: readonly AiTool[]) {
   if (!env.DEEPSEEK_API_KEY) throw unavailable("The assistant is not set up yet.");
   const response = await fetch(ENDPOINT, {

@@ -119,6 +119,29 @@ export function placeSnapshots(
     GROUP BY b."businessId"`;
 }
 
+export interface MonthlyRevenue {
+  month: string;
+  cents: number;
+  bookings: number;
+}
+
+/** Confirmed direct revenue by the month stays start, stays and seats in sessions together. */
+export function revenueByMonth(db: Db, businessId: string, range: DateRange) {
+  return db.$queryRawUnsafe<MonthlyRevenue[]>(
+    `SELECT month, SUM(cents)::int AS cents, COUNT(*)::int AS bookings FROM (
+       SELECT to_char("checkIn", 'YYYY-MM') AS month, "totalCents" AS cents FROM "Booking"
+       WHERE "businessId" = $1 AND status = 'CONFIRMED' AND "checkIn" >= $2::date AND "checkIn" < $3::date
+       UNION ALL
+       SELECT to_char(s."startsAt", 'YYYY-MM'), sb."totalCents" FROM "SessionBooking" sb
+       JOIN "OfferingSession" s ON s.id = sb."sessionId"
+       WHERE sb."businessId" = $1 AND sb.status = 'CONFIRMED' AND s."startsAt" >= $2::date AND s."startsAt" < $3::date
+     ) direct GROUP BY month ORDER BY month`,
+    businessId,
+    range.checkIn,
+    range.checkOut,
+  );
+}
+
 export function countActiveRooms(db: Db, businessId: string) {
   return db.room.count({ where: { businessId, active: true } });
 }

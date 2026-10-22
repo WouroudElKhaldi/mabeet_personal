@@ -6,6 +6,7 @@ export type NavGroupKey = "today" | "ai" | "bookings" | "listings" | "money" | "
 export interface NavItem {
   key:
     | "overview"
+    | "analytics"
     | "bookings"
     | "calendar"
     | "channels"
@@ -40,6 +41,7 @@ export const NAV_GROUPS: readonly NavGroupKey[] = [
 
 const NAV_ITEMS: readonly NavItem[] = [
   { key: "overview", group: "today", path: "", icon: "dashboard", anyOf: [] },
+  { key: "analytics", group: "today", path: "/analytics", icon: "chart", anyOf: ["analytics.read"] },
   { key: "bookings", group: "bookings", path: "/bookings", icon: "inbox", anyOf: ["bookings.read"] },
   { key: "calendar", group: "bookings", path: "/calendar", icon: "calendar", anyOf: ["calendar.read"] },
   { key: "channels", group: "bookings", path: "/channels", icon: "sync", anyOf: ["feeds.manage"] },

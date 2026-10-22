@@ -135,4 +135,118 @@ export async function getPlacesOverview(userId: string, today = todayUtc()) {
   }));
 }
 
+export type AnalyticsScope = "place" | "all";
+
+export interface PlaceAnalytics {
+  businessId: string;
+  name: string;
+  report: BusinessReport;
+  revenueByMonth: analytics.MonthlyRevenue[];
+}
+
+/**
+ * Analytics for one place, or for every place where this person may read analytics, over a period. Every number
+ * comes from the database; totals add places up (revenue per currency, so mixed currencies never get summed).
+ */
+export async function getAnalytics(ctx: TenantContext, scope: AnalyticsScope, range: DateRange) {
+  requirePermission(ctx, "analytics.read");
+  const contexts =
+    scope === "place" || ctx.platformAdmin
+      ? [ctx]
+      : (
+          await Promise.all(
+            (await listWorkspaces(ctx.userId)).map((membership) =>
+              resolveContext(ctx.userId, membership.businessId),
+            ),
+          )
+        ).filter((member): member is TenantContext => member !== null && can(member, "analytics.read"));
+  const places: PlaceAnalytics[] = await Promise.all(
+    contexts.map(async (member) => {
+      const [report, monthly, settings] = await Promise.all([
+        getBusinessReport(member, range),
+        analytics.revenueByMonth(prisma, member.businessId, range),
+        findBusinessSettings(prisma, member.businessId),
+      ]);
+      return { businessId: member.businessId, name: settings.name, report, revenueByMonth: monthly };
+    }),
+  );
+  return {
+    range: { from: toIsoDate(range.checkIn), to: toIsoDate(range.checkOut) },
+    places,
+    totals: combine(places),
+  };
+}
+
+function combine(places: PlaceAnalytics[]) {
+  /** Adds up values that share a key (a month, a channel). */
+  const sumBy = (rows: Array<{ key: string; value: number }>) => {
+    const sums = new Map<string, number>();
+    for (const row of rows) sums.set(row.key, (sums.get(row.key) ?? 0) + row.value);
+    return sums;
+  };
+  const nightsSold = places.reduce((sum, place) => sum + place.report.nightsSold, 0);
+  const nightsAvailable = places.reduce((sum, place) => sum + place.report.nightsAvailable, 0);
+  const revenue = new Map<string, number>();
+  const saved = new Map<string, number>();
+  for (const place of places) {
+    revenue.set(
+      place.report.currency,
+      (revenue.get(place.report.currency) ?? 0) + place.report.directRevenueCents,
+    );
+    saved.set(
+      place.report.currency,
+      (saved.get(place.report.currency) ?? 0) + place.report.commissionSavedCents,
+    );
+  }
+  const requests = new Map<string, number>();
+  for (const place of places) {
+    for (const [status, count] of Object.entries(place.report.requests)) {
+      requests.set(status, (requests.get(status) ?? 0) + count);
+    }
+  }
+  const ratingCount = places.reduce((sum, place) => sum + place.report.rating.count, 0);
+  const ratingSum = places.reduce(
+    (sum, place) => sum + place.report.rating.average * place.report.rating.count,
+    0,
+  );
+  const responses = places
+    .map((place) => place.report.medianResponseMinutes)
+    .filter((value): value is number => value !== null);
+  const nightsByMonth = sumBy(
+    places.flatMap((place) => place.report.monthly.map((row) => ({ key: row.month, value: row.nights }))),
+  );
+  const channels = sumBy(
+    places.flatMap((place) => place.report.channels.map((row) => ({ key: row.channel, value: row.nights }))),
+  );
+  const revenueByMonth = new Map<string, number>();
+  const currency = places[0]?.report.currency ?? "USD";
+  for (const place of places.filter((candidate) => candidate.report.currency === currency)) {
+    for (const row of place.revenueByMonth)
+      revenueByMonth.set(row.month, (revenueByMonth.get(row.month) ?? 0) + row.cents);
+  }
+  return {
+    nightsSold,
+    nightsAvailable,
+    occupancyRate: nightsAvailable === 0 ? 0 : nightsSold / nightsAvailable,
+    revenue: Object.fromEntries(revenue),
+    commissionSaved: Object.fromEntries(saved),
+    requests: Object.fromEntries(requests),
+    rating: { average: ratingCount === 0 ? 0 : ratingSum / ratingCount, count: ratingCount },
+    medianResponseMinutes:
+      responses.length === 0 ? null : Math.round(responses.reduce((a, b) => a + b, 0) / responses.length),
+    nightsByMonth: [...nightsByMonth]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, nights]) => ({ month, nights })),
+    channels: [...channels]
+      .map(([channel, nights]) => ({ channel, nights }))
+      .sort((a, b) => b.nights - a.nights),
+    revenueCurrency: currency,
+    revenueByMonth: [...revenueByMonth]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, cents]) => ({ month, cents })),
+  };
+}
+
+export type Analytics = Awaited<ReturnType<typeof getAnalytics>>;
+
 export type { Channel } from "@/server/repositories/analytics-repository";

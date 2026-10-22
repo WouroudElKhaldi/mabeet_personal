@@ -745,6 +745,14 @@ const OPERATIONS: Operation[] = [
     tag: "Platform",
     auth: "admin",
   },
+  {
+    method: "post",
+    path: "/api/workspaces/{businessId}/analytics/report",
+    summary: "AI report of the database's numbers for a period, for this place or all the person's places",
+    tag: "AI",
+    auth: "member",
+    body: s.reportInput,
+  },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {
     method: "post",

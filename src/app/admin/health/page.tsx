@@ -78,7 +78,9 @@ export default async function AdminHealthPage() {
                   className="flex items-center justify-between gap-3 rounded-lg bg-paper p-4 text-sm ring-1 ring-line"
                 >
                   <span className="font-semibold">
-                    {t(`ai.surfaces.${row.surface === "team" ? "team" : "concierge"}`)}
+                    {t(
+                      `ai.surfaces.${row.surface === "team" || row.surface === "report" ? row.surface : "concierge"}`,
+                    )}
                   </span>
                   <span className="text-muted tabular-nums">
                     {t("ai.row", { answers: row.answers, tokens: row.tokens })} · {usd(row.costMicroUsd)}

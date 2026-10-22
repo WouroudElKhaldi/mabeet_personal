@@ -204,6 +204,18 @@ export const profileInput = z.object({
   phone: phone.nullish(),
 });
 
+export const analyticsQuery = windowFields.extend({ scope: z.enum(["place", "all"]).default("place") });
+
+export const reportInput = z.object({
+  from: isoDate,
+  to: isoDate,
+  scope: z.enum(["place", "all"]),
+  topics: z
+    .array(z.enum(["occupancy", "revenue", "channels", "requests", "reviews", "places"]))
+    .min(1)
+    .max(6),
+});
+
 export const hostProfileInput = z.object({
   displayName: optionalText(80),
   bio: optionalText(1500),

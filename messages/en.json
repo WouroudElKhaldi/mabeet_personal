@@ -497,7 +497,8 @@
       "offerings": "Experiences & services",
       "billing": "Billing",
       "payouts": "Payouts",
-      "place": "Your place"
+      "place": "Your place",
+      "analytics": "Analytics"
     },
     "overview": {
       "title": "Today",
@@ -1121,7 +1122,8 @@
       "row": "{answers, plural, one {# answer} other {# answers}} · {tokens} tokens",
       "surfaces": {
         "concierge": "Guest concierge",
-        "team": "Team assistant"
+        "team": "Team assistant",
+        "report": "Analytics reports"
       }
     },
     "sync": {
@@ -1824,5 +1826,62 @@
     "newer": "Newer",
     "older": "Older",
     "of": "Page {page} of {pages}"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "intro": "Straight from your bookings and calendars. Pick a period and this place or all your places.",
+    "presets": {
+      "30": "Last 30 days",
+      "90": "Last 90 days",
+      "365": "Last 12 months"
+    },
+    "from": "From",
+    "to": "Until",
+    "scope": "Places",
+    "scopes": {
+      "place": "This place",
+      "all": "All my places"
+    },
+    "apply": "Show",
+    "occupancy": "Occupancy",
+    "nightsOf": "{sold} of {available} nights",
+    "revenue": "Direct revenue",
+    "saved": "Commission saved",
+    "rating": "Reviews",
+    "ratingNote": "{average}★ average",
+    "noReviews": "No reviews yet",
+    "requests": "Requests",
+    "nightsSold": "Nights sold",
+    "response": "Median response",
+    "places": "Places",
+    "place": "Place",
+    "nightsByMonth": "Nights sold by month",
+    "revenueByMonth": "Direct revenue by month",
+    "currencyNote": "Places in {currency} only; other currencies are in the table below.",
+    "channels": "Where bookings come from",
+    "requestsByStatus": "Requests by outcome",
+    "byPlace": "By place",
+    "empty": "Nothing in this period yet.",
+    "error": "Something went wrong. Try again.",
+    "nights": "{count, plural, one {# night} other {# nights}}",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}",
+    "report": {
+      "title": "AI report",
+      "intro": "Choose what to cover, the period and the places, then Generate. The numbers and charts come from your data; the AI writes the analysis.",
+      "cover": "Cover",
+      "topics": {
+        "occupancy": "Occupancy",
+        "revenue": "Revenue",
+        "channels": "Booking sources",
+        "requests": "Requests and answers",
+        "reviews": "Reviews",
+        "places": "Comparing places"
+      },
+      "generate": "Generate report",
+      "writing": "Writing your report…",
+      "print": "Print or save as PDF",
+      "recommendations": "What to do next",
+      "disclaimer": "Written by AI from your data. Check important decisions against the numbers above."
+    }
   }
 }
