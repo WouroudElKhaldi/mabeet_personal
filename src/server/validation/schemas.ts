@@ -64,9 +64,11 @@ export const roomInput = z.object({
   baseRateCents: cents,
   minNights: z.number().int().min(1).max(60).default(1),
   amenities: z.array(z.enum(AMENITIES)).max(AMENITIES.length).default([]),
+  /** Guests can book it (when the place books by room) and see it. */
+  active: z.boolean().default(true),
 });
 
-export const roomUpdate = roomInput.partial().extend({ active: z.boolean().optional() });
+export const roomUpdate = roomInput.partial();
 
 const MAX_PRICE_NIGHTS = 366;
 
@@ -187,6 +189,7 @@ export const settingsInput = z
     onlineAmount: z.enum(["DEPOSIT", "FULL"]),
     refundPolicy: z.enum(["FLEXIBLE", "MODERATE", "STRICT", "NON_REFUNDABLE"]),
     listedPublicly: z.boolean(),
+    bookingUnit: z.enum(["ROOMS", "WHOLE_PLACE"]),
     categories: z.array(z.string().min(1).max(40)).max(6),
     tags: z.array(z.enum(TAGS)).max(TAGS.length),
     accessibility: z.array(z.enum(ACCESSIBILITY)).max(ACCESSIBILITY.length),

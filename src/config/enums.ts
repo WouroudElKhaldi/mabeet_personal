@@ -1,4 +1,4 @@
-import type { BookingStatus, FeedSource, PaymentMethod } from "@prisma/client";
+import type { BookingStatus, FeedSource, PaymentMethod, PhotoArea } from "@prisma/client";
 
 // Value lists shared by validation, the AI tools and the screens. `satisfies` checks them against the
 // database enums, so adding a status in the schema cannot silently miss a list here.
@@ -32,3 +32,18 @@ export const MANUAL_PAYMENT_METHODS = [
 ] as const satisfies readonly PaymentMethod[];
 
 export const CURRENCIES = ["USD", "LBP", "EUR"] as const;
+
+/** Parts of a place a photo can show, in the order the photo tour lists them. */
+export const PHOTO_AREAS = [
+  "LIVING_ROOM",
+  "KITCHEN",
+  "DINING",
+  "BEDROOM",
+  "BATHROOM",
+  "EXTERIOR",
+  "TERRACE",
+  "GARDEN",
+  "POOL",
+  "VIEW",
+  "OTHER",
+] as const satisfies readonly PhotoArea[];

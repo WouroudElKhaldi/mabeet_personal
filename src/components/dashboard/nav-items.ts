@@ -9,6 +9,7 @@ export interface NavItem {
     | "bookings"
     | "calendar"
     | "channels"
+    | "place"
     | "rooms"
     | "offerings"
     | "reviews"
@@ -42,6 +43,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "bookings", group: "bookings", path: "/bookings", icon: "inbox", anyOf: ["bookings.read"] },
   { key: "calendar", group: "bookings", path: "/calendar", icon: "calendar", anyOf: ["calendar.read"] },
   { key: "channels", group: "bookings", path: "/channels", icon: "sync", anyOf: ["feeds.manage"] },
+  { key: "place", group: "listings", path: "/place", icon: "building", anyOf: ["settings.manage"] },
   { key: "rooms", group: "listings", path: "/rooms", icon: "door", anyOf: ["rooms.read"] },
   { key: "offerings", group: "listings", path: "/offerings", icon: "compass", anyOf: ["offerings.manage"] },
   { key: "reviews", group: "listings", path: "/reviews", icon: "quote", anyOf: ["reviews.reply"] },

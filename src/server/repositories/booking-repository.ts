@@ -82,6 +82,26 @@ export function findOverlappingImported(db: Db, roomId: string, range: DateRange
   });
 }
 
+/**
+ * Nights taken on the place's other units that clash with a stay: any room when booking the whole place, the
+ * whole-place unit when booking a room. Only places that have a whole-place unit need this.
+ */
+export function findSiblingOverlap(
+  db: Db,
+  room: { id: string; businessId: string; kind: "ROOM" | "WHOLE_PLACE" },
+  range: DateRange,
+) {
+  return db.occupancy.findFirst({
+    where: {
+      businessId: room.businessId,
+      roomId: { not: room.id },
+      active: true,
+      ...(room.kind === "ROOM" && { room: { kind: "WHOLE_PLACE" } }),
+      ...overlapsRange(range),
+    },
+  });
+}
+
 export function findBooking(db: Db, businessId: string, bookingId: string) {
   return db.booking.findFirst({ where: { id: bookingId, businessId }, include: { room: true } });
 }

@@ -134,6 +134,33 @@ enum Plan {
   BUSINESS
 }
 
+/// What guests book at a place: one of its rooms, or the whole place at once.
+enum BookingUnit {
+  ROOMS
+  WHOLE_PLACE
+}
+
+/// A room guests can book, or the single "whole place" unit a business books as one.
+enum RoomKind {
+  ROOM
+  WHOLE_PLACE
+}
+
+/// Which part of the place a photo shows, for the photo tour.
+enum PhotoArea {
+  LIVING_ROOM
+  KITCHEN
+  DINING
+  BEDROOM
+  BATHROOM
+  EXTERIOR
+  TERRACE
+  GARDEN
+  POOL
+  VIEW
+  OTHER
+}
+
 /// How a guest's request becomes a booking: the host decides, or it is confirmed at once.
 enum BookingMode {
   REQUEST
@@ -187,6 +214,7 @@ model Business {
   checkOutTime         String            @default("11:00")
   houseRules           String?
   cancellationPolicy   String?
+  bookingUnit          BookingUnit       @default(ROOMS)
   bookingMode          BookingMode       @default(REQUEST)
   paymentCollection    PaymentCollection @default(AT_PLACE)
   onlineAmount         OnlineAmount      @default(DEPOSIT)
@@ -285,6 +313,9 @@ model Room {
   minNights     Int      @default(1)
   amenities     String[]
   exportToken   String   @unique
+  /// ROOM, or the one WHOLE_PLACE unit used when the business books as a whole.
+  kind          RoomKind @default(ROOM)
+  /// Bookable and shown. Only the units matching the business's booking unit can actually be booked.
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -300,17 +331,19 @@ model Room {
 }
 
 model Photo {
-  id         String    @id @default(cuid())
+  id         String     @id @default(cuid())
   businessId String
-  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
   roomId     String?
-  room       Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room       Room?      @relation(fields: [roomId], references: [id], onDelete: Cascade)
   offeringId String?
-  offering   Offering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  offering   Offering?  @relation(fields: [offeringId], references: [id], onDelete: Cascade)
   url        String
   alt        String?
-  position   Int       @default(0)
-  createdAt  DateTime  @default(now())
+  /// Which part of the place it shows, for the photo tour.
+  area       PhotoArea?
+  position   Int        @default(0)
+  createdAt  DateTime   @default(now())
 
   @@index([businessId])
 }

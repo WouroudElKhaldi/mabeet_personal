@@ -121,8 +121,12 @@ export async function searchPlaces(query: SearchQuery): Promise<PlaceCard[]> {
 export const getPlace = cache(async (slug: string) => {
   const place = await directory.findPublicPlace(prisma, slug);
   if (!place) throw notFound("Place");
-  const ratings = await directory.findRatingSummaries(prisma, [place.id]);
-  return { ...place, rating: ratings.get(place.id) ?? { average: 0, count: 0 } };
+  const [ratings, showcaseRooms] = await Promise.all([
+    directory.findRatingSummaries(prisma, [place.id]),
+    // Booked as a whole: the rooms are still shown (beds, photos), just not booked one by one.
+    place.bookingUnit === "WHOLE_PLACE" ? directory.findShowcaseRooms(prisma, place.id) : Promise.resolve([]),
+  ]);
+  return { ...place, showcaseRooms, rating: ratings.get(place.id) ?? { average: 0, count: 0 } };
 });
 
 export async function checkAvailability(slug: string, range: DateRange) {

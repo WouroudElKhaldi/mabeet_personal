@@ -21,13 +21,16 @@ import { ReviewList } from "@/components/listing/review-list";
 import { PlaceMap } from "@/components/listing/place-map";
 import { CategoryIcon } from "@/components/place/category-icon";
 import { FavoriteButton } from "@/components/place/favorite-button";
-import { HostCard } from "@/components/place/host-card";
+import { MeetHost } from "@/components/place/meet-host";
+import { PhotoTour, photoGroups } from "@/components/place/photo-tour";
+import { ShareButton } from "@/components/place/share-button";
 import { Gallery } from "@/components/place/gallery";
 import { Rating } from "@/components/ui/rating";
 import { formatMoney } from "@/lib/format";
 import { findPageOr404 } from "@/server/http/page";
 import { getCurrentUser } from "@/server/http/session";
 import { getPlace } from "@/server/services/directory-service";
+import { getHostSection } from "@/server/services/host-service";
 import { favoriteSlugs } from "@/server/services/favorite-service";
 import { listPublicReviews } from "@/server/services/review-service";
 import { categoryName } from "@/config/appearance";
@@ -45,7 +48,7 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
   const query = searchSchema.parse(await searchParams);
   const user = await getCurrentUser();
   const place = await findPageOr404(getPlace(slug));
-  const [t, locale, tKnow, tListing, tMap, reviews, saved] = await Promise.all([
+  const [t, locale, tKnow, tListing, tMap, reviews, saved, host] = await Promise.all([
     getTranslations("placePage"),
     getLocale(),
     getTranslations("thingsToKnow"),
@@ -53,9 +56,29 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
     getTranslations("offeringPage"),
     listPublicReviews(place.id, 6),
     favoriteSlugs(user?.id),
+    getHostSection(place),
   ]);
-  const amenities = [...new Set(place.rooms.flatMap((room) => room.amenities))].filter(isAmenity);
-  const photos = [...place.photos, ...place.rooms.flatMap((room) => room.photos)];
+  const wholePlace = place.bookingUnit === "WHOLE_PLACE";
+  // Booked whole: the rooms are shown as "where you'll sleep"; booked by room: each room can be booked.
+  const roomsToShow = wholePlace ? place.showcaseRooms : place.rooms;
+  const tourGroups = await photoGroups(place.photos, roomsToShow);
+  const unit = place.rooms[0];
+  const summary = [
+    place.area,
+    place.rating.count > 0 ? `★${place.rating.average.toFixed(2)}` : null,
+    unit ? t("bedrooms", { count: wholePlace ? unit.bedrooms : place.rooms.length }) : null,
+    unit && wholePlace ? t("beds", { count: unit.beds }) : null,
+    unit && wholePlace ? t("baths", { count: unit.bathrooms }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const amenities = [
+    ...new Set([...place.rooms, ...place.showcaseRooms].flatMap((room) => room.amenities)),
+  ].filter(isAmenity);
+  const photos = [
+    ...place.photos,
+    ...[...place.rooms, ...place.showcaseRooms].flatMap((room) => room.photos),
+  ];
   const tags = keepKnown(TAGS, place.tags);
   const accessibility = keepKnown(ACCESSIBILITY, place.accessibility);
   const knowItems: KnowItem[] = [
@@ -118,10 +141,20 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
             )}
           </p>
         </div>
-        <FavoriteButton slug={place.slug} initial={saved.has(place.slug)} signedIn={Boolean(user)} />
+        <div className="flex items-center gap-1">
+          <ShareButton title={place.name} summary={summary} path={`/p/${place.slug}`} />
+          <FavoriteButton slug={place.slug} initial={saved.has(place.slug)} signedIn={Boolean(user)} />
+        </div>
       </div>
 
-      <Gallery photos={photos} seed={place.slug} name={place.name} />
+      <Gallery
+        photos={photos}
+        seed={place.slug}
+        name={place.name}
+        allPhotos={
+          photos.length > 0 ? { href: `/p/${place.slug}/photos`, label: t("showAllPhotos") } : undefined
+        }
+      />
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-20">
         <div className="min-w-0">
@@ -161,19 +194,28 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
             />
           </dl>
 
+          <PhotoTour groups={tourGroups} href={`/p/${place.slug}/photos`} />
+
           <section className="mt-12 border-t border-line pt-12">
-            <h2 className="text-[1.375rem] font-semibold">{t("rooms")}</h2>
+            <h2 className="text-[1.375rem] font-semibold">
+              {wholePlace ? t("whereYoullSleep") : t("rooms")}
+            </h2>
+            {wholePlace && unit && (
+              <p className="mt-2 text-muted">{t("wholePlaceIntro", { guests: unit.capacity })}</p>
+            )}
             <ul className="mt-6 grid gap-4">
-              {place.rooms.map((room) => (
+              {roomsToShow.map((room) => (
                 <li key={room.id} className="rounded-xl p-5 ring-1 ring-line-strong">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h3 className="text-lg font-semibold tracking-normal">{room.name}</h3>
-                    <p>
-                      <span className="font-bold">
-                        {formatMoney(room.baseRateCents, place.currency, locale)}
-                      </span>{" "}
-                      <span className="text-muted">{t("perNight")}</span>
-                    </p>
+                    {!wholePlace && (
+                      <p>
+                        <span className="font-bold">
+                          {formatMoney(room.baseRateCents, place.currency, locale)}
+                        </span>{" "}
+                        <span className="text-muted">{t("perNight")}</span>
+                      </p>
+                    )}
                   </div>
                   <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
                     <span className="inline-flex items-center gap-1.5">
@@ -214,7 +256,7 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
             openLabel={tMap("openMaps")}
           />
           <ThingsToKnow title={tKnow("title")} items={knowItems} />
-          <HostCard businessId={place.id} />
+          <MeetHost host={host} rating={place.rating} placeName={place.name} />
         </div>
 
         <aside className="lg:sticky lg:top-28 lg:self-start">

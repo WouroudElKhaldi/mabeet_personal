@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createKey } from "@/server/services/api-key-service";
-import { getPublicHost, listHosts, saveMyHostProfile } from "@/server/services/host-service";
+import { getHostSection, listHosts, saveMyHostProfile } from "@/server/services/host-service";
 import { resolveContext } from "@/server/services/team-service";
 import { createPlace, createUser, prisma, resetDatabase } from "./helpers";
 
@@ -21,12 +21,13 @@ describe("hosts and their profile", () => {
   it("keeps a host's profile private until they choose to show it", async () => {
     const { business, ctx } = await createPlace();
     await saveMyHostProfile(ctx, profile);
-    expect(await getPublicHost(business.id)).toBeNull();
+    expect(await getHostSection(business)).toMatchObject({ personal: false, name: business.name, bio: null });
 
     await saveMyHostProfile(ctx, { ...profile, showOnListings: true });
-    expect((await getPublicHost(business.id))?.hostProfile).toMatchObject({
-      displayName: "Rima",
-      city: "Deir el Qamar",
+    expect(await getHostSection(business)).toMatchObject({
+      personal: true,
+      name: "Rima",
+      languages: ["ar", "en"],
     });
   });
 

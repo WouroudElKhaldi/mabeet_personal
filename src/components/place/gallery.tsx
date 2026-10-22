@@ -1,5 +1,7 @@
 import { clsx } from "clsx";
+import { Grid3x3 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { PlaceArt } from "./place-art";
 
 interface Photo {
@@ -8,32 +10,54 @@ interface Photo {
 }
 
 /** One large photo and four beside it, clipped as one rounded block; generated art fills gaps for new listings. */
-export function Gallery({ photos, seed, name }: { photos: Photo[]; seed: string; name: string }) {
+export function Gallery({
+  photos,
+  seed,
+  name,
+  allPhotos,
+}: {
+  photos: Photo[];
+  seed: string;
+  name: string;
+  /** "Show all photos", over the corner of the gallery. */
+  allPhotos?: { href: string; label: string };
+}) {
   const tiles = Array.from({ length: 5 }, (_, index) => photos[index] ?? null);
   return (
-    <div className="grid aspect-[2/1] max-h-[30rem] w-full grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl max-sm:aspect-[4/3]">
-      {tiles.map((photo, index) => (
-        <div
-          key={index}
-          className={clsx(
-            "group relative overflow-hidden bg-surface-2",
-            index === 0 ? "col-span-4 row-span-2 sm:col-span-2" : "hidden sm:block",
-          )}
+    <div className="relative">
+      <div className="grid aspect-[2/1] max-h-[30rem] w-full grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl max-sm:aspect-[4/3]">
+        {tiles.map((photo, index) => (
+          <div
+            key={index}
+            className={clsx(
+              "group relative overflow-hidden bg-surface-2",
+              index === 0 ? "col-span-4 row-span-2 sm:col-span-2" : "hidden sm:block",
+            )}
+          >
+            {photo ? (
+              <Image
+                src={photo.url}
+                alt={photo.alt ?? name}
+                fill
+                priority={index === 0}
+                sizes={index === 0 ? "(min-width: 640px) 50vw, 100vw" : "25vw"}
+                className="object-cover transition-[filter] duration-200 group-hover:brightness-90"
+              />
+            ) : (
+              <PlaceArt seed={`${seed}-${index}`} className="size-full" />
+            )}
+          </div>
+        ))}
+      </div>
+      {allPhotos && (
+        <Link
+          href={allPhotos.href}
+          className="absolute end-4 bottom-4 inline-flex h-9 items-center gap-2 rounded-lg bg-surface px-3 text-sm font-semibold shadow-lift ring-1 ring-ink/80 hover:bg-surface-2"
         >
-          {photo ? (
-            <Image
-              src={photo.url}
-              alt={photo.alt ?? name}
-              fill
-              priority={index === 0}
-              sizes={index === 0 ? "(min-width: 640px) 50vw, 100vw" : "25vw"}
-              className="object-cover transition-[filter] duration-200 group-hover:brightness-90"
-            />
-          ) : (
-            <PlaceArt seed={`${seed}-${index}`} className="size-full" />
-          )}
-        </div>
-      ))}
+          <Grid3x3 className="size-4" aria-hidden />
+          {allPhotos.label}
+        </Link>
+      )}
     </div>
   );
 }

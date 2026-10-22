@@ -8,11 +8,13 @@ import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog"
 import { useRef, useState } from "react";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
+import { PHOTO_AREAS } from "@/config/enums";
 
 export interface GalleryPhoto {
   id: string;
   url: string;
   alt: string | null;
+  area?: string | null;
 }
 
 const MAX_SIDE = 1600;
@@ -31,6 +33,30 @@ async function shrink(file: File): Promise<Blob> {
   return blob ?? file;
 }
 
+/** Uploads photos one by one (shrunk first) to a place, a room or an experience. Returns whether all went up. */
+export async function uploadPhotos(
+  businessId: string,
+  files: File[],
+  target: { roomId?: string | null; offeringId?: string | null },
+  onProgress?: (done: number) => void,
+): Promise<boolean> {
+  let allOk = true;
+  for (const [index, file] of files.entries()) {
+    try {
+      const form = new FormData();
+      form.set("file", await shrink(file), file.name);
+      if (target.offeringId) form.set("offeringId", target.offeringId);
+      if (target.roomId) form.set("roomId", target.roomId);
+      const response = await fetch(`/api/workspaces/${businessId}/photos`, { method: "POST", body: form });
+      if (!response.ok) allOk = false;
+    } catch {
+      allOk = false;
+    }
+    onProgress?.(index + 1);
+  }
+  return allOk;
+}
+
 /** Upload, delete and pick the cover of the photos of a place, one of its rooms, or an experience. */
 export function PhotoManager({
   businessId,
@@ -44,6 +70,7 @@ export function PhotoManager({
   photos: GalleryPhoto[];
 }) {
   const t = useTranslations("dashboard.photos");
+  const tArea = useTranslations("photoTour.areas");
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const { run, pending, error } = useAction();
@@ -61,22 +88,11 @@ export function PhotoManager({
     const list = [...files];
     setFailed(false);
     setProgress({ done: 0, total: list.length });
-    let anyFailed = false;
-    for (const [index, file] of list.entries()) {
-      try {
-        const form = new FormData();
-        form.set("file", await shrink(file), file.name);
-        if (offeringId) form.set("offeringId", offeringId);
-        if (roomId) form.set("roomId", roomId);
-        const response = await fetch(`/api/workspaces/${businessId}/photos`, { method: "POST", body: form });
-        if (!response.ok) anyFailed = true;
-      } catch {
-        anyFailed = true;
-      }
-      setProgress({ done: index + 1, total: list.length });
-    }
+    const allOk = await uploadPhotos(businessId, list, { roomId, offeringId }, (done) =>
+      setProgress({ done, total: list.length }),
+    );
     setProgress(null);
-    setFailed(anyFailed);
+    setFailed(!allOk);
     if (input.current) input.current.value = "";
     router.refresh();
   };
@@ -119,54 +135,75 @@ export function PhotoManager({
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
           {photos.map((photo, index) => (
-            <li
-              key={photo.id}
-              className="group relative aspect-square overflow-hidden rounded-xl bg-surface-2"
-            >
-              <Image src={photo.url} alt={photo.alt ?? ""} fill sizes="200px" className="object-cover" />
-              {index === 0 && (
-                <span className="absolute start-2 top-2 rounded-full bg-surface px-2 py-0.5 text-xs font-semibold shadow-soft">
-                  {t("cover")}
-                </span>
-              )}
-              <div className="absolute inset-x-2 bottom-2 flex justify-end gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
-                {index > 0 && (
+            <li key={photo.id} className="grid gap-1.5">
+              <div className="group relative aspect-square overflow-hidden rounded-xl bg-surface-2">
+                <Image src={photo.url} alt={photo.alt ?? ""} fill sizes="200px" className="object-cover" />
+                {index === 0 && (
+                  <span className="absolute start-2 top-2 rounded-full bg-surface px-2 py-0.5 text-xs font-semibold shadow-soft">
+                    {t("cover")}
+                  </span>
+                )}
+                <div className="absolute inset-x-2 bottom-2 flex justify-end gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      aria-label={t("makeCover")}
+                      title={t("makeCover")}
+                      onClick={() =>
+                        run(() =>
+                          api.patch(`/api/workspaces/${businessId}/photos/${photo.id}`, { cover: true }),
+                        )
+                      }
+                      className="grid size-8 place-items-center rounded-full bg-surface shadow-soft hover:scale-105"
+                    >
+                      <Pin className="size-4" aria-hidden />
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={busy}
-                    aria-label={t("makeCover")}
-                    title={t("makeCover")}
+                    aria-label={t("remove")}
+                    title={t("remove")}
                     onClick={() =>
-                      run(() =>
-                        api.patch(`/api/workspaces/${businessId}/photos/${photo.id}`, { cover: true }),
+                      void confirmThen(
+                        {
+                          title: tConfirm("deletePhoto.title"),
+                          body: tConfirm("deletePhoto.body"),
+                          confirmLabel: tConfirm("deletePhoto.confirm"),
+                          danger: true,
+                        },
+                        () => api.delete(`/api/workspaces/${businessId}/photos/${photo.id}`),
                       )
                     }
-                    className="grid size-8 place-items-center rounded-full bg-surface shadow-soft hover:scale-105"
+                    className="grid size-8 place-items-center rounded-full bg-surface text-danger shadow-soft hover:scale-105"
                   >
-                    <Pin className="size-4" aria-hidden />
+                    <Trash2 className="size-4" aria-hidden />
                   </button>
-                )}
-                <button
-                  type="button"
+                </div>
+              </div>
+              {!offeringId && (
+                <select
+                  aria-label={t("area")}
+                  value={photo.area ?? ""}
                   disabled={busy}
-                  aria-label={t("remove")}
-                  title={t("remove")}
-                  onClick={() =>
-                    void confirmThen(
-                      {
-                        title: tConfirm("deletePhoto.title"),
-                        body: tConfirm("deletePhoto.body"),
-                        confirmLabel: tConfirm("deletePhoto.confirm"),
-                        danger: true,
-                      },
-                      () => api.delete(`/api/workspaces/${businessId}/photos/${photo.id}`),
+                  onChange={(event) =>
+                    run(() =>
+                      api.patch(`/api/workspaces/${businessId}/photos/${photo.id}`, {
+                        area: event.target.value || null,
+                      }),
                     )
                   }
-                  className="grid size-8 place-items-center rounded-full bg-surface text-danger shadow-soft hover:scale-105"
+                  className="h-8 rounded-lg bg-surface px-2 text-xs ring-1 ring-line"
                 >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
-              </div>
+                  <option value="">{t("noArea")}</option>
+                  {PHOTO_AREAS.map((area) => (
+                    <option key={area} value={area}>
+                      {tArea(area)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </li>
           ))}
         </ul>

@@ -6,6 +6,7 @@ import { findBusinessSettings, updateBusinessSettings } from "@/server/repositor
 import { listCategories } from "@/server/repositories/directory-repository";
 import type { settingsInput } from "@/server/validation/schemas";
 import { recordAction } from "./audit";
+import { ensureWholePlaceUnit } from "./room-service";
 
 export function getSettings(ctx: TenantContext) {
   requirePermission(ctx, "settings.manage");
@@ -24,6 +25,11 @@ export async function updateSettings(ctx: TenantContext, input: z.infer<typeof s
   requirePermission(ctx, "settings.manage");
   const { categories, ...fields } = input;
   if (categories) await assertKnownCategories(categories);
+  // Booked as a whole: the place needs its whole-place unit before guests can book it.
+  if (fields.bookingUnit === "WHOLE_PLACE") {
+    const { name } = await findBusinessSettings(prisma, ctx.businessId);
+    await ensureWholePlaceUnit(ctx, fields.name ?? name);
+  }
   await updateBusinessSettings(prisma, ctx.businessId, fields, categories);
   await recordAction(ctx, "settings.updated", "business", ctx.businessId);
 }

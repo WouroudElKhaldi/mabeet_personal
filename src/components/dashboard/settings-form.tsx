@@ -66,7 +66,6 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
     run(() =>
       api.patch(`/api/workspaces/${businessId}/settings`, {
         name: text(data, "name"),
-        description: text(data, "description"),
         area: text(data, "area"),
         address: text(data, "address"),
         phone: text(data, "phone")?.replace(/[\s-]/g, "") ?? null,
@@ -104,7 +103,6 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         <Input label={t("name")} name="name" defaultValue={settings.name} required />
         <Input label={t("area")} name="area" defaultValue={settings.area} />
         <Input label={t("address")} name="address" defaultValue={settings.address} wide />
-        <Area label={t("description")} name="description" defaultValue={settings.description} />
         <fieldset className="sm:col-span-2">
           <legend className="mb-2 text-sm font-semibold">{t("categories")}</legend>
           <div className="flex flex-wrap gap-2">

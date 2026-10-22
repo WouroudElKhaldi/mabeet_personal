@@ -55,12 +55,32 @@
     "chooseCheckOut": "Now choose check-out"
   },
   "place": {
-    "save": "Save to favourites",
+    "save": "Save",
     "unsave": "Remove from favourites",
     "new": "New",
     "from": "from",
     "perNight": "night",
-    "total": "total"
+    "total": "total",
+    "title": "Your place",
+    "intro": "What guests read about the place, its photos, and how they book it.",
+    "viewPage": "View my page",
+    "description": "Description",
+    "descriptionPlaceholder": "A restored stone house under oak trees, ten minutes from the cedar reserve…",
+    "descriptionHint": "Shown at the top of your place's page.",
+    "howBook": "How guests book",
+    "units": {
+      "ROOMS": {
+        "title": "Room by room",
+        "body": "Each room has its own price and calendar."
+      },
+      "WHOLE_PLACE": {
+        "title": "The whole place",
+        "body": "One price for the whole place. Rooms are shown, never booked one by one."
+      }
+    },
+    "saved": "Saved.",
+    "unitTitle": "The whole place",
+    "unitIntro": "Its price per night, how many guests, beds and minimum stay, as guests book it."
   },
   "home": {
     "eyebrow": "No platform fees. Ever.",
@@ -167,7 +187,12 @@
     "noReviews": "No reviews yet. Guests can review after their stay.",
     "guest": "Guest",
     "hostReply": "Host reply:",
-    "noRooms": "This place is not taking bookings right now."
+    "noRooms": "This place is not taking bookings right now.",
+    "bedrooms": "{count, plural, one {# bedroom} other {# bedrooms}}",
+    "baths": "{count, plural, one {# bath} other {# baths}}",
+    "showAllPhotos": "Show all photos",
+    "whereYoullSleep": "Where you'll sleep",
+    "wholePlaceIntro": "You book the whole place, for up to {guests} guests. These are its rooms."
   },
   "booking": {
     "perNight": "a night",
@@ -471,7 +496,8 @@
       "settings": "Settings",
       "offerings": "Experiences & services",
       "billing": "Billing",
-      "payouts": "Payouts"
+      "payouts": "Payouts",
+      "place": "Your place"
     },
     "overview": {
       "title": "Today",
@@ -625,7 +651,15 @@
         "lastNight": "Last night",
         "price": "Price a night ({currency})",
         "save": "Set price"
-      }
+      },
+      "photos": "Photos of this room",
+      "photosHint": "Optional: pick a few now, add more later.",
+      "unitActive": "Guests can book the whole place",
+      "showOnly": "Show this room on my listing",
+      "showOnlyHint": "Your place is booked as a whole, so rooms are shown but not booked one by one.",
+      "wholePlaceNote": "Your place is booked as a whole: rooms here are shown to guests, not booked one by one.",
+      "wholePlaceLink": "Change it on Your place",
+      "shown": "Shown"
     },
     "channels": {
       "title": "Channels",
@@ -811,7 +845,9 @@
       "empty": "No photos yet. Guests book places they can see: add at least five.",
       "failed": "Some photos could not be uploaded.",
       "roomTitle": "Photos of this room",
-      "roomHint": "Shown when a guest opens this room. The first one is its cover."
+      "roomHint": "Shown when a guest opens this room. The first one is its cover.",
+      "area": "What it shows",
+      "noArea": "Part of the place…"
     },
     "phoneAlerts": "Phone notifications",
     "payouts": {
@@ -1701,5 +1737,54 @@
       "member_removed": "{actor} removed someone from the team",
       "member_role_changed": "{actor} changed someone's role"
     }
+  },
+  "meetHost": {
+    "title": "Meet your host",
+    "trusted": "Trusted host",
+    "rating": "Rating",
+    "trustedTitle": "{name} is a trusted host",
+    "trustedBody": "Trusted hosts are highly rated and answer almost every request.",
+    "speaks": "Speaks {languages}",
+    "details": "Host details",
+    "responseRate": "Response rate",
+    "new": "New on Mabeet",
+    "withinHour": "Responds within an hour",
+    "withinDay": "Responds within a day",
+    "withinDays": "Responds within a few days",
+    "message": "Message host",
+    "messageText": "Hi! I'm interested in {place} on Mabeet.",
+    "protect": "Book and pay through Mabeet so your booking and deposit are recorded.",
+    "reviews": "{count, plural, one {Review} other {Reviews}}",
+    "years": "{count, plural, one {Year hosting} other {Years hosting}}"
+  },
+  "photoTour": {
+    "title": "Photo tour",
+    "showAll": "Show all photos",
+    "none": "No photos yet.",
+    "photos": "{count, plural, one {# photo} other {# photos}}",
+    "areas": {
+      "LIVING_ROOM": "Living room",
+      "KITCHEN": "Kitchen",
+      "DINING": "Dining area",
+      "BEDROOM": "Bedroom",
+      "BATHROOM": "Bathroom",
+      "EXTERIOR": "Exterior",
+      "TERRACE": "Terrace",
+      "GARDEN": "Garden",
+      "POOL": "Pool",
+      "VIEW": "View",
+      "OTHER": "Additional photos"
+    }
+  },
+  "share": {
+    "button": "Share",
+    "title": "Share this place",
+    "close": "Close",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "email": "Email",
+    "messages": "Messages",
+    "embed": "Embed",
+    "more": "More options"
   }
 }

@@ -8,7 +8,14 @@ import { conflict, invalid, notFound } from "@/server/errors";
 import { logActivity } from "@/server/repositories/activity-repository";
 import * as bookings from "@/server/repositories/booking-repository";
 import { findActiveBusinessBySlug } from "@/server/repositories/business-repository";
-import { findRateOverrides, findRoom, lockActiveRoom } from "@/server/repositories/room-repository";
+import {
+  findRateOverrides,
+  findRoom,
+  hasWholePlaceUnit,
+  lockActiveRoom,
+  lockBookableRoom,
+  lockBusinessForBooking,
+} from "@/server/repositories/room-repository";
 import { assertTransition } from "./booking-status";
 import { recordAction } from "./audit";
 import {
@@ -70,10 +77,13 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
   let expiredIds: string[] = [];
   try {
     const booking = await runInTransaction(async (tx) => {
+      // A place that can be booked whole or by room: bookings take turns across all its units.
+      if (await hasWholePlaceUnit(tx, business.id)) await lockBusinessForBooking(tx, business.id);
       const room = await lockRoomForBooking(tx, business.id, request.roomId);
       assertRoomFits(room, request);
       expiredIds = await bookings.expireStaleHolds(tx, now, room.id);
       await assertNoImportedOverlap(tx, room.id, request.range);
+      if (await bookings.findSiblingOverlap(tx, room, request.range)) throw conflict(DATES_TAKEN);
 
       const overrides = await findRateOverrides(tx, room.id, request.range);
       const quote = quoteStay({
@@ -123,7 +133,7 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
 }
 
 async function lockRoomForBooking(tx: Prisma.TransactionClient, businessId: string, roomId: string) {
-  const locked = await lockActiveRoom(tx, businessId, roomId);
+  const locked = await lockBookableRoom(tx, businessId, roomId);
   const room = locked ? await findRoom(tx, businessId, roomId) : null;
   if (!room) throw notFound("Room");
   return room;

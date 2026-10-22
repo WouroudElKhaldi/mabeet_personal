@@ -21,7 +21,7 @@ export async function getRoom(ctx: TenantContext, roomId: string) {
   return room;
 }
 
-export async function createRoom(ctx: TenantContext, input: z.infer<typeof roomInput>) {
+export async function createRoom(ctx: TenantContext, input: z.input<typeof roomInput>) {
   requirePermission(ctx, "rooms.manage");
   await assertPlanAllowsAnother(ctx.businessId, "rooms");
   const room = await rooms.createRoom(prisma, {
@@ -31,6 +31,32 @@ export async function createRoom(ctx: TenantContext, input: z.infer<typeof roomI
   });
   await recordAction(ctx, "room.created", "room", room.id);
   return room;
+}
+
+/**
+ * Makes sure a place booked as a whole has its one whole-place unit: started from its rooms (guests, beds,
+ * bathrooms and nightly prices added up), then the host adjusts it like any room. Doesn't count against the plan.
+ */
+export async function ensureWholePlaceUnit(ctx: TenantContext, name: string) {
+  requirePermission(ctx, "rooms.manage");
+  const existing = await rooms.findWholePlaceUnit(prisma, ctx.businessId);
+  if (existing) return existing;
+  const { _sum: sum } = await rooms.sumRooms(prisma, ctx.businessId);
+  const unit = await rooms.createRoom(prisma, {
+    businessId: ctx.businessId,
+    kind: "WHOLE_PLACE",
+    name,
+    capacity: Math.max(1, sum.capacity ?? 2),
+    bedrooms: sum.bedrooms ?? 1,
+    beds: sum.beds ?? 1,
+    bathrooms: sum.bathrooms ?? 1,
+    baseRateCents: sum.baseRateCents ?? 10_000,
+    minNights: 1,
+    amenities: [],
+    exportToken: secureToken(),
+  });
+  await recordAction(ctx, "room.created", "room", unit.id);
+  return unit;
 }
 
 export async function updateRoom(ctx: TenantContext, roomId: string, input: z.infer<typeof roomUpdate>) {

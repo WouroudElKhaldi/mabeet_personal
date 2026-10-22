@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, RoomKind } from "@prisma/client";
 import { type DateRange, toIsoDate } from "@/lib/dates";
 import type { Db } from "@/server/db/client";
 
@@ -25,6 +25,18 @@ export async function updateRoom(
 }
 
 /**
+ * A room guests can book: live, and of the kind the place books by (its rooms, or the whole place as one).
+ * The same rule in SQL is in lockBookableRoom.
+ */
+export const bookableRoom = {
+  active: true,
+  OR: [
+    { kind: "ROOM", business: { bookingUnit: "ROOMS" } },
+    { kind: "WHOLE_PLACE", business: { bookingUnit: "WHOLE_PLACE" } },
+  ],
+} satisfies Prisma.RoomWhereInput;
+
+/**
  * Takes a row lock on an active room for the rest of the transaction. Every booking request
  * and iCal import for that room waits here, so checks against imported nights are race-free.
  */
@@ -34,6 +46,40 @@ export async function lockActiveRoom(tx: Prisma.TransactionClient, businessId: s
     WHERE id = ${roomId} AND "businessId" = ${businessId} AND active
     FOR UPDATE`;
   return rows.length > 0;
+}
+
+/** Like lockActiveRoom, but only for a room guests can book right now (see bookableRoom). */
+export async function lockBookableRoom(tx: Prisma.TransactionClient, businessId: string, roomId: string) {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    SELECT r.id FROM "Room" r
+    JOIN "Business" b ON b.id = r."businessId"
+    WHERE r.id = ${roomId} AND r."businessId" = ${businessId} AND r.active
+      AND ((b."bookingUnit" = 'ROOMS' AND r.kind = 'ROOM')
+        OR (b."bookingUnit" = 'WHOLE_PLACE' AND r.kind = 'WHOLE_PLACE'))
+    FOR UPDATE OF r`;
+  return rows.length > 0;
+}
+
+/** Whether a business has a whole-place unit, so its bookings must also be checked across every room. */
+export async function hasWholePlaceUnit(db: Db, businessId: string) {
+  return (await db.room.count({ where: { businessId, kind: "WHOLE_PLACE" } })) > 0;
+}
+
+/** Locks the business row: bookings at a place with a whole-place unit take turns, across all its rooms. */
+export async function lockBusinessForBooking(tx: Prisma.TransactionClient, businessId: string) {
+  await tx.$queryRaw`SELECT id FROM "Business" WHERE id = ${businessId} FOR UPDATE`;
+}
+
+export function findWholePlaceUnit(db: Db, businessId: string) {
+  return db.room.findFirst({ where: { businessId, kind: "WHOLE_PLACE" } });
+}
+
+/** Sums of the place's rooms, to start a whole-place unit from. */
+export function sumRooms(db: Db, businessId: string) {
+  return db.room.aggregate({
+    where: { businessId, kind: "ROOM" as RoomKind },
+    _sum: { capacity: true, bedrooms: true, beds: true, bathrooms: true, baseRateCents: true },
+  });
 }
 
 export async function findRateOverrides(db: Db, roomId: string, range: DateRange) {

@@ -1,3 +1,4 @@
+import type { PhotoArea } from "@prisma/client";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma, runInTransaction } from "@/server/db/client";
 import { invalid, notFound } from "@/server/errors";
@@ -57,7 +58,7 @@ export async function listGallery(ctx: TenantContext, target: PhotoTarget) {
 
 export async function uploadPhoto(
   ctx: TenantContext,
-  input: PhotoTarget & { bytes: Uint8Array<ArrayBuffer>; alt: string | null },
+  input: PhotoTarget & { bytes: Uint8Array<ArrayBuffer>; alt: string | null; area: PhotoArea | null },
 ) {
   const owner = await resolveOwner(ctx, input);
   if (input.bytes.byteLength === 0) throw invalid("The file is empty");
@@ -68,7 +69,7 @@ export async function uploadPhoto(
     throw invalid(`A gallery holds up to ${MAX_PHOTOS} photos. Delete one first.`);
   }
   const photo = await runInTransaction((tx) =>
-    photos.addUploadedPhoto(tx, owner, { mimeType, bytes: input.bytes, alt: input.alt }),
+    photos.addUploadedPhoto(tx, owner, { mimeType, bytes: input.bytes, alt: input.alt, area: input.area }),
   );
   await recordAction(ctx, "photo.added", "photo", photo.id);
   return photo;
@@ -88,6 +89,18 @@ export async function setCoverPhoto(ctx: TenantContext, photoId: string) {
   const owner = await resolveOwner(ctx, photo);
   await runInTransaction((tx) => photos.makeCover(tx, owner, photoId));
   await recordAction(ctx, "photo.cover", "photo", photoId);
+}
+
+/** Which part of the place a photo shows (living room, kitchen…), and its caption, for the photo tour. */
+export async function describePhoto(
+  ctx: TenantContext,
+  photoId: string,
+  data: { area?: PhotoArea | null; alt?: string | null },
+) {
+  const photo = await photos.findPhoto(prisma, ctx.businessId, photoId);
+  if (!photo) throw notFound("Photo");
+  await resolveOwner(ctx, photo);
+  await photos.describePhoto(prisma, ctx.businessId, photoId, data);
 }
 
 /** Public: the bytes behind /api/images/{id}. Photos are public once on a listing. */

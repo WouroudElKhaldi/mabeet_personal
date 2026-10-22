@@ -98,6 +98,7 @@ erDiagram
     String checkOutTime
     String houseRules
     String cancellationPolicy
+    BookingUnit bookingUnit
     BookingMode bookingMode
     PaymentCollection paymentCollection
     OnlineAmount onlineAmount
@@ -146,6 +147,7 @@ erDiagram
     Int minNights
     String_list amenities
     String exportToken UK
+    RoomKind kind
     Boolean active
     DateTime createdAt
     DateTime updatedAt
@@ -157,6 +159,7 @@ erDiagram
     String offeringId FK
     String url
     String alt
+    PhotoArea area
     Int position
     DateTime createdAt
   }

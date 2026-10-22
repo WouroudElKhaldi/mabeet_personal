@@ -35,9 +35,46 @@ export async function saveMyHostProfile(ctx: TenantContext, input: z.infer<typeo
   return profile;
 }
 
-/** The host card on a place or experience page; null when the host keeps their profile private. */
-export function getPublicHost(businessId: string) {
-  return hosts.findPublicHost(prisma, businessId);
+const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+export interface HostSection {
+  /** The host's own name when they show their profile, otherwise the place's name. */
+  name: string;
+  personal: boolean;
+  bio: string | null;
+  languages: string[];
+  yearsHosting: number;
+  responseRate: number | null;
+  medianResponseMinutes: number | null;
+  whatsapp: string | null;
+}
+
+/**
+ * "Meet your host": the host's own details when they chose to show them, and for every place the facts guests
+ * use to trust a host: years hosting, response rate and time. Reviews and rating come from the place.
+ */
+export async function getHostSection(
+  place: { id: string; name: string; whatsapp: string | null },
+  now = new Date(),
+): Promise<HostSection> {
+  const [owner, stats] = await Promise.all([
+    hosts.findPlaceOwner(prisma, place.id),
+    hosts.responseStats(prisma, place.id, new Date(now.getTime() - YEAR_MS)),
+  ]);
+  const profile = owner?.hostProfile?.showOnListings ? owner.hostProfile : null;
+  const since = profile?.hostingSince
+    ? new Date(Date.UTC(profile.hostingSince, 0, 1))
+    : (owner?.createdAt ?? now);
+  return {
+    name: profile ? (profile.displayName ?? owner?.name ?? place.name) : place.name,
+    personal: profile !== null,
+    bio: profile?.bio ?? null,
+    languages: profile?.languages ?? [],
+    yearsHosting: Math.max(0, Math.floor((now.getTime() - since.getTime()) / YEAR_MS)),
+    responseRate: stats.total > 0 ? stats.answered / stats.total : null,
+    medianResponseMinutes: stats.minutes,
+    whatsapp: profile?.whatsapp ?? place.whatsapp,
+  };
 }
 
 /** Platform admin: every host, each once, with all their businesses. */

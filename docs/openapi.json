@@ -1779,6 +1779,10 @@
                   "listedPublicly": {
                     "type": "boolean"
                   },
+                  "bookingUnit": {
+                    "type": "string",
+                    "enum": ["ROOMS", "WHOLE_PLACE"]
+                  },
                   "categories": {
                     "maxItems": 6,
                     "type": "array",
@@ -2161,6 +2165,10 @@
                         "generator"
                       ]
                     }
+                  },
+                  "active": {
+                    "default": true,
+                    "type": "boolean"
                   }
                 },
                 "required": ["name", "capacity", "baseRateCents"]
@@ -2397,6 +2405,7 @@
                     }
                   },
                   "active": {
+                    "default": true,
                     "type": "boolean"
                   }
                 }

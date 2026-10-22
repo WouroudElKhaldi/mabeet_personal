@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { PhotoArea, Prisma } from "@prisma/client";
 import type { Db } from "@/server/db/client";
 
 // Photos of a place (offeringId and roomId empty), of one room, or of an experience or service, and their bytes.
@@ -20,7 +20,7 @@ export function listPhotos(db: Db, owner: PhotoOwner) {
   return db.photo.findMany({
     where: ownerWhere(owner),
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    select: { id: true, url: true, alt: true, position: true },
+    select: { id: true, url: true, alt: true, area: true, position: true },
   });
 }
 
@@ -32,7 +32,7 @@ export function countPhotos(db: Db, owner: PhotoOwner) {
 export async function addUploadedPhoto(
   tx: Prisma.TransactionClient,
   owner: PhotoOwner,
-  image: { mimeType: string; bytes: Uint8Array<ArrayBuffer>; alt: string | null },
+  image: { mimeType: string; bytes: Uint8Array<ArrayBuffer>; alt: string | null; area: PhotoArea | null },
 ) {
   const stored = await tx.storedImage.create({
     data: {
@@ -51,10 +51,22 @@ export async function addUploadedPhoto(
       roomId: owner.roomId,
       url: `/api/images/${stored.id}`,
       alt: image.alt,
+      area: image.area,
       position: (last._max.position ?? -1) + 1,
     },
     select: { id: true, url: true },
   });
+}
+
+/** Tags a photo with the part of the place it shows, and its caption. */
+export async function describePhoto(
+  db: Db,
+  businessId: string,
+  photoId: string,
+  data: { area?: PhotoArea | null; alt?: string | null },
+) {
+  const { count } = await db.photo.updateMany({ where: { id: photoId, businessId }, data });
+  return count > 0;
 }
 
 export function findPhoto(db: Db, businessId: string, photoId: string) {
