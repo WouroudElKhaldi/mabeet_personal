@@ -72,6 +72,18 @@ export async function directRevenueCents(db: Db, businessId: string, range: Date
   return row?.cents ?? 0;
 }
 
+/** Every confirmed direct booking ever, stays and seats in sessions, by currency. */
+export async function lifetimeDirectRevenue(db: Db, businessId: string) {
+  return db.$queryRawUnsafe<Array<{ currency: string; cents: number }>>(
+    `SELECT currency, SUM(cents)::int AS cents FROM (
+       SELECT currency, "totalCents" AS cents FROM "Booking" WHERE "businessId" = $1 AND status = 'CONFIRMED'
+       UNION ALL
+       SELECT currency, "totalCents" FROM "SessionBooking" WHERE "businessId" = $1 AND status = 'CONFIRMED'
+     ) direct GROUP BY currency`,
+    businessId,
+  );
+}
+
 export function countActiveRooms(db: Db, businessId: string) {
   return db.room.count({ where: { businessId, active: true } });
 }

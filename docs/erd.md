@@ -84,6 +84,10 @@ erDiagram
     String checkOutTime
     String houseRules
     String cancellationPolicy
+    BookingMode bookingMode
+    PaymentCollection paymentCollection
+    OnlineAmount onlineAmount
+    RefundPolicy refundPolicy
     Boolean listedPublicly
     String_list tags
     String_list accessibility
@@ -188,6 +192,8 @@ erDiagram
     Int totalCents
     Int depositCents
     String currency
+    Int onlineDueCents
+    RefundPolicy refundPolicy
     BookingStatus status
     String publicToken UK
     DateTime holdExpiresAt
@@ -226,6 +232,69 @@ erDiagram
     String providerRef UK
     String note
     String recordedById
+    Boolean online
+    String providerPaymentId
+    String checkoutUrl
+    DateTime paidAt
+    Int refundedCents
+    DateTime createdAt
+  }
+  Refund {
+    String id PK
+    String businessId FK
+    String paymentId FK
+    Int amountCents
+    String currency
+    RefundStatus status
+    String reason
+    String providerRef
+    DateTime doneAt
+    String doneById
+    DateTime createdAt
+  }
+  Payout {
+    String id PK
+    String businessId FK
+    Int amountCents
+    String currency
+    PayoutMethod method
+    String accountName
+    String bankName
+    String iban
+    String whishPhone
+    PayoutStatus status
+    String requestedById
+    String reference
+    String adminNote
+    String decidedById
+    DateTime decidedAt
+    DateTime createdAt
+  }
+  PlanPayment {
+    String id PK
+    String businessId FK
+    Plan plan
+    Int amountCents
+    String currency
+    PaymentMethod method
+    PaymentStatus status
+    String providerRef UK
+    String checkoutUrl
+    DateTime paidAt
+    DateTime createdAt
+  }
+  WhishSandboxPayment {
+    String externalId PK
+    String code UK
+    String amount
+    String currency
+    String invoice
+    String successCallbackUrl
+    String failureCallbackUrl
+    String successRedirectUrl
+    String failureRedirectUrl
+    String status
+    String payerPhone
     DateTime createdAt
   }
   WebhookEvent {
@@ -350,6 +419,8 @@ erDiagram
     Int totalCents
     Int depositCents
     String currency
+    Int onlineDueCents
+    RefundPolicy refundPolicy
     BookingStatus status
     DateTime holdExpiresAt
     String decidedById
@@ -537,6 +608,10 @@ erDiagram
   Business ||--o{ Payment : "business"
   Booking |o--o{ Payment : "booking"
   SessionBooking |o--o{ Payment : "sessionBooking"
+  Business ||--o{ Refund : "business"
+  Payment ||--o{ Refund : "payment"
+  Business ||--o{ Payout : "business"
+  Business ||--o{ PlanPayment : "business"
   User ||--o{ Favorite : "user"
   Business ||--o{ Favorite : "business"
   Business ||--o{ Review : "business"

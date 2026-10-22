@@ -27,6 +27,10 @@ interface BusinessSettings {
   checkOutTime: string;
   houseRules: string | null;
   cancellationPolicy: string | null;
+  bookingMode: "REQUEST" | "INSTANT";
+  paymentCollection: "AT_PLACE" | "ONLINE";
+  onlineAmount: "DEPOSIT" | "FULL";
+  refundPolicy: "FLEXIBLE" | "MODERATE" | "STRICT" | "NON_REFUNDABLE";
   listedPublicly: boolean;
   categories: Array<{ categorySlug: string }>;
   tags: string[];
@@ -52,6 +56,7 @@ const optionalNumber = (data: FormData, key: string) => {
 export function SettingsForm({ businessId, settings, categories }: SettingsFormProps) {
   const t = useTranslations("dashboard.settings");
   const tListing = useTranslations("listing");
+  const tRefund = useTranslations("refundPolicy");
   const locale = useLocale();
   const { run, pending, error } = useAction();
 
@@ -75,6 +80,10 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         checkOutTime: data.get("checkOutTime"),
         houseRules: text(data, "houseRules"),
         cancellationPolicy: text(data, "cancellationPolicy"),
+        bookingMode: data.get("bookingMode"),
+        paymentCollection: data.get("paymentCollection"),
+        onlineAmount: data.get("onlineAmount"),
+        refundPolicy: data.get("refundPolicy"),
         listedPublicly: data.get("listedPublicly") === "on",
         categories: data.getAll("categories"),
         tags: data.getAll("tags"),
@@ -238,6 +247,42 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         />
       </Group>
 
+      <Group title={t("payments.title")}>
+        <p className="text-sm text-muted sm:col-span-2">{t("payments.intro")}</p>
+        <Choice
+          label={t("payments.bookingMode")}
+          name="bookingMode"
+          defaultValue={settings.bookingMode}
+          options={(["REQUEST", "INSTANT"] as const).map((value) => [value, t(`payments.modes.${value}`)])}
+        />
+        <Choice
+          label={t("payments.collection")}
+          name="paymentCollection"
+          defaultValue={settings.paymentCollection}
+          options={(["AT_PLACE", "ONLINE"] as const).map((value) => [
+            value,
+            t(`payments.collections.${value}`),
+          ])}
+        />
+        <Choice
+          label={t("payments.onlineAmount")}
+          name="onlineAmount"
+          defaultValue={settings.onlineAmount}
+          hint={t("payments.onlineAmountHint")}
+          options={(["DEPOSIT", "FULL"] as const).map((value) => [value, t(`payments.amounts.${value}`)])}
+        />
+        <Choice
+          label={t("payments.refundPolicy")}
+          name="refundPolicy"
+          defaultValue={settings.refundPolicy}
+          hint={tRefund(`${settings.refundPolicy}.rule`)}
+          options={(["FLEXIBLE", "MODERATE", "STRICT", "NON_REFUNDABLE"] as const).map((value) => [
+            value,
+            `${tRefund(`${value}.name`)} · ${tRefund(`${value}.rule`)}`,
+          ])}
+        />
+      </Group>
+
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {t("save")}
@@ -249,6 +294,34 @@ export function SettingsForm({ businessId, settings, categories }: SettingsFormP
         )}
       </div>
     </form>
+  );
+}
+
+function Choice({
+  label,
+  name,
+  defaultValue,
+  options,
+  hint,
+}: {
+  label: string;
+  name: string;
+  defaultValue: string;
+  options: Array<[string, string]>;
+  hint?: string;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-semibold">
+      {label}
+      <select name={name} defaultValue={defaultValue} className={inputClass}>
+        {options.map(([value, text]) => (
+          <option key={value} value={value}>
+            {text}
+          </option>
+        ))}
+      </select>
+      {hint && <span className="text-xs font-normal text-muted">{hint}</span>}
+    </label>
   );
 }
 

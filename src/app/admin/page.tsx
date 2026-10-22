@@ -48,7 +48,12 @@ export default async function AdminPage() {
         <Wordmark />
         <AppearanceMenu />
       </header>
-      <h1 className="rise-in mt-10 text-4xl font-semibold">{t("title")}</h1>
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="rise-in text-4xl font-semibold">{t("title")}</h1>
+        <Link href="/admin/money" className="font-semibold underline underline-offset-4">
+          {t("money.link")}
+        </Link>
+      </div>
 
       <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label={t("businesses")} value={totals.businesses} kind="count" />

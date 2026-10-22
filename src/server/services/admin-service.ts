@@ -16,7 +16,7 @@ export interface PlatformActor {
   platformRole: string;
 }
 
-function requireSuperAdmin(actor: PlatformActor): void {
+export function requireSuperAdmin(actor: PlatformActor): void {
   if (actor.platformRole !== "SUPER_ADMIN") throw forbidden("Platform admins only");
 }
 

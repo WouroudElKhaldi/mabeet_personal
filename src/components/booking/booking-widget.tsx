@@ -26,9 +26,13 @@ interface BookingWidgetProps {
   currency: string;
   rooms: BookableRoom[];
   initial: { roomId?: string; checkIn?: string; checkOut?: string; guests?: number };
+  /** The host confirms bookings at once instead of answering requests. */
+  instant: boolean;
+  /** Guests pay online through Mabeet rather than to the host. */
+  payOnline: boolean;
 }
 
-export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetProps) {
+export function BookingWidget({ slug, currency, rooms, initial, instant, payOnline }: BookingWidgetProps) {
   const t = useTranslations("booking");
   const locale = useLocale();
   const [roomId, setRoomId] = useState(initial.roomId ?? rooms[0]!.id);
@@ -153,7 +157,7 @@ export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetP
 
       {canBook && bookHref ? (
         <ButtonLink href={bookHref} size="lg" className="mt-5 w-full">
-          {t("request")}
+          {instant ? t("bookNow") : t("request")}
           <ArrowRight className="size-5 rtl:rotate-180" aria-hidden />
         </ButtonLink>
       ) : (
@@ -168,7 +172,7 @@ export function BookingWidget({ slug, currency, rooms, initial }: BookingWidgetP
 
       <p className="mt-4 flex items-start justify-center gap-2 text-center text-sm text-muted">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-        {t("noChargeYet")}
+        {payOnline ? t("payOnlineNote") : t("noChargeYet")}
       </p>
     </div>
   );

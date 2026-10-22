@@ -20,7 +20,7 @@
       "apiKey": {
         "type": "http",
         "scheme": "bearer",
-        "description": "MCP key, mbt_…"
+        "description": "MCP key, mbt_â€¦"
       },
       "cronSecret": {
         "type": "http",
@@ -1760,6 +1760,22 @@
                       }
                     ]
                   },
+                  "bookingMode": {
+                    "type": "string",
+                    "enum": ["REQUEST", "INSTANT"]
+                  },
+                  "paymentCollection": {
+                    "type": "string",
+                    "enum": ["AT_PLACE", "ONLINE"]
+                  },
+                  "onlineAmount": {
+                    "type": "string",
+                    "enum": ["DEPOSIT", "FULL"]
+                  },
+                  "refundPolicy": {
+                    "type": "string",
+                    "enum": ["FLEXIBLE", "MODERATE", "STRICT", "NON_REFUNDABLE"]
+                  },
                   "listedPublicly": {
                     "type": "boolean"
                   },
@@ -3240,7 +3256,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["HELD", "CONFIRMED", "DECLINED", "EXPIRED", "CANCELLED"]
+              "enum": ["HELD", "AWAITING_PAYMENT", "CONFIRMED", "DECLINED", "EXPIRED", "CANCELLED"]
             }
           },
           {
@@ -6930,7 +6946,7 @@
     "/api/webhooks/stripe": {
       "post": {
         "tags": ["Platform"],
-        "summary": "Stripe subscription events (signed; each event applied once)",
+        "summary": "Stripe events: plan subscriptions, plan invoices and card payments for bookings (signed; each applied once)",
         "description": "No sign-in.",
         "security": [],
         "parameters": [],
@@ -7225,7 +7241,7 @@
     "/api/cron/expire-holds": {
       "post": {
         "tags": ["Platform"],
-        "summary": "Expire unanswered holds and email the guests",
+        "summary": "Housekeeping: expire unanswered or unpaid bookings, re-check pending online payments, end lapsed Whish plans",
         "description": "Bearer CRON_SECRET.",
         "security": [
           {
@@ -7233,6 +7249,999 @@
           }
         ],
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/public/bookings/{token}/checkout": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "The guest pays a booking that waits for payment, with Whish or a card; returns the payment page",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["WHISH", "CARD"]
+                  }
+                },
+                "required": ["method"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/payments/whish/callback": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Whish's callback after a payment attempt; only triggers a status check with Whish",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "payment",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "plan",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "attempt",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "const": "failed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{businessId}/billing/whish": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Pay one month of a plan with Whish (owners)",
+        "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "businessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "plan": {
+                    "type": "string",
+                    "enum": ["PRO", "BUSINESS"]
+                  }
+                },
+                "required": ["plan"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{businessId}/payouts": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "What Mabeet holds for the business, its online payments and payouts (owners)",
+        "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "businessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Ask for a payout to a bank account (IBAN) or a Whish number, up to the available balance (owners)",
+        "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "businessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "amountCents": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 100000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": ["USD", "LBP", "EUR"]
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": ["BANK_TRANSFER", "WHISH"]
+                  },
+                  "accountName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "bankName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "iban": {
+                    "type": ["string", "null"]
+                  },
+                  "whishPhone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\+[1-9]\\d{7,14}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["amountCents", "currency", "method", "accountName"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/admin/payouts/{payoutId}": {
+      "post": {
+        "tags": ["Platform"],
+        "summary": "Mark a payout as sent, with its transfer reference, or refuse it",
+        "description": "Super admin only.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payoutId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["paid", "rejected"]
+                  },
+                  "reference": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["action"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/admin/refunds/{refundId}": {
+      "post": {
+        "tags": ["Platform"],
+        "summary": "Mark a refund sent by hand (partial Whish refunds, or ones a provider refused)",
+        "description": "Super admin only.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reference": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/whish-simulator/payment/whish": {
+      "post": {
+        "tags": ["Whish simulator"],
+        "summary": "Simulated Whish Pay: create a payment and get its collectUrl",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "maxLength": 3
+                  },
+                  "invoice": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "externalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "successCallbackUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "failureCallbackUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "successRedirectUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "failureRedirectUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency",
+                  "externalId",
+                  "successCallbackUrl",
+                  "failureCallbackUrl",
+                  "successRedirectUrl",
+                  "failureRedirectUrl"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/whish-simulator/payment/collect/status": {
+      "post": {
+        "tags": ["Whish simulator"],
+        "summary": "Simulated Whish Pay: a payment's collectStatus",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "maxLength": 3
+                  },
+                  "externalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "refundReason": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": ["currency", "externalId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/whish-simulator/payment/whish/refund": {
+      "post": {
+        "tags": ["Whish simulator"],
+        "summary": "Simulated Whish Pay: refund a successful payment in full",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "maxLength": 3
+                  },
+                  "externalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "refundReason": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": ["currency", "externalId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/whish-simulator/pay/{code}": {
+      "post": {
+        "tags": ["Whish simulator"],
+        "summary": "Simulated Whish payment page: pay with phone 96170123456 and code 111111",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 20
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 8
+                  }
+                },
+                "required": ["phone", "otp"]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"

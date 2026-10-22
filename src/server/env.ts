@@ -26,6 +26,13 @@ const schema = z.object({
   STRIPE_WEBHOOK_SECRET: optional(z.string().startsWith("whsec_")),
   STRIPE_PRICE_PRO: optional(z.string().startsWith("price_")),
   STRIPE_PRICE_BUSINESS: optional(z.string().startsWith("price_")),
+  // Whish Pay, Mabeet's own Whish account, for guests paying online and hosts paying for plans.
+  // "simulator" runs a stand-in Whish server inside the app (no keys needed); "sandbox" and "production" call
+  // Whish with the channel, secret and website URL Whish issues.
+  WHISH_MODE: z.enum(["simulator", "sandbox", "production"]).default("simulator"),
+  WHISH_CHANNEL: optional(z.string()),
+  WHISH_SECRET: optional(z.string()),
+  WHISH_WEBSITE_URL: optional(z.string()),
   EMAIL_FROM: z.string().default("Mabeet <onboarding@resend.dev>"),
   // Web push to phones (pnpm push:keys makes a pair). Without them, the "notify me" buttons stay hidden.
   VAPID_PUBLIC_KEY: optional(z.string()),

@@ -1,21 +1,23 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { ManageBillingButton, UpgradeButton } from "@/components/billing/billing-buttons";
+import { ManageBillingButton, UpgradeButton, WhishPlanButton } from "@/components/billing/billing-buttons";
 import { PlanCards } from "@/components/billing/plan-cards";
 import { PLANS, type PlanName } from "@/config/plans";
 import { formatDate } from "@/lib/format";
 import { requirePageAccess } from "@/server/http/session";
-import { getBilling } from "@/server/services/billing-service";
+import { getBilling, settlePlanPayment } from "@/server/services/billing-service";
 
 type PageProps = {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ checkout?: string }>;
+  searchParams: Promise<{ checkout?: string; whish?: string }>;
 };
 
 /** The business's plan, what it uses against the limits, and the way to upgrade or manage billing. */
 export default async function BillingPage({ params, searchParams }: PageProps) {
   const { businessId } = await params;
-  const { checkout } = await searchParams;
+  const { checkout, whish } = await searchParams;
   const ctx = await requirePageAccess(businessId, ["settings.manage"]);
+  // Back from Whish: check the payment now rather than waiting for its callback.
+  const whishResult = whish ? await settlePlanPayment(whish).catch(() => "pending") : null;
   const [t, locale, billing] = await Promise.all([getTranslations("plans"), getLocale(), getBilling(ctx)]);
   const usage = [
     { label: t("usage.rooms"), used: billing.usage.rooms, max: billing.limits.rooms },
@@ -37,6 +39,11 @@ export default async function BillingPage({ params, searchParams }: PageProps) {
       {checkout === "done" && (
         <p role="status" className="rounded-xl bg-surface-2 p-4 text-sm font-semibold">
           {t("thanks")}
+        </p>
+      )}
+      {whishResult && (
+        <p role="status" className="rounded-xl bg-surface-2 p-4 text-sm font-semibold">
+          {whishResult === "paid" ? t("thanks") : t("whishPending")}
         </p>
       )}
       {!billing.checkoutEnabled && (
@@ -61,12 +68,19 @@ export default async function BillingPage({ params, searchParams }: PageProps) {
       <PlanCards
         current={billing.plan}
         action={(plan) =>
-          plan !== "FREE" && higher(plan) && !billing.hasSubscription ? (
-            <UpgradeButton
-              businessId={businessId}
-              plan={plan}
-              disabled={!billing.checkoutEnabled || !billing.canManage}
-            />
+          plan !== "FREE" && !billing.hasSubscription && (higher(plan) || plan === billing.plan) ? (
+            <>
+              {higher(plan) && (
+                <UpgradeButton
+                  businessId={businessId}
+                  plan={plan}
+                  disabled={!billing.checkoutEnabled || !billing.canManage}
+                />
+              )}
+              {billing.whishEnabled && billing.canManage && (
+                <WhishPlanButton businessId={businessId} plan={plan} />
+              )}
+            </>
           ) : null
         }
       />

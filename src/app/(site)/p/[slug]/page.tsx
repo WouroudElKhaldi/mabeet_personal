@@ -222,6 +222,8 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
               currency={place.currency}
               rooms={place.rooms}
               initial={{ checkIn: query.checkIn, checkOut: query.checkOut, guests: query.guests }}
+              instant={place.bookingMode === "INSTANT"}
+              payOnline={place.paymentCollection === "ONLINE"}
             />
           ) : (
             <p className="rounded-xl p-6 text-muted ring-1 ring-line-strong">{t("noRooms")}</p>

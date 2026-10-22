@@ -180,6 +180,10 @@ export const settingsInput = z
     checkOutTime: z.string().regex(/^\d{2}:\d{2}$/),
     houseRules: optionalText(2000),
     cancellationPolicy: optionalText(2000),
+    bookingMode: z.enum(["REQUEST", "INSTANT"]),
+    paymentCollection: z.enum(["AT_PLACE", "ONLINE"]),
+    onlineAmount: z.enum(["DEPOSIT", "FULL"]),
+    refundPolicy: z.enum(["FLEXIBLE", "MODERATE", "STRICT", "NON_REFUNDABLE"]),
     listedPublicly: z.boolean(),
     categories: z.array(z.string().min(1).max(40)).max(6),
     tags: z.array(z.enum(TAGS)).max(TAGS.length),
@@ -189,6 +193,68 @@ export const settingsInput = z
     longitude: z.number().min(-180).max(180).nullable(),
   })
   .partial();
+
+export const payoutRequestInput = z
+  .object({
+    amountCents: z.number().int().min(100).max(100_000_000),
+    currency: z.enum(CURRENCIES),
+    method: z.enum(["BANK_TRANSFER", "WHISH"]),
+    accountName: z.string().trim().min(2).max(120),
+    bankName: z.string().trim().min(2).max(120).nullish(),
+    // International Bank Account Number: country code, check digits, then up to 30 letters or digits.
+    iban: z
+      .string()
+      .transform((value) => value.replace(/\s+/g, "").toUpperCase())
+      .pipe(z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/, "Enter a valid IBAN"))
+      .nullish(),
+    whishPhone: phone.nullish(),
+  })
+  .refine((input) => (input.method === "BANK_TRANSFER" ? Boolean(input.iban && input.bankName) : true), {
+    message: "Bank transfers need the bank's name and an IBAN",
+    path: ["iban"],
+  })
+  .refine((input) => (input.method === "WHISH" ? Boolean(input.whishPhone) : true), {
+    message: "Whish payouts need the Whish phone number",
+    path: ["whishPhone"],
+  });
+
+export const payoutDecisionInput = z.object({
+  action: z.enum(["paid", "rejected"]),
+  reference: z.string().trim().max(120).nullish(),
+  note: z.string().trim().max(500).nullish(),
+});
+
+export const refundSentInput = z.object({ reference: z.string().trim().max(120).nullish() });
+
+/** How a guest pays a booking online. */
+export const bookingCheckoutInput = z.object({ method: z.enum(["WHISH", "CARD"]) });
+
+export const whishCallbackQuery = z.object({
+  payment: id.optional(),
+  plan: id.optional(),
+  attempt: z.literal("failed").optional(),
+});
+
+// The simulated Whish server takes Whish's own request bodies.
+export const whishCreateBody = z.object({
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  currency: z.string().max(3),
+  invoice: z.string().max(300).optional(),
+  externalId: z.string().min(1).max(64),
+  successCallbackUrl: z.url(),
+  failureCallbackUrl: z.url(),
+  successRedirectUrl: z.url(),
+  failureRedirectUrl: z.url(),
+});
+export const whishReferenceBody = z.object({
+  currency: z.string().max(3),
+  externalId: z.string().min(1).max(64),
+  refundReason: z.string().max(300).optional(),
+});
+export const whishPayInput = z.object({
+  phone: z.string().trim().min(6).max(20),
+  otp: z.string().trim().min(4).max(8),
+});
 
 export const paymentInput = z.object({
   amountCents: z.number().int().min(1).max(100_000_000),

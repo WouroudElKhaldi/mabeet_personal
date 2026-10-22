@@ -54,7 +54,8 @@ or settings, or manage the team. Owners can change that on the **Team** page.
 | `RESEND_API_KEY`, `EMAIL_FROM`          | Sends emails. Without a key they are only logged. Email verification turns on once `EMAIL_FROM` is on your own verified domain (Resend's test sender only reaches your own inbox) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Turns on push notifications. Make a pair with `pnpm push:keys`. Optional                                                                                                          |
 | `AI_MONTHLY_BUDGET_USD`                 | Monthly AI spending cap ($50 by default). Admins are warned at 80%                                                                                                                |
-| `STRIPE_*`                              | Host plans, in Stripe test mode. See "Testing card payments" below                                                                                                                |
+| `STRIPE_*`                              | Card payments (host plans and guests paying online), in Stripe test mode. See "Testing card payments" below                                                                       |
+| `WHISH_MODE`, `WHISH_*`                 | Whish payments. `simulator` (the default) runs a stand-in Whish page inside the app: phone `96170123456`, code `111111`. Set `sandbox` once Whish issues keys                     |
 
 ### Testing card payments
 
@@ -63,7 +64,7 @@ Stripe can't reach `localhost`, so the Stripe CLI passes its events along. Insta
 
 ```bash
 STRIPE_API_KEY=sk_test_… stripe listen --forward-to localhost:3000/api/webhooks/stripe \
-  --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted
+  --events checkout.session.completed,invoice.paid,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted
 ```
 
 Put the signing secret it prints into `STRIPE_WEBHOOK_SECRET`. On the dashboard's Billing page, pay with the test
@@ -71,13 +72,14 @@ card `4242 4242 4242 4242`, any future date and any CVC.
 
 ## Useful commands
 
-| Command                 | What it does                                                           |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `pnpm check`            | Types, lint, formatting, unused code and unit tests in one go          |
-| `pnpm test:integration` | Tests against a real database, including the race and isolation tests  |
-| `pnpm smoke`            | Clicks through guest, host, admin and outsider flows on a running app  |
-| `pnpm edge-cases`       | Tries what should fail (bad input, wrong roles, other businesses' ids) |
-| `pnpm run docs`         | Regenerates the full database diagram and the API contract             |
+| Command                 | What it does                                                            |
+| ----------------------- | ----------------------------------------------------------------------- |
+| `pnpm check`            | Types, lint, formatting, unused code and unit tests in one go           |
+| `pnpm test:integration` | Tests against a real database, including the race and isolation tests   |
+| `pnpm smoke`            | Clicks through guest, host, admin and outsider flows on a running app   |
+| `pnpm edge-cases`       | Tries what should fail (bad input, wrong roles, other businesses' ids)  |
+| `pnpm payments`         | Pays, refunds and pays out through the Whish simulator on a running app |
+| `pnpm run docs`         | Regenerates the full database diagram and the API contract              |
 
 ## How it's built
 
@@ -116,8 +118,11 @@ expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets 
   simply "don't exist" for you, and tests prove it on the website, the API and the AI connectors.
 - **Roles are built, not fixed.** Owners tick the permissions each role gets. Nobody can give away a permission
   they don't have, and read-only AI keys lose every write permission.
-- **Deposits the way Lebanon pays.** Whish, OMT, cash or bank transfer, recorded by the host. Card payment is
-  only used for host plans.
+- **No commission, ever.** Each host chooses requests or instant booking, and whether guests pay them directly
+  (Whish, OMT, cash, bank) or online through Mabeet (Whish or card). Online money is held for the host until the
+  stay starts, then paid out on request. Mabeet earns only from plans.
+- **The provider decides, not the callback.** A Whish callback or a returning guest only makes Mabeet ask Whish or
+  Stripe what happened. Settling is idempotent, and a payment that lands too late is refunded automatically.
 - **Calendars both ways.** Each room publishes a private calendar link and reads the platforms' links on a
   schedule. Platforms refresh slowly, so feeds are re-read before a host confirms.
 
@@ -136,5 +141,10 @@ expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets 
 - Airbnb and Booking.com refresh calendars on their own schedule, often every few hours. Clashes are shown to the
   host and never cancelled automatically.
 - Kazderni has no public API or calendar link, so hosts add its bookings as manual blocks.
-- Lebanese hosts can't take card deposits online yet, so deposits are recorded by hand.
+- Whish payments run on a built-in simulator until Mabeet gets Whish merchant keys. The client follows Whish's
+  API (v1.4.4) and switches with `WHISH_MODE=sandbox`. Whish's real callbacks refuse `localhost`, so real Whish
+  needs the deployed URL.
+- Whish only refunds whole payments. Partial Whish refunds (a guest cancelling under a moderate or strict policy)
+  appear on the admin's money page to send by hand.
+- Payouts are sent by an admin and marked as sent; Mabeet doesn't move money to hosts automatically.
 - On iPhone, push notifications only work once Mabeet is added to the Home Screen and opened from there.

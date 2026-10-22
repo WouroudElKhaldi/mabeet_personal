@@ -11,7 +11,20 @@ import { findActiveBusinessBySlug } from "@/server/repositories/business-reposit
 import { findRateOverrides, findRoom, lockActiveRoom } from "@/server/repositories/room-repository";
 import { assertTransition } from "./booking-status";
 import { recordAction } from "./audit";
-import { notifyBookingRequested, notifyBookingStatus, notifyGuestCancelled } from "./notification-service";
+import {
+  PAY_AFTER_ACCEPT_HOURS,
+  holdUntil,
+  initialStatus,
+  onlineDue,
+  statusOnAccept,
+} from "./booking-policy";
+import {
+  notifyBookingRequested,
+  notifyBookingStatus,
+  notifyGuestCancelled,
+  notifyHostsNewBooking,
+} from "./notification-service";
+import { refundForEndedBooking } from "./online-payment-service";
 import { refreshRoomFeeds } from "./calendar-service";
 import { quoteStay } from "./pricing";
 
@@ -44,8 +57,9 @@ export interface BookingRequest {
 }
 
 /**
- * A guest asks for dates. The room is claimed now (HELD), not when the owner confirms,
- * so when two guests race for the last free night exactly one wins and the other hears it at once.
+ * A guest asks for dates. The room is claimed now, not when the owner confirms, so when two guests race for
+ * the last free night exactly one wins and the other hears it at once. The host's settings decide where the
+ * booking starts: HELD (a request), AWAITING_PAYMENT (instant, paid online) or CONFIRMED (instant, paid at the place).
  */
 export async function requestBooking(request: BookingRequest, now = new Date()): Promise<Booking> {
   const { businessSlug, ...stay } = request;
@@ -69,6 +83,7 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
         depositPercent: business.depositPercent,
       });
 
+      const status = initialStatus(business);
       const held = await bookings.createHeldBooking(tx, {
         ...stay,
         businessId: business.id,
@@ -78,7 +93,10 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
         currency: business.currency,
         reference: bookingReference(),
         publicToken: secureToken(),
-        holdExpiresAt: new Date(now.getTime() + business.holdHours * 3_600_000),
+        status,
+        holdExpiresAt: holdUntil(status, business.holdHours, now),
+        onlineDueCents: onlineDue(business, quote),
+        refundPolicy: business.refundPolicy,
       });
       // Same transaction: the guest never gets an error for a booking that was in fact created.
       await logActivity(tx, {
@@ -90,7 +108,12 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
       });
       return held;
     });
-    notifyBookingRequested(booking.id);
+    if (booking.status === "HELD") {
+      notifyBookingRequested(booking.id);
+    } else {
+      notifyBookingStatus(booking.id);
+      notifyHostsNewBooking(booking.id);
+    }
     expiredIds.forEach((id) => notifyBookingStatus(id));
     return booking;
   } catch (error) {
@@ -123,20 +146,39 @@ export interface Decision {
   reason?: string;
 }
 
-/** Refreshes the room's platform calendars first, so a booking that just landed on Airbnb is caught. */
+/**
+ * The host accepts a request. Refreshes the room's platform calendars first, so a booking that just landed on
+ * Airbnb is caught. When the host collects online, the booking then waits for the guest's payment.
+ */
 export async function confirmBooking(ctx: TenantContext, { bookingId }: Decision, now = new Date()) {
   requirePermission(ctx, "bookings.decide");
   const booking = await bookings.findBooking(prisma, ctx.businessId, bookingId);
-  if (booking) await refreshRoomFeeds(ctx.businessId, booking.roomId);
-  return decide(ctx, bookingId, "CONFIRMED", now);
+  if (!booking) throw notFound("Booking");
+  await refreshRoomFeeds(ctx.businessId, booking.roomId);
+  return decide(ctx, bookingId, statusOnAccept(booking.onlineDueCents), now);
 }
 
-export function declineBooking(ctx: TenantContext, { bookingId, reason }: Decision, now = new Date()) {
-  return decide(ctx, bookingId, "DECLINED", now, reason);
+export async function declineBooking(ctx: TenantContext, { bookingId, reason }: Decision, now = new Date()) {
+  const booking = await decide(ctx, bookingId, "DECLINED", now, reason);
+  await refundAfterHostEnded(booking, now);
+  return booking;
 }
 
-export function cancelBooking(ctx: TenantContext, { bookingId, reason }: Decision, now = new Date()) {
-  return decide(ctx, bookingId, "CANCELLED", now, reason);
+export async function cancelBooking(ctx: TenantContext, { bookingId, reason }: Decision, now = new Date()) {
+  const booking = await decide(ctx, bookingId, "CANCELLED", now, reason);
+  await refundAfterHostEnded(booking, now);
+  return booking;
+}
+
+/** The host ended a booking the guest may have paid online for: they get all of it back. */
+function refundAfterHostEnded(booking: Booking, now: Date) {
+  if (booking.onlineDueCents === null) return;
+  return refundForEndedBooking(
+    { kind: "stay", id: booking.id, refundPolicy: booking.refundPolicy, startsAt: booking.checkIn },
+    "host",
+    "Cancelled by the host",
+    now,
+  );
 }
 
 async function decide(
@@ -152,11 +194,16 @@ async function decide(
     if (!current) throw notFound("Booking");
     await lockActiveRoom(tx, ctx.businessId, current.roomId);
     assertTransition(current.status, status);
-    if (status === "CONFIRMED") await assertStillConfirmable(tx, current, now);
+    if (status === "CONFIRMED" || status === "AWAITING_PAYMENT")
+      await assertStillConfirmable(tx, current, now);
     return bookings.changeStatus(tx, ctx.businessId, bookingId, {
       status,
       decidedById: ctx.userId,
       cancelReason: reason,
+      // Accepted with online payment: the guest gets the host's answer time again to pay.
+      ...(status === "AWAITING_PAYMENT" && {
+        holdExpiresAt: new Date(now.getTime() + PAY_AFTER_ACCEPT_HOURS * 3_600_000),
+      }),
     });
   });
   await recordAction(ctx, `booking.${status.toLowerCase()}`, "booking", bookingId);
@@ -231,6 +278,14 @@ export async function cancelStayAsGuest(publicToken: string, reason: string | nu
   if (booking) {
     notifyBookingStatus(booking.id);
     notifyGuestCancelled(booking.id);
+    if (booking.onlineDueCents !== null) {
+      await refundForEndedBooking(
+        { kind: "stay", id: booking.id, refundPolicy: booking.refundPolicy, startsAt: booking.checkIn },
+        "guest",
+        "Cancelled by the guest",
+        now,
+      );
+    }
   }
   return booking;
 }

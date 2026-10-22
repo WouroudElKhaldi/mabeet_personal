@@ -26,6 +26,9 @@ erDiagram
 
   Booking ||--o{ Payment : "deposit"
   SessionBooking ||--o{ Payment : "deposit"
+  Payment ||--o{ Refund : "given back"
+  Business ||--o{ Payout : "paid out to"
+  Business ||--o{ PlanPayment : "pays Mabeet for its plan"
   Booking ||--o| Review : "reviewed once"
   User ||--o{ Booking : "guest of"
   User ||--o{ Favorite : saves
@@ -75,16 +78,20 @@ has the full picture.
 
 **Money, trust and AI**
 
-| Table         | In plain words                                                         |
-| ------------- | ---------------------------------------------------------------------- |
-| `Payment`     | A deposit the host recorded (Whish, OMT, bank, cash) or a card payment |
-| `Review`      | One review per stay, only by the guest who stayed                      |
-| `Favorite`    | A place a guest saved                                                  |
-| `ActivityLog` | Who did what and when, for the activity feeds and admin actions        |
-| `ApiKey`      | An AI key tied to one team member; only a hash is stored               |
-| `McpAuditLog` | Every tool call an AI made, so owners can see what it looked at        |
-| `AiUsage`     | AI spending per month, for the budget cap                              |
+| Table         | In plain words                                                                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `Payment`     | Money for a booking: recorded by the host (Whish, OMT, bank, cash), or paid online through Mabeet (`online`), which Mabeet owes the host |
+| `Refund`      | Money given back to a guest from an online payment; `PENDING` when an admin must send it by hand                                         |
+| `Payout`      | A host asking Mabeet to send what it holds for them, to an IBAN or a Whish number                                                        |
+| `PlanPayment` | A host paying for a plan (a Stripe invoice or a Whish month). Mabeet's only revenue                                                      |
+| `Review`      | One review per stay, only by the guest who stayed                                                                                        |
+| `Favorite`    | A place a guest saved                                                                                                                    |
+| `ActivityLog` | Who did what and when, for the activity feeds and admin actions                                                                          |
+| `ApiKey`      | An AI key tied to one team member; only a hash is stored                                                                                 |
+| `McpAuditLog` | Every tool call an AI made, so owners can see what it looked at                                                                          |
+| `AiUsage`     | AI spending per month, for the budget cap                                                                                                |
 
+`WhishSandboxPayment` is the Whish simulator's own state, used only while `WHISH_MODE=simulator`.
 `PushSubscription` holds the phones and browsers that turned on notifications, each following a person or one
 booking.
 
@@ -102,7 +109,9 @@ Prisma can't describe these, so they live in hand-written SQL migrations, and te
   than it has, even under many requests at once, and its capacity can't drop below what is sold.
 - **Sane values.** Check-out after check-in (`occupancy_valid_range`, `booking_valid_range`,
   `session_valid_range`), at least one guest (`booking_positive_guests`), ratings from 1 to 5
-  (`review_rating_range`), at least one seat, positive payments (`payment_positive_amount`), and each payment
+  (`review_rating_range`), at least one seat, positive payments, refunds, payouts and plan payments
+  (`payment_positive_amount`, …), no refund beyond the payment (`payment_refund_within_amount`), a payout always
+  has its destination (`payout_has_destination`), and each payment
   and push subscription belonging to exactly one thing.
 - **Platform nights may overlap each other** (Airbnb and Booking.com sometimes do), so imported rows are left out
   of the overlap rule. Direct requests are still checked against them, in code, while the room is locked.

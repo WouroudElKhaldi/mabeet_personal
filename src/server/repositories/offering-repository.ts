@@ -1,10 +1,10 @@
-import type { BookingStatus, ListingKind, Prisma } from "@prisma/client";
+import type { BookingStatus, ListingKind, Prisma, RefundPolicy } from "@prisma/client";
 import type { Db } from "@/server/db/client";
 
 // Experiences and services, their sessions, and the bookings made on those sessions.
 // Team queries always filter by businessId; public queries only return listed, active businesses.
 
-const ACTIVE_STATUSES: BookingStatus[] = ["HELD", "CONFIRMED"];
+const ACTIVE_STATUSES: BookingStatus[] = ["HELD", "AWAITING_PAYMENT", "CONFIRMED"];
 
 const publicOfferingFields = {
   id: true,
@@ -40,6 +40,10 @@ const publicOfferingFields = {
       depositPercent: true,
       whatsapp: true,
       timezone: true,
+      bookingMode: true,
+      paymentCollection: true,
+      onlineAmount: true,
+      refundPolicy: true,
     },
   },
 } satisfies Prisma.OfferingSelect;
@@ -234,12 +238,16 @@ export interface NewHeldSessionBooking {
   currency: string;
   reference: string;
   publicToken: string;
-  holdExpiresAt: Date;
+  /** HELD for a request, AWAITING_PAYMENT or CONFIRMED for an instant booking. All of them take the seats. */
+  status: BookingStatus;
+  holdExpiresAt: Date | null;
+  onlineDueCents: number | null;
+  refundPolicy: RefundPolicy;
   locale?: string;
 }
 
 export function createHeldSessionBooking(tx: Prisma.TransactionClient, booking: NewHeldSessionBooking) {
-  return tx.sessionBooking.create({ data: { ...booking, status: "HELD" } });
+  return tx.sessionBooking.create({ data: booking });
 }
 
 const teamBookingInclude = {
@@ -297,7 +305,12 @@ export function changeSessionBookingStatus(
   tx: Prisma.TransactionClient,
   businessId: string,
   bookingId: string,
-  change: { status: BookingStatus; decidedById?: string; cancelReason?: string },
+  change: {
+    status: BookingStatus;
+    decidedById?: string;
+    cancelReason?: string;
+    holdExpiresAt?: Date | null;
+  },
 ) {
   return tx.sessionBooking.update({
     where: { id: bookingId, businessId },
@@ -308,7 +321,7 @@ export function changeSessionBookingStatus(
 /** Expires unanswered session holds in one UPDATE that re-checks status. Returns the expired ids. */
 export async function expireStaleSessionHolds(db: Db, now: Date): Promise<string[]> {
   const expired = await db.sessionBooking.updateManyAndReturn({
-    where: { status: "HELD", holdExpiresAt: { lt: now } },
+    where: { status: { in: ["HELD", "AWAITING_PAYMENT"] }, holdExpiresAt: { lt: now } },
     data: { status: "EXPIRED" },
     select: { id: true },
   });

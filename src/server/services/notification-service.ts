@@ -280,6 +280,11 @@ type StatusCopy = { subject: string; title: string; body: string };
 
 const STATUS_COPY: Record<Lang, Partial<Record<BookingStatus, StatusCopy>>> = {
   en: {
+    AWAITING_PAYMENT: {
+      subject: "Pay to secure it",
+      title: "It's yours once you pay",
+      body: "The dates are held for you. Pay online from your booking page, with Whish or a card, to confirm it before the time runs out.",
+    },
     CONFIRMED: {
       subject: "Confirmed",
       title: "You're going! Your booking is confirmed",
@@ -302,6 +307,11 @@ const STATUS_COPY: Record<Lang, Partial<Record<BookingStatus, StatusCopy>>> = {
     },
   },
   ar: {
+    AWAITING_PAYMENT: {
+      subject: "ادفع لتثبيت الحجز",
+      title: "الحجز لك بمجرّد الدفع",
+      body: "التواريخ محجوزة لك. ادفع عبر الإنترنت من صفحة حجزك، بـ Whish أو بالبطاقة، لتأكيده قبل انتهاء المهلة.",
+    },
     CONFIRMED: {
       subject: "تم التأكيد",
       title: "أنت ذاهب! تم تأكيد حجزك",
@@ -346,7 +356,7 @@ export function notifyBookingStatus(bookingId: string, kind: Notice["kind"] = "s
         body: [copy.body, ...reason],
         details: notice.details(l),
         action:
-          notice.status === "CONFIRMED"
+          notice.status === "CONFIRMED" || notice.status === "AWAITING_PAYMENT"
             ? { label: l === "ar" ? "اعرض حجزك" : "See your booking", url: url(`/b/${notice.publicToken}`) }
             : { label: l === "ar" ? "ابحث عن غيره" : "Find something else", url: url("/search") },
       },
@@ -414,6 +424,108 @@ export function notifyPaymentRecorded(
           l === "ar"
             ? "شكرًا لك. سجّل المضيف دفعتك على هذا الحجز."
             : "Thank you. The host recorded your payment against this booking.",
+        ],
+        details: notice.details(l),
+        action: {
+          label: l === "ar" ? "اعرض حجزك" : "See your booking",
+          url: url(`/b/${notice.publicToken}`),
+        },
+      },
+    });
+  });
+}
+
+/** An instant booking: nobody has to answer it, but the people who handle bookings should know at once. */
+export function notifyHostsNewBooking(bookingId: string, kind: Notice["kind"] = "stay"): void {
+  inBackground("instant booking notice", async () => {
+    const notice = await load(kind, bookingId);
+    if (!notice) return;
+    await tellHosts(notice.businessId, (l) => ({
+      subject:
+        l === "ar"
+          ? `حجز جديد: ${notice.guestName}، ${notice.when(l)}`
+          : `New booking: ${notice.guestName}, ${notice.when(l)}`,
+      idempotencyKey: `instant-host-${notice.id}`,
+      message: {
+        kicker: l === "ar" ? "حجز فوري" : "Instant booking",
+        title: l === "ar" ? `${notice.guestName} حجز` : `${notice.guestName} booked`,
+        body: [
+          notice.status === "AWAITING_PAYMENT"
+            ? l === "ar"
+              ? "الحجز بانتظار دفع الضيف عبر الإنترنت. يتأكد تلقائيًا عند الدفع، أو يُلغى إن لم يدفع في الوقت."
+              : "It waits for the guest's online payment, confirms itself when they pay, and ends if they don't in time."
+            : l === "ar"
+              ? "تم تأكيد الحجز فورًا. الدفع يتم لديك مباشرة."
+              : "It was confirmed straight away. The guest pays you directly.",
+        ],
+        details: notice.details(l),
+        action: {
+          label: l === "ar" ? "افتح الحجوزات" : "Open bookings",
+          url: url(`/dashboard/${notice.businessId}/bookings?tab=all`),
+        },
+      },
+    }));
+  });
+}
+
+/** The guest paid online: a receipt for them, and a note for the hosts (the money waits in their payouts). */
+export function notifyOnlinePayment(
+  bookingId: string,
+  amountCents: number,
+  paymentId: string,
+  kind: Notice["kind"] = "stay",
+): void {
+  notifyPaymentRecorded(bookingId, amountCents, paymentId, kind);
+  inBackground("online payment host notice", async () => {
+    const notice = await load(kind, bookingId);
+    if (!notice) return;
+    await tellHosts(notice.businessId, (l) => {
+      const amount = formatMoney(amountCents, notice.currency, l);
+      return {
+        subject:
+          l === "ar"
+            ? `دفع ${notice.guestName} ${amount} عبر الإنترنت`
+            : `${notice.guestName} paid ${amount} online`,
+        idempotencyKey: `online-host-${paymentId}`,
+        message: {
+          kicker: l === "ar" ? "دفعة عبر الإنترنت" : "Online payment",
+          title: l === "ar" ? `وصل ${amount}` : `${amount} received`,
+          body: [
+            l === "ar"
+              ? "يحفظ مبيت المبلغ لك بلا أي عمولة. يمكنك طلب تحويله من صفحة المدفوعات بعد بدء الإقامة."
+              : "Mabeet holds it for you, with no commission. Ask for it from the Payouts page once the stay has started.",
+          ],
+          details: notice.details(l),
+          action: {
+            label: l === "ar" ? "افتح المدفوعات" : "Open payouts",
+            url: url(`/dashboard/${notice.businessId}/payouts`),
+          },
+        },
+      };
+    });
+  });
+}
+
+/** Money going back to the guest after a cancellation, a decline or a late payment. */
+export function notifyRefund(bookingId: string, amountCents: number, kind: Notice["kind"] = "stay"): void {
+  inBackground("refund notice", async () => {
+    const notice = await load(kind, bookingId);
+    if (!notice) return;
+    const l = notice.locale;
+    const amount = formatMoney(amountCents, notice.currency, l);
+    await tellGuest(notice, {
+      subject:
+        l === "ar"
+          ? `استرداد ${amount} عن ${notice.reference}`
+          : `Refund of ${amount} for ${notice.reference}`,
+      idempotencyKey: `refund-${notice.id}-${amountCents}`,
+      message: {
+        kicker: l === "ar" ? "استرداد" : "Refund",
+        title: l === "ar" ? `نعيد إليك ${amount}` : `${amount} is on its way back to you`,
+        body: [
+          l === "ar"
+            ? "يعود المبلغ إلى البطاقة أو حساب Whish الذي دفعت منه. قد يستغرق ذلك بضعة أيام."
+            : "It goes back to the card or Whish account you paid with. It can take a few days to show.",
         ],
         details: notice.details(l),
         action: {

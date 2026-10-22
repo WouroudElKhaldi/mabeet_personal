@@ -7,7 +7,7 @@ import { addDays, todayUtc } from "@/lib/dates";
 import { stagger } from "@/lib/motion";
 import { can } from "@/server/auth/tenant-context";
 import { requirePageTenant } from "@/server/http/session";
-import { type Channel, getBusinessReport } from "@/server/services/analytics-service";
+import { type Channel, getBusinessReport, getSavings } from "@/server/services/analytics-service";
 import { listBookings } from "@/server/services/booking-service";
 import { listSessionBookings } from "@/server/services/session-booking-service";
 import { getTimezone } from "@/server/services/settings-service";
@@ -29,8 +29,9 @@ export default async function OverviewPage({ params }: PageProps) {
   const today = todayUtc();
   const last90 = { checkIn: addDays(today, -90), checkOut: addDays(today, 1) };
   const canRead = can(ctx, "bookings.read");
-  const [report, pending, pendingSessions, timezone] = await Promise.all([
+  const [report, savings, pending, pendingSessions, timezone] = await Promise.all([
     can(ctx, "analytics.read") ? getBusinessReport(ctx, last90) : null,
+    can(ctx, "analytics.read") ? getSavings(ctx) : [],
     canRead ? listBookings(ctx, { status: "HELD", take: 20, skip: 0 }) : [],
     canRead ? listSessionBookings(ctx, { status: "HELD", take: 20 }) : [],
     getTimezone(ctx),
@@ -72,6 +73,38 @@ export default async function OverviewPage({ params }: PageProps) {
           </div>
         </section>
       )}
+
+      {savings.map((row) => (
+        <section key={row.currency} className="rounded-xl bg-surface p-5 ring-1 ring-line">
+          <h2 className="text-2xl font-semibold">{t("savings.title")}</h2>
+          <p className="mt-1 text-sm text-muted">{t("savings.intro")}</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile
+              label={t("savings.revenue")}
+              value={row.directRevenueCents}
+              kind="money"
+              currency={row.currency}
+            />
+            <StatTile
+              label={t("savings.saved")}
+              value={row.commissionSavedCents}
+              kind="money"
+              currency={row.currency}
+              note={t("vsPlatforms")}
+            />
+            <StatTile label={t("savings.fees")} value={row.planFeesUsdCents} kind="money" currency="USD" />
+            {row.currency === "USD" && (
+              <StatTile
+                label={t("savings.kept")}
+                value={row.commissionSavedCents - row.planFeesUsdCents}
+                kind="money"
+                currency="USD"
+                note={t("savings.keptNote")}
+              />
+            )}
+          </div>
+        </section>
+      ))}
 
       {can(ctx, "bookings.read") && (
         <section>

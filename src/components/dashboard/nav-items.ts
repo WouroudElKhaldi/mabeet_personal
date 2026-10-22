@@ -7,6 +7,7 @@ import {
   Inbox,
   KeyRound,
   LayoutDashboard,
+  Landmark,
   type LucideIcon,
   RefreshCw,
   Settings,
@@ -28,7 +29,8 @@ export interface NavItem {
     | "assistant"
     | "keys"
     | "settings"
-    | "billing";
+    | "billing"
+    | "payouts";
   path: string;
   icon: LucideIcon;
   /** Shown when the member holds any of these; empty means everyone. */
@@ -48,6 +50,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "keys", path: "/keys", icon: KeyRound, anyOf: ["ai.use"] },
   { key: "settings", path: "/settings", icon: Settings, anyOf: ["settings.manage"] },
   { key: "billing", path: "/billing", icon: CreditCard, anyOf: ["settings.manage"] },
+  // The page itself is owners only; settings.manage is the closest permission for showing the link.
+  { key: "payouts", path: "/payouts", icon: Landmark, anyOf: ["settings.manage"] },
 ];
 
 export function visibleNavItems(permissions: ReadonlySet<Permission>): NavItem[] {

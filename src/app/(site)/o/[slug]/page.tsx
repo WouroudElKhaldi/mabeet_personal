@@ -183,6 +183,8 @@ export default async function OfferingPage({ params }: PageProps) {
               seatsLeft: session.seatsLeft,
             }))}
             defaults={{ name: user?.name, email: user?.email }}
+            instant={offering.business.bookingMode === "INSTANT"}
+            payOnline={offering.business.paymentCollection === "ONLINE"}
           />
         </aside>
       </div>

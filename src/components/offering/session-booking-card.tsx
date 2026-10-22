@@ -27,6 +27,8 @@ interface SessionBookingCardProps {
   timezone: string;
   sessions: OpenSession[];
   defaults: { name?: string; email?: string };
+  instant: boolean;
+  payOnline: boolean;
 }
 
 const FIRST_DAYS_SHOWN = 6;
@@ -216,11 +218,11 @@ export function SessionBookingCard(props: SessionBookingCardProps) {
       )}
       <Button type="submit" size="lg" disabled={!selected || submitting} className="w-full">
         {submitting && <LoaderCircle className="size-5 animate-spin" aria-hidden />}
-        {t("request")}
+        {props.instant ? t("bookNow") : t("request")}
       </Button>
       <p className="flex items-start justify-center gap-2 text-center text-sm text-muted">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-        {t("noChargeYet")}
+        {props.payOnline ? t("payOnlineNote") : t("noChargeYet")}
       </p>
     </form>
   );

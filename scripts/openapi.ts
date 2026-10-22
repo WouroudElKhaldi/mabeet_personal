@@ -602,7 +602,8 @@ const OPERATIONS: Operation[] = [
   {
     method: "post",
     path: "/api/webhooks/stripe",
-    summary: "Stripe subscription events (signed; each event applied once)",
+    summary:
+      "Stripe events: plan subscriptions, plan invoices and card payments for bookings (signed; each applied once)",
     tag: "Platform",
     auth: "public",
   },
@@ -638,9 +639,102 @@ const OPERATIONS: Operation[] = [
   {
     method: "post",
     path: "/api/cron/expire-holds",
-    summary: "Expire unanswered holds and email the guests",
+    summary:
+      "Housekeeping: expire unanswered or unpaid bookings, re-check pending online payments, end lapsed Whish plans",
     tag: "Platform",
     auth: "cron",
+  },
+  // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
+  {
+    method: "post",
+    path: "/api/public/bookings/{token}/checkout",
+    summary:
+      "The guest pays a booking that waits for payment, with Whish or a card; returns the payment page",
+    tag: "Payments",
+    auth: "public",
+    body: s.bookingCheckoutInput,
+  },
+  {
+    method: "get",
+    path: "/api/payments/whish/callback",
+    summary: "Whish's callback after a payment attempt; only triggers a status check with Whish",
+    tag: "Payments",
+    auth: "public",
+    query: s.whishCallbackQuery,
+  },
+  {
+    method: "post",
+    path: "/api/workspaces/{businessId}/billing/whish",
+    summary: "Pay one month of a plan with Whish (owners)",
+    tag: "Payments",
+    auth: "member",
+    body: s.checkoutInput,
+  },
+  {
+    method: "get",
+    path: "/api/workspaces/{businessId}/payouts",
+    summary: "What Mabeet holds for the business, its online payments and payouts (owners)",
+    tag: "Payments",
+    auth: "member",
+  },
+  {
+    method: "post",
+    path: "/api/workspaces/{businessId}/payouts",
+    summary:
+      "Ask for a payout to a bank account (IBAN) or a Whish number, up to the available balance (owners)",
+    tag: "Payments",
+    auth: "member",
+    body: s.payoutRequestInput,
+    status: 201,
+  },
+  {
+    method: "post",
+    path: "/api/admin/payouts/{payoutId}",
+    summary: "Mark a payout as sent, with its transfer reference, or refuse it",
+    tag: "Platform",
+    auth: "admin",
+    body: s.payoutDecisionInput,
+  },
+  {
+    method: "post",
+    path: "/api/admin/refunds/{refundId}",
+    summary: "Mark a refund sent by hand (partial Whish refunds, or ones a provider refused)",
+    tag: "Platform",
+    auth: "admin",
+    body: s.refundSentInput,
+  },
+  // The Whish Pay simulator (WHISH_MODE=simulator): Whish's own API, served by the app until Whish issues keys.
+  {
+    method: "post",
+    path: "/api/whish-simulator/payment/whish",
+    summary: "Simulated Whish Pay: create a payment and get its collectUrl",
+    tag: "Whish simulator",
+    auth: "public",
+    body: s.whishCreateBody,
+  },
+  {
+    method: "post",
+    path: "/api/whish-simulator/payment/collect/status",
+    summary: "Simulated Whish Pay: a payment's collectStatus",
+    tag: "Whish simulator",
+    auth: "public",
+    body: s.whishReferenceBody,
+  },
+  {
+    method: "post",
+    path: "/api/whish-simulator/payment/whish/refund",
+    summary: "Simulated Whish Pay: refund a successful payment in full",
+    tag: "Whish simulator",
+    auth: "public",
+    body: s.whishReferenceBody,
+  },
+  {
+    method: "post",
+    path: "/api/whish-simulator/pay/{code}",
+    summary: "Simulated Whish payment page: pay with phone 96170123456 and code 111111",
+    tag: "Whish simulator",
+    auth: "public",
+    body: s.whishPayInput,
   },
 ];
 
@@ -723,7 +817,7 @@ const document = {
   components: {
     securitySchemes: {
       session: { type: "apiKey", in: "cookie", name: "better-auth.session_token" },
-      apiKey: { type: "http", scheme: "bearer", description: "MCP key, mbt_…" },
+      apiKey: { type: "http", scheme: "bearer", description: "MCP key, mbt_â€¦" },
       cronSecret: { type: "http", scheme: "bearer", description: "CRON_SECRET" },
     },
   },

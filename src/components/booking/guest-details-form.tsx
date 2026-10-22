@@ -13,9 +13,10 @@ interface GuestDetailsFormProps {
   slug: string;
   stay: { roomId: string; checkIn: string; checkOut: string; guestCount: number };
   defaults: { name?: string; email?: string; phone?: string };
+  instant: boolean;
 }
 
-export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps) {
+export function GuestDetailsForm({ slug, stay, defaults, instant }: GuestDetailsFormProps) {
   const t = useTranslations("bookPage");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
         className="w-full sm:w-auto sm:justify-self-start"
       >
         {submitting ? <LoaderCircle className="size-5 animate-spin" aria-hidden /> : null}
-        {t("submit")}
+        {instant ? t("submitInstant") : t("submit")}
         {!submitting && <ArrowRight className="size-5 rtl:rotate-180" aria-hidden />}
       </Button>
       <p className="text-sm text-muted">{t("terms")}</p>

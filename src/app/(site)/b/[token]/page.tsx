@@ -1,4 +1,4 @@
-import type { BookingStatus } from "@prisma/client";
+import type { BookingStatus, Payment, RefundPolicy } from "@prisma/client";
 import { clsx } from "clsx";
 import { Check, MessageCircle } from "lucide-react";
 import type { Metadata } from "next";
@@ -8,6 +8,7 @@ import { BoardingPass } from "@/components/brand/boarding-pass";
 import { Postmark } from "@/components/brand/postmark";
 import { GuestCancelButton } from "@/components/booking/guest-cancel-button";
 import { HoldCountdown } from "@/components/booking/hold-countdown";
+import { PayOnline } from "@/components/booking/pay-online";
 import { PhoneAlerts } from "@/components/pwa/phone-alerts";
 import { buttonClass } from "@/components/ui/button";
 import { todayUtc } from "@/lib/dates";
@@ -15,10 +16,14 @@ import { formatMoney, formatStayDates } from "@/lib/format";
 import { stagger } from "@/lib/motion";
 import { formatSessionTime } from "@/lib/zoned-time";
 import { getBookingForGuest } from "@/server/services/booking-service";
+import { onlineMethodsFor, refreshGuestPayments } from "@/server/services/online-payment-service";
 import { pushPublicKey } from "@/server/services/push-service";
 import { getSessionBookingForGuest } from "@/server/services/session-booking-service";
 
-type PageProps = { params: Promise<{ token: string }> };
+type PageProps = {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ payment?: string }>;
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("confirmation");
@@ -39,12 +44,28 @@ interface GuestBookingView {
   depositCents: number;
   currency: string;
   depositPaid: boolean;
+  /** What the guest pays online through Mabeet; null when they pay the host directly. */
+  onlineDueCents: number | null;
+  paidOnlineCents: number;
+  refundedCents: number;
+  refundPolicy: RefundPolicy;
   holdExpiresAt: Date | null;
   whatsapp: string | null;
   depositInstructions: string | null;
   guestName: string;
   /** Still possible to cancel: not finished and not yet started. */
   cancellable: boolean;
+}
+
+/** What the guest paid online and what came back to them. */
+function onlineTotals(payments: Payment[]) {
+  const settled = payments.filter(
+    (payment) => payment.online && (payment.status === "PAID" || payment.status === "REFUNDED"),
+  );
+  return {
+    paidOnlineCents: settled.reduce((sum, payment) => sum + payment.amountCents, 0),
+    refundedCents: settled.reduce((sum, payment) => sum + payment.refundedCents, 0),
+  };
 }
 
 async function loadView(token: string, locale: string): Promise<GuestBookingView | null> {
@@ -70,11 +91,15 @@ async function loadView(token: string, locale: string): Promise<GuestBookingView
       depositCents: stay.depositCents,
       currency: stay.currency,
       depositPaid: stay.payments.some((payment) => payment.status === "PAID"),
+      ...onlineTotals(stay.payments),
+      onlineDueCents: stay.onlineDueCents,
+      refundPolicy: stay.refundPolicy,
       holdExpiresAt: stay.holdExpiresAt,
       whatsapp: stay.business.whatsapp,
       depositInstructions: stay.business.depositInstructions,
       guestName: stay.guestName,
-      cancellable: ["HELD", "CONFIRMED"].includes(stay.status) && stay.checkIn > todayUtc(),
+      cancellable:
+        ["HELD", "AWAITING_PAYMENT", "CONFIRMED"].includes(stay.status) && stay.checkIn > todayUtc(),
     };
   }
 
@@ -102,21 +127,29 @@ async function loadView(token: string, locale: string): Promise<GuestBookingView
     depositCents: session.depositCents,
     currency: session.currency,
     depositPaid: session.payments.some((payment) => payment.status === "PAID"),
+    ...onlineTotals(session.payments),
+    onlineDueCents: session.onlineDueCents,
+    refundPolicy: session.refundPolicy,
     holdExpiresAt: session.holdExpiresAt,
     whatsapp: session.business.whatsapp,
     depositInstructions: session.business.depositInstructions,
     guestName: session.guestName,
-    cancellable: ["HELD", "CONFIRMED"].includes(session.status) && session.session.startsAt > new Date(),
+    cancellable:
+      ["HELD", "AWAITING_PAYMENT", "CONFIRMED"].includes(session.status) &&
+      session.session.startsAt > new Date(),
   };
 }
 
 /** The guest's booking, shown as a boarding pass with live status. The link is the guest's only key. */
-export default async function ConfirmationPage({ params }: PageProps) {
+export default async function ConfirmationPage({ params, searchParams }: PageProps) {
   const { token } = await params;
+  // Back from Whish or Stripe: check the payment now rather than waiting for its callback.
+  if ((await searchParams).payment) await refreshGuestPayments(token);
   const locale = await getLocale();
-  const [t, tPwa, booking] = await Promise.all([
+  const [t, tPwa, tRefund, booking] = await Promise.all([
     getTranslations("confirmation"),
     getTranslations("pwa"),
+    getTranslations("refundPolicy"),
     loadView(token, locale),
   ]);
   if (!booking) notFound();
@@ -162,6 +195,29 @@ export default async function ConfirmationPage({ params }: PageProps) {
           </ol>
         )}
 
+        {booking.status === "AWAITING_PAYMENT" && booking.onlineDueCents !== null && (
+          <section className="mt-8 border-t border-line pt-8">
+            <h2 className="text-xl font-semibold">
+              {t("pay.title", { amount: money(booking.onlineDueCents) })}
+            </h2>
+            <p className="mt-2 leading-relaxed text-muted">{t("pay.intro")}</p>
+            {booking.holdExpiresAt && <HoldCountdown expiresAt={booking.holdExpiresAt.toISOString()} />}
+            <PayOnline token={token} methods={onlineMethodsFor(booking.currency)} />
+            <p className="mt-4 text-sm text-muted">
+              {tRefund(`${booking.refundPolicy}.name`)}: {tRefund(`${booking.refundPolicy}.rule`)}
+            </p>
+          </section>
+        )}
+
+        {booking.paidOnlineCents > 0 && (
+          <section className="mt-8 border-t border-line pt-8">
+            <p className="font-semibold">{t("pay.paid", { amount: money(booking.paidOnlineCents) })}</p>
+            {booking.refundedCents > 0 && (
+              <p className="mt-1 text-muted">{t("pay.refunded", { amount: money(booking.refundedCents) })}</p>
+            )}
+          </section>
+        )}
+
         {booking.status === "HELD" && booking.holdExpiresAt && (
           <section className="mt-8 border-t border-line pt-8">
             <p className="text-sm text-muted">{t("holdIntro")}</p>
@@ -169,7 +225,7 @@ export default async function ConfirmationPage({ params }: PageProps) {
           </section>
         )}
 
-        {!closed && !booking.depositPaid && (
+        {!closed && !booking.depositPaid && booking.onlineDueCents === null && (
           <section className="mt-8 border-t border-line pt-8">
             <h2 className="text-xl font-semibold">
               {t("depositTitle", { amount: money(booking.depositCents) })}

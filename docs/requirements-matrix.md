@@ -43,6 +43,24 @@ repo root. "Smoke" and "edge cases" are `scripts/smoke.ts` and `scripts/edge-cas
 | Pricing and deposit                        | FR F7      | `quoteStay` (`pricing.ts`), rate overrides               | `pricing.test.ts`, `reviews-and-prices.test.ts`                                              |
 | One review per stay, by the guest          | FR F5      | `review-service`, `review_one_booking` CHECK             | `reviews-and-prices.test.ts`                                                                 |
 
+## Payments (no commission)
+
+| Requirement                                     | Documented        | Implemented                                                                | Tested                                                                                                      |
+| ----------------------------------------------- | ----------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Request, instant, paid at the place or online   | FR F3, F9a        | `booking-policy.ts` (`initialStatus`, `onlineDue`, `holdUntil`)            | `booking-policy.test.ts`; `money.test.ts` (each mode)                                                       |
+| A payment confirms a booking once               | NFR, architecture | `settleOnlinePayment`: provider check, then `PENDING → PAID` gate          | `money.test.ts`: 10 callbacks at once → 1 paid, 1 confirmation                                              |
+| Callbacks can't confirm on their own            | Architecture      | Whish status call / Stripe checkout read before settling                   | `money.test.ts` (callback while Whish says pending changes nothing); `pnpm payments` (forged callback 404)  |
+| Late or double payments are refunded            | Architecture      | `settleOnlinePayment` → `refundPayment`                                    | `money.test.ts`: "refunds a payment that lands after the booking expired"                                   |
+| Refunds follow the policy; hosts refund in full | FR F4b            | `refundCents`, `refundForEndedBooking`                                     | `booking-policy.test.ts`; `money.test.ts` (guest moderate → half, manual for Whish; host → full, automatic) |
+| Unpaid instant bookings free the room           | FR F4a            | `expireStaleHolds` covers `AWAITING_PAYMENT`                               | `money.test.ts`: "frees the nights of an instant booking nobody paid for"                                   |
+| Payouts never exceed what is available          | NFR               | Business row lock in `requestPayout`; balance SQL in `money-repository.ts` | `money.test.ts`: 20 requests at once → 1                                                                    |
+| Money waits until the stay starts               | Architecture      | `earned` vs `upcoming` in the balance query                                | `money.test.ts`: "keeps money for stays that haven't started out of reach"                                  |
+| Payout data stays per business, owners only     | NFR (isolation)   | `requireOwner`, queries by `businessId`                                    | `money.test.ts`; `pnpm payments` (front desk 403)                                                           |
+| Database backs the money rules                  | Data model        | `payment_refund_within_amount`, `payout_has_destination`, positive amounts | `money.test.ts`: "is backed by the database"                                                                |
+| Whish client follows Whish's API                | Architecture      | `src/server/payments/whish.ts`                                             | `whish.test.ts` (headers, body, envelope, code 500 never "paid")                                            |
+| Plans by Whish; plan revenue recorded           | FR F15, F16a      | `startWhishPlanCheckout`, `settlePlanPayment`, `invoice.paid`              | `pnpm payments` (Whish month → Pro for 30 days, revenue row)                                                |
+| End to end on a running app                     | README            | Whish simulator, Stripe test mode                                          | `pnpm payments`: 30 checks                                                                                  |
+
 ## Platform qualities
 
 | Requirement                                 | Documented           | Implemented                                                                 | Tested                                                                                   |
@@ -67,6 +85,9 @@ repo root. "Smoke" and "edge cases" are `scripts/smoke.ts` and `scripts/edge-cas
   tests.
 - **Real Airbnb and Booking.com links**: import is tested with Airbnb-style iCal files, not against a live
   listing. Export has not been read by a real platform yet.
+- **Real Whish**: everything runs against the Whish simulator, built from Whish's API documentation. It hasn't
+  met Whish's real sandbox yet, because Mabeet has no Whish keys. Card checkout is checked against Stripe's real
+  test mode, but a completed card payment (and a card refund) needs the Stripe CLI forwarding webhooks.
 - **Push notifications and installing the app** have no automated test beyond the endpoint check above, and
   have not yet been tried on a real phone.
 - **Smoke and failure-case runs** need a running app, so CI doesn't run them. They are run by hand before a

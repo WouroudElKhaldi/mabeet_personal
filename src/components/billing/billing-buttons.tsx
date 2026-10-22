@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api-client";
 
-/** Asks the server for a Stripe page (Checkout or the billing portal) and goes there. */
+/** Asks the server for a payment page (Stripe Checkout, the billing portal or Whish) and goes there. */
 function useStripeRedirect() {
   const t = useTranslations("common");
   const [error, setError] = useState<string | null>(null);
@@ -71,5 +71,24 @@ export function ManageBillingButton({ businessId }: { businessId: string }) {
       </Button>
       <ErrorLine error={error} />
     </div>
+  );
+}
+
+/** Pays one month of a plan with Whish, for hosts without a card. Each payment adds a month. */
+export function WhishPlanButton({ businessId, plan }: { businessId: string; plan: "PRO" | "BUSINESS" }) {
+  const t = useTranslations("plans");
+  const { go, pending, error } = useStripeRedirect();
+  return (
+    <>
+      <Button
+        variant="secondary"
+        className="mt-2 w-full"
+        disabled={pending}
+        onClick={() => go(`/api/workspaces/${businessId}/billing/whish`, { plan })}
+      >
+        {t("payWhish")}
+      </Button>
+      <ErrorLine error={error} />
+    </>
   );
 }

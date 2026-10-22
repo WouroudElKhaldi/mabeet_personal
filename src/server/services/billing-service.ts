@@ -12,10 +12,17 @@ import { requirePermission, type TenantContext } from "@/server/auth/tenant-cont
 import { isUniqueViolation, prisma, runInTransaction } from "@/server/db/client";
 import { env } from "@/server/env";
 import { conflict, forbidden, invalid, notFound, unavailable } from "@/server/errors";
+import { createWhishPayment, getWhishStatus, whishEnabled } from "@/server/payments/whish";
 import * as billing from "@/server/repositories/billing-repository";
+import * as money from "@/server/repositories/money-repository";
+import { secureToken } from "@/lib/tokens";
 import { recordAction } from "./audit";
+import { settleOnlinePayment } from "./online-payment-service";
 
-// Host plans: what each allows, upgrading through Stripe Checkout, and Stripe's webhooks keeping the plan true.
+// Host plans: what each allows, paying by card through Stripe (a subscription) or by Whish (a month at a time),
+// and Stripe's webhooks keeping the plan true. Plan payments are Mabeet's only revenue.
+
+const PLAN_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 type Counted = "rooms" | "offerings" | "members";
 
@@ -58,6 +65,7 @@ export async function getBilling(ctx: TenantContext) {
     renewsAt: row.planRenewsAt,
     hasSubscription: Boolean(row.stripeSubscriptionId),
     checkoutEnabled: stripeEnabled() && Boolean(env.STRIPE_PRICE_PRO && env.STRIPE_PRICE_BUSINESS),
+    whishEnabled: whishEnabled(),
     canManage: ctx.isOwner,
   };
 }
@@ -94,6 +102,77 @@ export async function startCheckout(ctx: TenantContext, plan: "PRO" | "BUSINESS"
   return session.url;
 }
 
+/**
+ * Pays one month of a plan with Whish. Whish has no subscriptions, so each payment adds a month; when the month
+ * runs out without a new payment, the business goes back to Free. Businesses paying by card use Stripe instead.
+ */
+export async function startWhishPlanCheckout(ctx: TenantContext, plan: "PRO" | "BUSINESS") {
+  if (!ctx.isOwner) throw forbidden("Only an owner can change the plan");
+  if (!whishEnabled()) throw unavailable("Whish payments are not set up yet.");
+  const row = await loadBilling(ctx.businessId);
+  if (row.stripeSubscriptionId) throw conflict("You pay by card. Change your plan from Manage billing.");
+  const payment = await money.createPlanPayment(prisma, {
+    businessId: ctx.businessId,
+    plan,
+    amountCents: PLAN_LIMITS[plan].monthlyUsd * 100,
+    currency: "USD",
+    method: "WHISH",
+    providerRef: `whish-plan:${secureToken()}`,
+    status: "PENDING",
+  });
+  const callback = new URL(`/api/payments/whish/callback?plan=${payment.id}`, env.BETTER_AUTH_URL).toString();
+  const url = await createWhishPayment({
+    externalId: payment.id,
+    amountCents: payment.amountCents,
+    currency: "USD",
+    invoice: `Mabeet ${plan} plan, one month`,
+    successCallbackUrl: callback,
+    failureCallbackUrl: `${callback}&attempt=failed`,
+    successRedirectUrl: dashboardUrl(ctx.businessId, `?whish=${payment.id}`),
+    failureRedirectUrl: dashboardUrl(ctx.businessId),
+  });
+  await money.setPlanCheckout(prisma, payment.id, url);
+  await recordAction(ctx, "billing.whish_started", "business", ctx.businessId);
+  return url;
+}
+
+/** Checks a Whish plan payment with Whish and, once paid, adds a month. Repeated calls change nothing. */
+export async function settlePlanPayment(planPaymentId: string, now = new Date()) {
+  const payment = await money.findPlanPayment(prisma, planPaymentId);
+  if (!payment) throw notFound("Payment");
+  if (payment.status === "PAID") return "paid";
+  const { status } = await getWhishStatus(payment.id, payment.currency);
+  if (status !== "success") return status === "failed" ? "failed" : "pending";
+  await runInTransaction(async (tx) => {
+    if (!(await money.markPlanPaid(tx, payment.id, now))) return;
+    const current = await billing.findBilling(tx, payment.businessId);
+    const from =
+      current?.plan === payment.plan && current.planRenewsAt && current.planRenewsAt > now
+        ? current.planRenewsAt
+        : now;
+    await money.extendPlan(tx, payment.businessId, payment.plan, new Date(from.getTime() + PLAN_MONTH_MS));
+  });
+  return "paid";
+}
+
+/** A Whish callback: for a guest's payment or a plan payment. Either way, Whish's own status decides. */
+export async function handleWhishCallback(query: { payment?: string; plan?: string }) {
+  if (query.payment) return settleOnlinePayment(query.payment);
+  if (query.plan) return settlePlanPayment(query.plan);
+  throw invalid("Missing payment reference");
+}
+
+/** Scheduled: plan months that ran out go back to Free, and Whish plan payments whose callback was missed are checked. */
+export async function runPlanHousekeeping(now = new Date()) {
+  const stale = await money.listStalePlanPayments(prisma, new Date(now.getTime() - 2 * 60_000), 25);
+  for (const payment of stale) {
+    await settlePlanPayment(payment.id, now).catch((error: unknown) =>
+      console.error("[plans] check failed", error),
+    );
+  }
+  return { expiredPlans: await money.expireWhishPlans(prisma, now), checked: stale.length };
+}
+
 /** Stripe's billing portal: change plan, update the card, see invoices, cancel. */
 export async function openBillingPortal(ctx: TenantContext) {
   if (!ctx.isOwner) throw forbidden("Only an owner can change the plan");
@@ -112,12 +191,18 @@ async function applyEvent(tx: Tx, event: StripeEvent): Promise<void> {
   const metaBusiness = object.metadata?.businessId;
 
   if (event.type === "checkout.session.completed") {
+    if (object.mode === "payment") return;
     const businessId = object.client_reference_id ?? metaBusiness;
     if (!businessId) return;
     await billing.setBilling(tx, businessId, {
       stripeCustomerId: object.customer ?? null,
       stripeSubscriptionId: object.subscription ?? null,
     });
+    return;
+  }
+
+  if (event.type === "invoice.paid") {
+    await recordInvoice(tx, event);
     return;
   }
 
@@ -151,6 +236,33 @@ async function applyEvent(tx: Tx, event: StripeEvent): Promise<void> {
   });
 }
 
+/** A paid Stripe invoice is a plan payment: Mabeet's revenue. */
+async function recordInvoice(tx: Tx, event: StripeEvent) {
+  const invoice = event.data.object;
+  if (!invoice.amount_paid || !invoice.customer) return;
+  const business = await billing.findBusinessIdByCustomer(tx, invoice.customer);
+  if (!business) return;
+  const line = invoice.lines?.data[0];
+  const plan = planForPrice(line?.pricing?.price_details?.price ?? line?.price?.id ?? undefined) ?? "PRO";
+  await money.createPlanPayment(tx, {
+    businessId: business.id,
+    plan,
+    amountCents: invoice.amount_paid,
+    currency: (invoice.currency ?? "usd").toUpperCase(),
+    method: "STRIPE",
+    providerRef: invoice.id,
+    status: "PAID",
+    paidAt: new Date(),
+  });
+}
+
+/** A card payment for a booking finished on Stripe Checkout: check it and confirm the booking. */
+function paymentCheckoutId(event: StripeEvent): string | null {
+  const object = event.data.object;
+  if (event.type !== "checkout.session.completed" || object.mode !== "payment") return null;
+  return object.metadata?.paymentId ?? null;
+}
+
 export type WebhookResult = "applied" | "duplicate" | "rejected";
 
 /**
@@ -172,9 +284,12 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
       });
       await applyEvent(tx, event);
     });
-    return "applied";
   } catch (error) {
     if (isUniqueViolation(error)) return "duplicate";
     throw error;
   }
+  // Outside the transaction: it asks Stripe and may refund, and it is safe to repeat.
+  const paymentId = paymentCheckoutId(event);
+  if (paymentId) await settleOnlinePayment(paymentId);
+  return "applied";
 }

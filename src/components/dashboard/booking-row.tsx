@@ -8,6 +8,7 @@ import { BookingActions } from "./booking-actions";
 
 const STATUS_STYLE: Record<BookingStatus, string> = {
   HELD: "bg-warning/15 text-warning",
+  AWAITING_PAYMENT: "bg-warning/15 text-warning",
   CONFIRMED: "bg-success/15 text-success",
   DECLINED: "bg-surface-2 text-muted",
   EXPIRED: "bg-surface-2 text-muted",

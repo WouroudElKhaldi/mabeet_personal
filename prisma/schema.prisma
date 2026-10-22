@@ -113,15 +113,41 @@ enum Plan {
   BUSINESS
 }
 
+/// How a guest's request becomes a booking: the host decides, or it is confirmed at once.
+enum BookingMode {
+  REQUEST
+  INSTANT
+}
+
+/// Where the guest pays: to the host directly (cash, Whish, OMT, bank), or online through Mabeet.
+enum PaymentCollection {
+  AT_PLACE
+  ONLINE
+}
+
+/// What an online payment covers: the deposit (the rest is paid at the place) or the whole stay.
+enum OnlineAmount {
+  DEPOSIT
+  FULL
+}
+
+/// How much of an online payment a guest gets back when they cancel. Hosts cancelling always refund in full.
+enum RefundPolicy {
+  FLEXIBLE
+  MODERATE
+  STRICT
+  NON_REFUNDABLE
+}
+
 enum BusinessStatus {
   ACTIVE
   SUSPENDED
 }
 
 model Business {
-  id                   String         @id @default(cuid())
+  id                   String            @id @default(cuid())
   name                 String
-  slug                 String         @unique
+  slug                 String            @unique
   description          String?
   area                 String?
   address              String?
@@ -129,30 +155,34 @@ model Business {
   longitude            Float?
   phone                String?
   whatsapp             String?
-  timezone             String         @default("Asia/Beirut")
-  currency             String         @default("USD")
+  timezone             String            @default("Asia/Beirut")
+  currency             String            @default("USD")
   lbpRate              Int?
-  commissionRateBps    Int            @default(1500) // 15.00%, the platform commission a direct booking saves
-  depositPercent       Int            @default(30)
-  holdHours            Int            @default(24)
+  commissionRateBps    Int               @default(1500) // 15.00%, the platform commission a direct booking saves
+  depositPercent       Int               @default(30)
+  holdHours            Int               @default(24)
   depositInstructions  String?
-  checkInTime          String         @default("14:00")
-  checkOutTime         String         @default("11:00")
+  checkInTime          String            @default("14:00")
+  checkOutTime         String            @default("11:00")
   houseRules           String?
   cancellationPolicy   String?
-  listedPublicly       Boolean        @default(false)
+  bookingMode          BookingMode       @default(REQUEST)
+  paymentCollection    PaymentCollection @default(AT_PLACE)
+  onlineAmount         OnlineAmount      @default(DEPOSIT)
+  refundPolicy         RefundPolicy      @default(FLEXIBLE)
+  listedPublicly       Boolean           @default(false)
   // Fixed keys from src/config/listing.ts: tags for search filters, accessibility for "Things to know".
   tags                 String[]
   accessibility        String[]
   minGuestAge          Int?
-  status               BusinessStatus @default(ACTIVE)
-  plan                 Plan           @default(FREE)
-  stripeCustomerId     String?        @unique
-  stripeSubscriptionId String?        @unique
+  status               BusinessStatus    @default(ACTIVE)
+  plan                 Plan              @default(FREE)
+  stripeCustomerId     String?           @unique
+  stripeSubscriptionId String?           @unique
   /// When the paid plan renews, or ends if it was cancelled.
   planRenewsAt         DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   roles           Role[]
   memberships     Membership[]
@@ -172,6 +202,9 @@ model Business {
   sessions        OfferingSession[]
   sessionBookings SessionBooking[]
   images          StoredImage[]
+  refunds         Refund[]
+  payouts         Payout[]
+  planPayments    PlanPayment[]
 }
 
 // A role is created by an owner or manager and holds a list of permission keys
@@ -328,6 +361,8 @@ model CalendarFeed {
 
 enum BookingStatus {
   HELD
+  /// Accepted (or booked instantly) and waiting for the guest's online payment; the nights stay taken.
+  AWAITING_PAYMENT
   CONFIRMED
   DECLINED
   EXPIRED
@@ -335,34 +370,38 @@ enum BookingStatus {
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  reference     String        @unique
-  businessId    String
-  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  roomId        String
-  room          Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  guestUserId   String?
-  guestUser     User?         @relation("GuestBookings", fields: [guestUserId], references: [id], onDelete: SetNull)
-  guestName     String
-  guestPhone    String
-  guestEmail    String?
-  guestCount    Int
-  guestNote     String?
+  id             String        @id @default(cuid())
+  reference      String        @unique
+  businessId     String
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roomId         String
+  room           Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  guestUserId    String?
+  guestUser      User?         @relation("GuestBookings", fields: [guestUserId], references: [id], onDelete: SetNull)
+  guestName      String
+  guestPhone     String
+  guestEmail     String?
+  guestCount     Int
+  guestNote      String?
   /// The language the guest booked in; their emails are written in it.
-  locale        String        @default("en")
-  checkIn       DateTime      @db.Date
-  checkOut      DateTime      @db.Date
-  totalCents    Int
-  depositCents  Int
-  currency      String
-  status        BookingStatus @default(HELD)
-  publicToken   String        @unique
-  holdExpiresAt DateTime?
-  decidedById   String?
-  decidedAt     DateTime?
-  cancelReason  String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  locale         String        @default("en")
+  checkIn        DateTime      @db.Date
+  checkOut       DateTime      @db.Date
+  totalCents     Int
+  depositCents   Int
+  currency       String
+  /// What the guest pays online through Mabeet; null when they pay the host directly. Fixed when booked.
+  onlineDueCents Int?
+  /// The refund policy the guest agreed to when booking.
+  refundPolicy   RefundPolicy  @default(FLEXIBLE)
+  status         BookingStatus @default(HELD)
+  publicToken    String        @unique
+  holdExpiresAt  DateTime?
+  decidedById    String?
+  decidedAt      DateTime?
+  cancelReason   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   occupancy Occupancy?
   payments  Payment[]
@@ -425,24 +464,129 @@ enum PaymentStatus {
 }
 
 model Payment {
-  id               String          @id @default(cuid())
-  businessId       String
-  business         Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id                String          @id @default(cuid())
+  businessId        String
+  business          Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   // Exactly one of bookingId / sessionBookingId is set (CHECK constraint in the migration).
-  bookingId        String?
-  booking          Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  sessionBookingId String?
-  sessionBooking   SessionBooking? @relation(fields: [sessionBookingId], references: [id], onDelete: Cascade)
-  amountCents      Int
-  currency         String
-  method           PaymentMethod
-  status           PaymentStatus   @default(PAID)
-  providerRef      String?         @unique
-  note             String?
-  recordedById     String?
-  createdAt        DateTime        @default(now())
+  bookingId         String?
+  booking           Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sessionBookingId  String?
+  sessionBooking    SessionBooking? @relation(fields: [sessionBookingId], references: [id], onDelete: Cascade)
+  amountCents       Int
+  currency          String
+  method            PaymentMethod
+  status            PaymentStatus   @default(PAID)
+  providerRef       String?         @unique
+  note              String?
+  recordedById      String?
+  /// Paid online through Mabeet's Whish or Stripe account, so Mabeet owes it to the host.
+  online            Boolean         @default(false)
+  /// Stripe's payment intent, needed to refund a card payment.
+  providerPaymentId String?
+  checkoutUrl       String?
+  paidAt            DateTime?
+  refundedCents     Int             @default(0)
+  createdAt         DateTime        @default(now())
+  refunds           Refund[]
 
   @@index([businessId])
+}
+
+enum RefundStatus {
+  /// Owed to the guest; Mabeet sends it by hand (a partial Whish refund) and marks it done.
+  PENDING
+  DONE
+}
+
+/// Money given back to a guest from an online payment. Reduces what Mabeet owes the host.
+model Refund {
+  id          String       @id @default(cuid())
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  paymentId   String
+  payment     Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amountCents Int
+  currency    String
+  status      RefundStatus
+  reason      String
+  providerRef String?
+  doneAt      DateTime?
+  doneById    String?
+  createdAt   DateTime     @default(now())
+
+  @@index([businessId])
+  @@index([status])
+}
+
+enum PayoutMethod {
+  BANK_TRANSFER
+  WHISH
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PAID
+  REJECTED
+}
+
+/// A host asks Mabeet to send them what it collected online for them; an admin pays it and marks it.
+model Payout {
+  id            String       @id @default(cuid())
+  businessId    String
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  amountCents   Int
+  currency      String
+  method        PayoutMethod
+  accountName   String
+  bankName      String?
+  iban          String?
+  whishPhone    String?
+  status        PayoutStatus @default(REQUESTED)
+  requestedById String
+  reference     String?
+  adminNote     String?
+  decidedById   String?
+  decidedAt     DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([businessId])
+  @@index([status])
+}
+
+/// A host paying for a plan: Stripe invoices and Whish monthly payments. This is Mabeet's revenue.
+model PlanPayment {
+  id          String        @id @default(cuid())
+  businessId  String
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan        Plan
+  amountCents Int
+  currency    String
+  method      PaymentMethod
+  status      PaymentStatus
+  providerRef String        @unique
+  checkoutUrl String?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([businessId])
+  @@index([status, paidAt])
+}
+
+/// The simulated Whish Pay server's own records (WHISH_MODE=simulator). Not used with real Whish keys.
+model WhishSandboxPayment {
+  externalId         String   @id
+  code               String   @unique
+  amount             String
+  currency           String
+  invoice            String?
+  successCallbackUrl String
+  failureCallbackUrl String
+  successRedirectUrl String
+  failureRedirectUrl String
+  /// pending, success, failed or refunded, as Whish reports collectStatus.
+  status             String   @default("pending")
+  payerPhone         String?
+  createdAt          DateTime @default(now())
 }
 
 model WebhookEvent {
@@ -636,36 +780,40 @@ model OfferingSession {
 }
 
 model SessionBooking {
-  id            String          @id @default(cuid())
-  reference     String          @unique
-  publicToken   String          @unique
-  businessId    String
-  business      Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  offeringId    String
-  offering      Offering        @relation(fields: [offeringId], references: [id], onDelete: Restrict)
-  sessionId     String
-  session       OfferingSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  guestUserId   String?
-  guestUser     User?           @relation("GuestSessionBookings", fields: [guestUserId], references: [id], onDelete: SetNull)
-  guestName     String
-  guestPhone    String
-  guestEmail    String?
-  guestNote     String?
+  id             String          @id @default(cuid())
+  reference      String          @unique
+  publicToken    String          @unique
+  businessId     String
+  business       Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  offeringId     String
+  offering       Offering        @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  sessionId      String
+  session        OfferingSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  guestUserId    String?
+  guestUser      User?           @relation("GuestSessionBookings", fields: [guestUserId], references: [id], onDelete: SetNull)
+  guestName      String
+  guestPhone     String
+  guestEmail     String?
+  guestNote      String?
   /// The language the guest booked in; their emails are written in it.
-  locale        String          @default("en")
-  seats         Int
-  totalCents    Int
-  depositCents  Int
-  currency      String
-  status        BookingStatus   @default(HELD)
-  holdExpiresAt DateTime?
-  decidedById   String?
-  decidedAt     DateTime?
-  cancelReason  String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  payments      Payment[]
-  review        Review?
+  locale         String          @default("en")
+  seats          Int
+  totalCents     Int
+  depositCents   Int
+  currency       String
+  /// What the guest pays online through Mabeet; null when they pay the host directly. Fixed when booked.
+  onlineDueCents Int?
+  /// The refund policy the guest agreed to when booking.
+  refundPolicy   RefundPolicy    @default(FLEXIBLE)
+  status         BookingStatus   @default(HELD)
+  holdExpiresAt  DateTime?
+  decidedById    String?
+  decidedAt      DateTime?
+  cancelReason   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  payments       Payment[]
+  review         Review?
 
   @@index([businessId, status])
   @@index([sessionId])

@@ -24,7 +24,8 @@
     "docs:openapi": "tsx --env-file-if-exists=.env scripts/openapi.ts",
     "docs": "pnpm docs:erd && pnpm docs:openapi && prettier --write docs --log-level warn",
     "edge-cases": "tsx --env-file=.env scripts/edge-cases.ts",
-    "push:keys": "tsx scripts/push-keys.ts"
+    "push:keys": "tsx scripts/push-keys.ts",
+    "payments": "tsx --env-file=.env scripts/payments.ts"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.7.12",

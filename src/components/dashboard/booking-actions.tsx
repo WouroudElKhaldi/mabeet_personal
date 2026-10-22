@@ -86,7 +86,7 @@ export function BookingActions({
             {t("recordDeposit")}
           </Button>
         )}
-        {canDecide && status === "CONFIRMED" && (
+        {canDecide && (status === "CONFIRMED" || status === "AWAITING_PAYMENT") && (
           <Button size="sm" variant="ghost" disabled={pending} onClick={() => decide("cancel")}>
             {t("cancel")}
           </Button>

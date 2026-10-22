@@ -85,16 +85,25 @@ unguessable private link (`publicToken`, 32 random bytes), and signed-in guests 
 
 This split is the core of the design.
 
-- **`Booking`** is the guest's request and its lifecycle: who, how many, price, deposit, and a status that moves
-  `HELD → CONFIRMED`, or ends as `DECLINED`, `EXPIRED` or `CANCELLED` (`src/server/services/booking-status.ts`).
+- **`Booking`** is the guest's request and its lifecycle: who, how many, price, deposit, what is due online,
+  and a status (`src/server/services/booking-status.ts`):
+
+```
+request:  HELD ──host accepts──▶ CONFIRMED                       (paid to the host)
+          HELD ──host accepts──▶ AWAITING_PAYMENT ──paid──▶ CONFIRMED   (paid online)
+instant:  CONFIRMED at once                                       (paid to the host)
+          AWAITING_PAYMENT ──paid within 30 min──▶ CONFIRMED      (paid online)
+any time before it starts: DECLINED, EXPIRED (no answer / no payment) or CANCELLED
+```
+
 - **`Occupancy`** is inventory: "this room is taken on these nights". One row per taken range, whatever the
   cause:
 
-| `kind`     | Comes from                                                              | `active` while                    |
-| ---------- | ----------------------------------------------------------------------- | --------------------------------- |
-| `DIRECT`   | A Mabeet booking (one row per booking)                                  | the booking is `HELD`/`CONFIRMED` |
-| `MANUAL`   | A host closing nights: maintenance, a phone booking, Kazderni           | until the host removes it         |
-| `IMPORTED` | An event read from an Airbnb or Booking.com calendar link (or any iCal) | until it leaves the platform feed |
+| `kind`     | Comes from                                                              | `active` while                          |
+| ---------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| `DIRECT`   | A Mabeet booking (one row per booking)                                  | `HELD`, `AWAITING_PAYMENT`, `CONFIRMED` |
+| `MANUAL`   | A host closing nights: maintenance, a phone booking, Kazderni           | until the host removes it               |
+| `IMPORTED` | An event read from an Airbnb or Booking.com calendar link (or any iCal) | until it leaves the platform feed       |
 
 Availability, the calendar, the iCal export and the overlap rule all read `Occupancy`, never `Booking`. A new
 source of taken nights is a new `kind`, not a new set of checks.
@@ -210,10 +219,10 @@ would make loops). An unknown token answers `404`.
 
 ## Background jobs
 
-| Job                     | Endpoint                      | What it does                                              | If it never runs                                                |
-| ----------------------- | ----------------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
-| Calendar sync           | `POST /api/cron/sync-feeds`   | Re-reads up to 20 feeds not synced in the last 15 minutes | Feeds still refresh on "Sync now" and before every confirmation |
-| Expire unanswered holds | `POST /api/cron/expire-holds` | Expires every `HELD` booking past its time, emails guests | Each new request on a room expires that room's stale holds      |
+| Job           | Endpoint                      | What it does                                                                                                                         | If it never runs                                                                                           |
+| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Calendar sync | `POST /api/cron/sync-feeds`   | Re-reads up to 20 feeds not synced in the last 15 minutes                                                                            | Feeds still refresh on "Sync now" and before every confirmation                                            |
+| Housekeeping  | `POST /api/cron/expire-holds` | Re-checks online payments still pending after 2 minutes; expires unanswered and unpaid bookings; ends Whish plan months that ran out | Each new request on a room expires that room's stale holds; a returning guest's payment is checked at once |
 
 Both need `Authorization: Bearer $CRON_SECRET` (compared in constant time). The repo calls them every 15
 minutes from `.github/workflows/scheduled-jobs.yml`, once `APP_URL` and `CRON_SECRET` are set as repository
@@ -240,17 +249,56 @@ The site is an installable web app (PWA): a web manifest, icons, and a service w
 shows notifications and an offline page. Pages are never served from cache, because availability must be
 live.
 
+## Payments
+
+Mabeet takes **no commission or fee on bookings**. Guests either pay the host directly (recorded by the host) or
+online into Mabeet's own Whish or Stripe account, and Mabeet owes every cent of that to the host. Mabeet's income
+is plan payments only (`PlanPayment`).
+
+```
+guest ──POST /api/public/bookings/{token}/checkout──▶ Payment (PENDING) ──▶ Whish page / Stripe Checkout
+                                                                              │
+          Whish callback (GET) · Stripe webhook · guest returns · cron ◀──────┘
+                                   │  each only triggers:
+                                   ▼
+             settleOnlinePayment: ask Whish / Stripe for the real status
+                                   │ paid
+                                   ▼
+             BEGIN · mark PAID only if still PENDING (else: already done, stop)
+                   · booking AWAITING_PAYMENT and no other paid payment? → CONFIRMED
+                   · otherwise (expired, cancelled, paid twice) → refund this payment in full
+             COMMIT · then email + push to guest and hosts
+```
+
+- **Callbacks prove nothing.** Whish's callback is an unauthenticated GET, so it only triggers a status call to
+  Whish (`src/server/payments/whish.ts`). Stripe's webhook is signature-checked and still re-reads the checkout.
+- **Idempotent.** The `PENDING → PAID` update is the gate: ten simultaneous callbacks confirm once (tested).
+- **Refunds** (`refundForEndedBooking`): the host cancelling or declining refunds everything; a guest cancelling
+  gets the share their booking's `refundPolicy` gives (fixed when they booked). Card refunds go through Stripe for
+  any amount. Whish refunds whole payments only, so a partial Whish refund is recorded as `PENDING` for an admin
+  to send by hand. A provider error does the same.
+- **Payouts** (`payout-service.ts`): money for a stay becomes available once the stay (or session) has started,
+  so a cancellation before then can still be refunded from it. A host asks for up to the available amount; the
+  business row is locked while the balance is checked, so parallel requests can't overspend (20 at once → 1,
+  tested). An admin sends the money and marks it sent with the transfer reference. Payouts go to an IBAN or a
+  Whish number; Mabeet never asks for card numbers.
+- **Plans**: Stripe subscriptions as before, with each paid invoice (`invoice.paid`) recorded as revenue. Or one
+  month at a time with Whish; a month that runs out without a new payment returns the business to Free.
+- **Whish simulator.** Until Mabeet has Whish keys, `WHISH_MODE=simulator` serves Whish's own API from inside the
+  app (`/api/whish-simulator/*`) with a payment page that follows Whish's sandbox rules (phone `96170123456`,
+  OTP `111111`, wrong OTP = failed attempt, link stays payable). The real client runs unchanged against it;
+  `WHISH_MODE=sandbox` points it at Whish.
+
 ## External integrations
 
-| Service                        | Used for                | If it's down or not configured                                       |
-| ------------------------------ | ----------------------- | -------------------------------------------------------------------- |
-| Airbnb / Booking.com (iCal)    | Reading their calendars | Feed error shown to the host. Existing imported nights stay          |
-| Resend                         | Emails                  | Emails are logged instead. Bookings are unaffected                   |
-| Web Push (FCM, Mozilla, Apple) | Phone notifications     | Off without VAPID keys. Failures are logged, bookings unaffected     |
-| Stripe (test mode)             | Host plans only         | Plans can't be bought. Webhooks are signature-checked and idempotent |
-| DeepSeek                       | AI chat and assistant   | AI shows a friendly error. Everything else works                     |
-
-Guest deposits are not taken online. Hosts record Whish, OMT, bank or cash payments by hand.
+| Service                        | Used for                      | If it's down or not configured                                        |
+| ------------------------------ | ----------------------------- | --------------------------------------------------------------------- |
+| Airbnb / Booking.com (iCal)    | Reading their calendars       | Feed error shown to the host. Existing imported nights stay           |
+| Resend                         | Emails                        | Emails are logged instead. Bookings are unaffected                    |
+| Web Push (FCM, Mozilla, Apple) | Phone notifications           | Off without VAPID keys. Failures are logged, bookings unaffected      |
+| Stripe (test mode)             | Plans; guests paying by card  | Card payment is hidden. Webhooks are signature-checked and idempotent |
+| Whish Pay (simulator for now)  | Guests paying; plans by Whish | Whish is hidden. Pending payments are re-checked by the scheduled job |
+| DeepSeek                       | AI chat and assistant         | AI shows a friendly error. Everything else works                      |
 
 ## AI and MCP
 

@@ -182,7 +182,9 @@
     "justTaken": "Those nights are taken. Please pick other dates.",
     "request": "Request to book",
     "pickDatesFirst": "Pick your dates",
-    "noChargeYet": "Nothing is charged now. Your room is held while the host confirms."
+    "noChargeYet": "Nothing is charged now. Your room is held while the host confirms.",
+    "bookNow": "Book now",
+    "payOnlineNote": "You pay online after booking, with Whish or a card. Mabeet takes no commission."
   },
   "bookPage": {
     "title": "Request to book",
@@ -206,7 +208,9 @@
     "checkFields": "Please check the highlighted fields.",
     "invalidName": "Enter your full name (at least 2 letters).",
     "invalidPhone": "Use an international number, for example +961 71 123 456.",
-    "invalidEmail": "This email doesn't look right."
+    "invalidEmail": "This email doesn't look right.",
+    "submitInstant": "Book now",
+    "payOnlineNote": "You'll pay <strong>{amount}</strong> online right after booking, with Whish or a card."
   },
   "confirmation": {
     "title": "Your booking",
@@ -216,7 +220,8 @@
       "CONFIRMED": "You're going to {place}",
       "DECLINED": "{place} couldn't take this booking",
       "EXPIRED": "This request to {place} expired",
-      "CANCELLED": "This booking at {place} was cancelled"
+      "CANCELLED": "This booking at {place} was cancelled",
+      "AWAITING_PAYMENT": "Pay to secure your stay at {place}"
     },
     "guests": "{count, plural, one {# guest} other {# guests}}",
     "steps": {
@@ -244,12 +249,22 @@
       "CONFIRMED": "Confirmed",
       "DECLINED": "Declined",
       "EXPIRED": "Expired",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "AWAITING_PAYMENT": "To pay"
     },
     "when": "When",
     "meetingPoint": "Meeting point",
     "host": "Host",
-    "cancelBooking": "Cancel this booking"
+    "cancelBooking": "Cancel this booking",
+    "pay": {
+      "title": "Pay {amount} to confirm",
+      "intro": "Pay online with Whish or a card. Mabeet takes no commission: it all goes to the host. The dates stay yours until the time runs out:",
+      "whish": "Pay with Whish",
+      "card": "Pay by card",
+      "unavailable": "Online payment isn't available right now. Message the host.",
+      "paid": "Paid online: {amount}",
+      "refunded": "Refunded to you: {amount}"
+    }
   },
   "auth": {
     "name": "Full name",
@@ -455,7 +470,8 @@
       "keys": "Connect AI",
       "settings": "Settings",
       "offerings": "Experiences & services",
-      "billing": "Billing"
+      "billing": "Billing",
+      "payouts": "Payouts"
     },
     "overview": {
       "title": "Today",
@@ -481,7 +497,16 @@
         "OTHER": "Other",
         "MANUAL": "Blocked"
       },
-      "noNightsYet": "No nights sold yet. Your first booking will show up here."
+      "noNightsYet": "No nights sold yet. Your first booking will show up here.",
+      "savings": {
+        "title": "What Mabeet saved you",
+        "intro": "Since you joined: every confirmed direct booking, the commission Airbnb or Booking.com would have taken at your rate, and what you paid Mabeet.",
+        "revenue": "Direct bookings",
+        "saved": "Commission saved",
+        "fees": "Paid for your plan",
+        "kept": "You kept",
+        "keptNote": "Saved, minus what you paid Mabeet"
+      }
     },
     "bookings": {
       "title": "Bookings",
@@ -498,7 +523,8 @@
         "CONFIRMED": "Confirmed",
         "DECLINED": "Declined",
         "EXPIRED": "Expired",
-        "CANCELLED": "Cancelled"
+        "CANCELLED": "Cancelled",
+        "AWAITING_PAYMENT": "Waiting for payment"
       },
       "confirm": "Confirm",
       "decline": "Decline",
@@ -660,7 +686,28 @@
       "latitude": "Latitude",
       "longitude": "Longitude",
       "locationHint": "In Google Maps, right-click your door and click the numbers to copy them, e.g. 33.6969, 35.5636.",
-      "thingsToKnow": "Things to know"
+      "thingsToKnow": "Things to know",
+      "payments": {
+        "title": "Booking and payments",
+        "intro": "Choose how guests book and pay. Mabeet never takes a commission: online payments are paid out to you in full.",
+        "bookingMode": "How guests book",
+        "modes": {
+          "REQUEST": "They request, I accept",
+          "INSTANT": "Instant booking"
+        },
+        "collection": "How guests pay",
+        "collections": {
+          "AT_PLACE": "To me directly (cash, Whish, OMT, bank)",
+          "ONLINE": "Online through Mabeet (Whish or card)"
+        },
+        "onlineAmount": "What they pay online",
+        "onlineAmountHint": "Only when guests pay online.",
+        "amounts": {
+          "DEPOSIT": "The deposit (the rest at the place)",
+          "FULL": "The full amount"
+        },
+        "refundPolicy": "Refunds when a guest cancels"
+      }
     },
     "offerings": {
       "title": "Experiences & services",
@@ -737,7 +784,45 @@
       "roomTitle": "Photos of this room",
       "roomHint": "Shown when a guest opens this room. The first one is its cover."
     },
-    "phoneAlerts": "Phone notifications"
+    "phoneAlerts": "Phone notifications",
+    "payouts": {
+      "title": "Payouts",
+      "intro": "What guests paid online through Mabeet. Mabeet keeps no commission. Money for a stay becomes available once the stay starts; then ask for it and it reaches your bank or Whish.",
+      "empty": "No online payments yet. Turn them on in Settings, under Booking and payments.",
+      "available": "Available to pay out",
+      "upcoming": "For upcoming stays",
+      "upcomingNote": "Available once they start",
+      "paidOut": "Paid out",
+      "requestedNote": "{amount} requested",
+      "requestTitle": "Ask for a payout",
+      "nothingAvailable": "Nothing to pay out yet. Money becomes available once the stay or session has started.",
+      "currency": "Currency",
+      "amount": "Amount",
+      "method": "Send it to",
+      "accountName": "Account holder's name",
+      "whishPhone": "Whish phone number",
+      "bankName": "Bank",
+      "iban": "IBAN",
+      "ibanHint": "Spaces are fine.",
+      "noCards": "For your safety, Mabeet never asks for card numbers. Payouts go to a bank account or a Whish number.",
+      "request": "Ask for it",
+      "requested": "Requested. You'll be told when it's sent.",
+      "history": "Payouts",
+      "noPayouts": "No payouts yet.",
+      "payments": "Online payments",
+      "noPayments": "No online payments yet.",
+      "card": "Card",
+      "refunded": "{amount} refunded",
+      "methods": {
+        "WHISH": "Whish",
+        "BANK_TRANSFER": "Bank transfer"
+      },
+      "status": {
+        "REQUESTED": "Requested",
+        "PAID": "Sent",
+        "REJECTED": "Refused"
+      }
+    }
   },
   "account": {
     "eyebrow": "Your account",
@@ -762,7 +847,8 @@
       "CONFIRMED": "Confirmed",
       "DECLINED": "Declined",
       "EXPIRED": "Expired",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "AWAITING_PAYMENT": "Waiting for your payment"
     },
     "noFavorites": "Nothing saved yet",
     "noFavoritesHint": "Tap the heart on any place to keep it here.",
@@ -949,6 +1035,42 @@
       "allGood": "Every feed synced in the last two hours.",
       "lastSynced": "Last synced {when}",
       "never": "Never synced"
+    },
+    "money": {
+      "link": "Money",
+      "title": "Money",
+      "back": "← Platform admin",
+      "intro": "What Mabeet earned from plans, what it holds for each host from online payments, and what you need to send.",
+      "earnedAll": "Earned from plans",
+      "earnedMonth": "Earned this month",
+      "byCard": "Paid by card",
+      "byWhish": "Paid with Whish",
+      "byMonth": "Plan revenue by month",
+      "payments": "{count, plural, one {# payment} other {# payments}}",
+      "requests": "Payouts to send",
+      "noRequests": "No payout requests waiting.",
+      "reference": "Transfer reference",
+      "markPaid": "Mark as sent",
+      "markSent": "Mark as sent",
+      "reject": "Refuse",
+      "owed": "What Mabeet owes hosts",
+      "owedIntro": "Online payments held for each host, net of refunds and payouts.",
+      "nothingOwed": "Nothing held for any host.",
+      "host": "Host",
+      "available": "Available",
+      "upcoming": "Upcoming stays",
+      "requested": "Requested",
+      "paidOut": "Paid out",
+      "refunds": "Refunds to send by hand",
+      "refundsIntro": "Whish only refunds whole payments, so partial Whish refunds (and any refund a provider refused) are sent by you.",
+      "noRefunds": "No refunds waiting.",
+      "card": "Card",
+      "recent": "Recent payouts",
+      "status": {
+        "REQUESTED": "Requested",
+        "PAID": "Sent",
+        "REJECTED": "Refused"
+      }
     }
   },
   "errors": {
@@ -1084,7 +1206,9 @@
     "tags": "Good for",
     "genericError": "Something went wrong. Please try again.",
     "showMore": "Show {count} more dates",
-    "noReviews": "No reviews yet. Guests can review after taking part."
+    "noReviews": "No reviews yet. Guests can review after taking part.",
+    "bookNow": "Book now",
+    "payOnlineNote": "You pay online after booking, with Whish or a card. Mabeet takes no commission."
   },
   "serverErrors": {
     "messages": {
@@ -1163,7 +1287,20 @@
       "paymentsDown": "Payments are not available right now. Please try again shortly.",
       "hasPlan": "You already have a plan. Change it from Manage billing.",
       "choosePlan": "Choose a plan first",
-      "connectWorkspace": "You cannot connect an AI app to this workspace"
+      "connectWorkspace": "You cannot connect an AI app to this workspace",
+      "nothingToPay": "This booking has nothing to pay online right now.",
+      "payTimeOver": "The time to pay has run out. Please book again.",
+      "alreadyPaid": "This booking is already paid.",
+      "whishCurrency": "Whish can't take this currency.",
+      "cardCurrency": "Cards can't be used for this currency.",
+      "whishNotSetUp": "Whish payments are not set up yet.",
+      "whishOdd": "Whish did not answer as expected. Please try again shortly.",
+      "whishDown": "Whish payments are not available right now. Please try again shortly.",
+      "ownersPayouts": "Only an owner can see payouts",
+      "payoutTooMuch": "That is more than is available to pay out.",
+      "payoutDecided": "This payout was already decided.",
+      "refundNotWaiting": "This refund is not waiting to be sent.",
+      "payByCard": "You pay by card. Change your plan from Manage billing."
     },
     "entities": {
       "Block": "Block",
@@ -1184,14 +1321,18 @@
       "Stay": "Stay",
       "Workspace": "Workspace",
       "Account": "Account",
-      "Category": "Category"
+      "Category": "Category",
+      "Payment": "Payment",
+      "Payout": "Payout",
+      "Page": "Page"
     },
     "statuses": {
       "held": "held",
       "confirmed": "confirmed",
       "declined": "declined",
       "expired": "expired",
-      "cancelled": "cancelled"
+      "cancelled": "cancelled",
+      "pending payment": "pending payment"
     }
   },
   "confirm": {
@@ -1305,7 +1446,9 @@
       "rooms": "Rooms",
       "offerings": "Experiences and services",
       "members": "Team members"
-    }
+    },
+    "payWhish": "Pay a month with Whish",
+    "whishPending": "We're waiting for Whish to confirm your payment. Refresh in a minute."
   },
   "oauth": {
     "kicker": "Connect an AI app",
@@ -1346,5 +1489,35 @@
     "manualSteps": "Use your browser's menu and choose Install app or Add to Home Screen.",
     "offlineTitle": "You're offline",
     "offlineBody": "Mabeet needs a connection to show live availability. Check your signal and try again."
+  },
+  "refundPolicy": {
+    "FLEXIBLE": {
+      "name": "Flexible",
+      "rule": "full refund until the day before"
+    },
+    "MODERATE": {
+      "name": "Moderate",
+      "rule": "full refund up to 5 days before, half after that"
+    },
+    "STRICT": {
+      "name": "Strict",
+      "rule": "half back up to 7 days before, nothing after that"
+    },
+    "NON_REFUNDABLE": {
+      "name": "Non-refundable",
+      "rule": "no refund if you cancel"
+    }
+  },
+  "whishSim": {
+    "title": "Whish Pay (simulator)",
+    "banner": "Test mode: no real money moves. Use phone 96170123456 and code 111111.",
+    "pay": "Pay {amount}",
+    "phone": "Whish phone number",
+    "otp": "Code sent to your Whish app",
+    "confirm": "Confirm payment",
+    "cancel": "Cancel and go back",
+    "wrongCode": "That code didn't work. Try again: the payment is still open.",
+    "done": "Paid. Taking you back…",
+    "closed": "This payment link is closed."
   }
 }

@@ -30,8 +30,9 @@ export default async function BookPage({ params, searchParams }: PageProps) {
   if (!parsed.success) redirect(`/p/${slug}`);
   const stay = parsed.data;
 
-  const [t, locale, user, place] = await Promise.all([
+  const [t, tRefund, locale, user, place] = await Promise.all([
     getTranslations("bookPage"),
+    getTranslations("refundPolicy"),
     getLocale(),
     getCurrentUser(),
     findPageOr404(getPlace(slug)),
@@ -65,6 +66,7 @@ export default async function BookPage({ params, searchParams }: PageProps) {
                 guestCount: stay.guests,
               }}
               defaults={{ name: user?.name, email: user?.email }}
+              instant={place.bookingMode === "INSTANT"}
             />
           ) : (
             <div className="rounded-lg bg-danger/10 p-6">
@@ -91,12 +93,28 @@ export default async function BookPage({ params, searchParams }: PageProps) {
               { label: t("total"), value: money(quote.totalCents) },
             ]}
             stub={
-              <p className="text-sm leading-relaxed">
-                {t.rich("depositNote", {
-                  amount: money(quote.depositCents),
-                  strong: (chunk) => <strong>{chunk}</strong>,
-                })}
-              </p>
+              <div className="grid gap-2 text-sm leading-relaxed">
+                <p>
+                  {place.paymentCollection === "ONLINE"
+                    ? t.rich("payOnlineNote", {
+                        amount: money(
+                          place.onlineAmount === "FULL" || quote.depositCents === 0
+                            ? quote.totalCents
+                            : quote.depositCents,
+                        ),
+                        strong: (chunk) => <strong>{chunk}</strong>,
+                      })
+                    : t.rich("depositNote", {
+                        amount: money(quote.depositCents),
+                        strong: (chunk) => <strong>{chunk}</strong>,
+                      })}
+                </p>
+                {place.paymentCollection === "ONLINE" && (
+                  <p className="text-muted">
+                    {tRefund(`${place.refundPolicy}.name`)}: {tRefund(`${place.refundPolicy}.rule`)}
+                  </p>
+                )}
+              </div>
             }
           />
         </aside>

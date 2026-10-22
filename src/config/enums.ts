@@ -5,6 +5,7 @@ import type { BookingStatus, FeedSource, PaymentMethod } from "@prisma/client";
 
 export const BOOKING_STATUSES = [
   "HELD",
+  "AWAITING_PAYMENT",
   "CONFIRMED",
   "DECLINED",
   "EXPIRED",
