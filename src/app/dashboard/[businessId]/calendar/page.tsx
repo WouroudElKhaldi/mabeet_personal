@@ -34,7 +34,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps) 
   }));
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="rise-in text-4xl font-semibold">{t("title")}</h1>
       <CalendarBoard
         businessId={businessId}

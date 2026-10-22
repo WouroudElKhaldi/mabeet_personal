@@ -4,7 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { jwt } from "better-auth/plugins";
 import { prisma } from "@/server/db/client";
-import { emailEnabled } from "@/server/email/send";
+import { emailReachesEveryone } from "@/server/email/send";
 import { env } from "@/server/env";
 import { MCP_RESOURCE, MCP_SCOPES, pickedWorkspace } from "@/server/services/mcp-oauth-service";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/server/services/notification-service";
@@ -20,8 +20,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
-    // Only demand a verified email once email can actually be delivered (RESEND_API_KEY is set).
-    requireEmailVerification: emailEnabled(),
+    // Only demand a verified email once it can actually reach people (a key and a verified sending domain).
+    requireEmailVerification: emailReachesEveryone(),
     sendResetPassword: ({ user, url }) =>
       sendPasswordResetEmail(user.email, user.name, url, (user as { locale?: string }).locale),
     revokeSessionsOnPasswordReset: true,

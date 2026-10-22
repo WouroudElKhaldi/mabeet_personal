@@ -96,29 +96,37 @@ export default async function OverviewPage({ params }: PageProps) {
           <div className="rounded-lg bg-surface p-6 ring-1 ring-line">
             <h2 className="font-display text-xl font-semibold">{t("nightsByMonth")}</h2>
             <div className="mt-6">
-              <BarChart
-                bars={report.monthly.map((month) => {
-                  const label = monthName.format(new Date(`${month.month}-01T00:00:00Z`));
-                  return {
-                    label,
-                    value: month.nights,
-                    title: t("nightsTitle", { month: label, count: month.nights }),
-                  };
-                })}
-              />
+              {report.monthly.length === 0 ? (
+                <p className="text-sm text-muted">{t("noNightsYet")}</p>
+              ) : (
+                <BarChart
+                  bars={report.monthly.map((month) => {
+                    const label = monthName.format(new Date(`${month.month}-01T00:00:00Z`));
+                    return {
+                      label,
+                      value: month.nights,
+                      title: t("nightsTitle", { month: label, count: month.nights }),
+                    };
+                  })}
+                />
+              )}
             </div>
           </div>
           <div className="rounded-lg bg-surface p-6 ring-1 ring-line">
             <h2 className="font-display text-xl font-semibold">{t("channels")}</h2>
             <p className="mt-1 text-sm text-muted">{t("channelsHint")}</p>
             <div className="mt-6">
-              <ShareBar
-                shares={report.channels.map((channel) => ({
-                  label: t(`channel.${channel.channel}`),
-                  value: channel.nights,
-                  className: CHANNEL_STYLE[channel.channel],
-                }))}
-              />
+              {report.channels.length === 0 ? (
+                <p className="text-sm text-muted">{t("noNightsYet")}</p>
+              ) : (
+                <ShareBar
+                  shares={report.channels.map((channel) => ({
+                    label: t(`channel.${channel.channel}`),
+                    value: channel.nights,
+                    className: CHANNEL_STYLE[channel.channel],
+                  }))}
+                />
+              )}
             </div>
           </div>
         </section>

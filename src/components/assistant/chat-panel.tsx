@@ -1,10 +1,10 @@
 "use client";
 
-import { clsx } from "clsx";
 import { ArrowRight, ArrowUp } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { RichText } from "./rich-text";
 import { api, ApiError } from "@/lib/api-client";
 
 export interface ChatMessage {
@@ -122,11 +122,13 @@ export function ChatPanel<Response extends { reply: string }>({
               className="space-y-4"
             >
               {message.role === "user" ? (
-                <p className="ms-auto w-fit max-w-[80%] rounded-2xl rounded-ee-md bg-ink px-4 py-2.5 text-[0.9375rem] leading-relaxed whitespace-pre-line text-paper">
+                <p className="ms-auto w-fit max-w-[80%] rounded-2xl rounded-ee-md bg-ink px-4 py-2.5 text-[0.9375rem] leading-relaxed whitespace-pre-line text-paper [unicode-bidi:plaintext]">
                   {message.content}
                 </p>
               ) : (
-                <Note speaker={speaker}>{message.content}</Note>
+                <Note speaker={speaker}>
+                  <RichText text={message.content} />
+                </Note>
               )}
               {message.attachment}
             </motion.div>
@@ -213,11 +215,8 @@ function Note({ speaker, children }: { speaker: string; children: ReactNode }) {
       <Monogram />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold tracking-[0.12em] text-muted uppercase">{speaker}</p>
-        <p
-          className={clsx(
-            "mt-1 max-w-[62ch] border-s-2 border-accent-line ps-4 text-[1.0625rem] leading-relaxed whitespace-pre-line",
-          )}
-        >
+        {/* plaintext bidi: a Latin or Arabizi reply keeps its punctuation in place on an Arabic page. */}
+        <p className="mt-1 max-w-[62ch] border-s-2 border-accent-line ps-4 text-[1.0625rem] leading-relaxed whitespace-pre-line [unicode-bidi:plaintext]">
           {children}
         </p>
       </div>

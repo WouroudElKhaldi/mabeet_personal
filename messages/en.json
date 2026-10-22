@@ -480,7 +480,8 @@
         "KAZDERNI": "Kazderni",
         "OTHER": "Other",
         "MANUAL": "Blocked"
-      }
+      },
+      "noNightsYet": "No nights sold yet. Your first booking will show up here."
     },
     "bookings": {
       "title": "Bookings",

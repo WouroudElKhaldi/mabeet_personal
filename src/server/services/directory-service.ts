@@ -75,6 +75,12 @@ async function offersFor(
     });
 }
 
+/** The cheapest value, or null when there is none (no offers, or no dates to price a stay). */
+function cheapest(values: Array<number | null>): number | null {
+  const known = values.filter((value): value is number => value !== null);
+  return known.length > 0 ? Math.min(...known) : null;
+}
+
 function toCard(
   place: PublicPlace,
   offers: RoomOffer[],
@@ -88,7 +94,8 @@ function toCard(
     photo: place.photos[0] ?? place.rooms.flatMap((room) => room.photos)[0] ?? null,
     categories: place.categories.map(({ category }) => category),
     rating: rating ?? { average: 0, count: 0 },
-    nightlyFromCents: offers.length > 0 ? Math.min(...offers.map((offer) => offer.nightlyFromCents)) : null,
+    nightlyFromCents: cheapest(offers.map((offer) => offer.nightlyFromCents)),
+    stayTotalFromCents: cheapest(offers.map((offer) => offer.stayTotalCents)),
     offers,
   };
 }

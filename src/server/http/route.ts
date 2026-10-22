@@ -5,17 +5,33 @@ import { auth } from "@/server/auth/better-auth";
 import type { TenantContext } from "@/server/auth/tenant-context";
 import type { Locale } from "@/config/appearance";
 import { env } from "@/server/env";
-import { AppError, invalid, notFound, unauthenticated } from "@/server/errors";
+import { AppError, forbidden, invalid, notFound, unauthenticated } from "@/server/errors";
 import { localizeError, requestLocale } from "./error-i18n";
 import { resolveContext } from "@/server/services/team-service";
 
 type RouteContext = { params: Promise<Record<string, string>> };
 type Handler = (request: Request, context: RouteContext) => Promise<Response>;
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * Defence in depth against cross-site requests, on top of SameSite cookies: a browser always sends Origin
+ * on a write, and a write from another site is refused. Callers with no Origin (servers, webhooks) or that
+ * authenticate with a bearer token (MCP clients) carry no ambient cookie to abuse, so they pass.
+ */
+function assertSameOrigin(request: Request): void {
+  if (SAFE_METHODS.has(request.method) || request.headers.has("authorization")) return;
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(env.BETTER_AUTH_URL).origin) {
+    throw forbidden("Cross-site request refused");
+  }
+}
+
 /** Wraps a route handler: maps domain errors to HTTP and never leaks internals on unexpected ones. */
 export function route(handler: Handler): Handler {
   return async (request, context) => {
     try {
+      assertSameOrigin(request);
       return await handler(request, context);
     } catch (error) {
       return errorResponse(error, requestLocale(request));

@@ -59,7 +59,7 @@ export const GUEST_TOOLS = [
         rating: place.rating,
         currency: place.currency,
         nightlyFromCents: place.nightlyFromCents,
-        stayTotalCents: place.offers[0]?.stayTotalCents ?? null,
+        stayTotalCents: place.stayTotalFromCents,
         photoUrl: place.photo?.url ?? null,
         bookingLink: placeUrl(place.slug),
       }));

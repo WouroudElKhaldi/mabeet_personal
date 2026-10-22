@@ -20,7 +20,7 @@ interface PlaceCardProps {
 /** A square photo, then three short lines: name and rating, area, price. */
 export async function PlaceCard({ place, saved, signedIn, query = "", index = 0 }: PlaceCardProps) {
   const [t, locale] = await Promise.all([getTranslations("place"), getLocale()]);
-  const stayTotal = place.offers[0]?.stayTotalCents ?? null;
+  const stayTotal = place.stayTotalFromCents;
   const category = place.categories[0];
   return (
     <article className="group rise-in relative" style={stagger(index)}>

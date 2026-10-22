@@ -12,7 +12,12 @@ export interface Email {
   idempotencyKey?: string;
 }
 
-export const emailEnabled = () => Boolean(env.RESEND_API_KEY);
+/** Resend's shared test sender only delivers to the account owner, so it can't verify other people's emails. */
+const RESEND_TEST_SENDER = "@resend.dev";
+
+/** True once emails can reach any address: a key is set and the sender is on a verified domain. */
+export const emailReachesEveryone = () =>
+  Boolean(env.RESEND_API_KEY) && !env.EMAIL_FROM.includes(RESEND_TEST_SENDER);
 
 /** Sends one email through Resend. Without RESEND_API_KEY it logs instead, so local development needs no account. */
 export async function sendEmail(email: Email): Promise<void> {

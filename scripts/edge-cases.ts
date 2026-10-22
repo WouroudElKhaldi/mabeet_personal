@@ -7,7 +7,7 @@
  * Cleans up everything it creates.
  */
 import { randomUUID } from "node:crypto";
-import { check, db, finish, http, isNotFound, isoIn, send, signIn } from "./lib/e2e";
+import { check, db, finish, http, isNotFound, isoIn, send, signIn, signInResponse } from "./lib/e2e";
 
 const GUEST_NAME = "Edge Case Guest";
 const OUTSIDER_EMAIL = `outsider-${randomUUID().slice(0, 8)}@example.test`;
@@ -188,12 +188,7 @@ async function main() {
   );
   check(
     "wrong password is refused",
-    (
-      await http("/api/auth/sign-in/email", {
-        method: "POST",
-        body: JSON.stringify({ email: "host@mabeet.test", password: "wrong-password-123" }),
-      })
-    ).status === 401,
+    (await signInResponse("host@mabeet.test", "wrong-password-123")).status === 401,
   );
 
   // ---------- Signed-in guest ----------
@@ -438,6 +433,18 @@ async function main() {
     "owner: an AI key that never expires past a year",
     await send("POST", `${ws}/keys`, { name: "k", expiresInDays: 999 }, hostCookie),
     400,
+  );
+
+  const crossSite = await http(`${ws}/settings`, {
+    method: "PATCH",
+    cookie: hostCookie,
+    headers: { origin: "https://evil.example", "content-type": "text/plain" },
+    body: JSON.stringify({ houseRules: "changed from another site" }),
+  });
+  check(
+    "owner: a write coming from another website is refused (403)",
+    crossSite.status === 403,
+    `status ${crossSite.status}`,
   );
 
   // ---------- Front-desk staff: allowed vs refused ----------

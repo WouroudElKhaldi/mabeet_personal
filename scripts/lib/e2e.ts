@@ -5,7 +5,7 @@
 import { PrismaClient } from "@prisma/client";
 
 export const BASE = process.env.SMOKE_URL ?? "http://localhost:3000";
-export const PASSWORD = process.env.SEED_PASSWORD ?? "demo-password-123";
+const PASSWORD = process.env.SEED_PASSWORD ?? "demo-password-123";
 export const db = new PrismaClient();
 
 let failures = 0;
@@ -24,7 +24,7 @@ export async function finish(): Promise<never> {
 
 export async function http(path: string, init: RequestInit & { cookie?: string } = {}) {
   const headers = new Headers(init.headers);
-  headers.set("origin", BASE);
+  if (!headers.has("origin")) headers.set("origin", BASE);
   if (init.cookie) headers.set("cookie", init.cookie);
   if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
   return fetch(`${BASE}${path}`, { ...init, headers, redirect: "manual" });
@@ -44,8 +44,8 @@ export async function send(
 
 const SIGN_IN_ATTEMPTS = 4;
 
-/** Signs in, waiting out sign-in rate limiting (a few attempts per 10 seconds per address) when a run hits it. */
-export async function signIn(email: string, password = PASSWORD) {
+/** Tries to sign in, waiting out sign-in rate limiting (a few attempts per 10 seconds per address). */
+export async function signInResponse(email: string, password: string) {
   let response = await attemptSignIn(email, password);
   for (let attempt = 1; response.status === 429 && attempt < SIGN_IN_ATTEMPTS; attempt += 1) {
     const waitSeconds = Number(
@@ -54,6 +54,11 @@ export async function signIn(email: string, password = PASSWORD) {
     await new Promise((resolve) => setTimeout(resolve, (waitSeconds + 1) * 1000));
     response = await attemptSignIn(email, password);
   }
+  return response;
+}
+
+export async function signIn(email: string, password = PASSWORD) {
+  const response = await signInResponse(email, password);
   const cookie = response.headers
     .getSetCookie()
     .map((value) => value.split(";")[0])

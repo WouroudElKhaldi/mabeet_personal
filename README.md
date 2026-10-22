@@ -44,15 +44,15 @@ or settings, or manage the team. Owners can change that on the **Team** page.
 
 ## Settings (`.env`)
 
-| Setting                                 | What it's for                                                               |
-| --------------------------------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`, `TEST_DATABASE_URL`     | The main database and a test one (tests wipe the test one)                  |
-| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Sign-in. The URL is also used in emails and AI connection links             |
-| `CRON_SECRET`                           | Protects the scheduled jobs (calendar sync, expiring holds)                 |
-| `DEEPSEEK_API_KEY`                      | Turns on the AI concierge and assistant. Optional                           |
-| `RESEND_API_KEY`, `EMAIL_FROM`          | Sends emails. Without a key, emails are only logged and verification is off |
-| `AI_MONTHLY_BUDGET_USD`                 | Monthly AI spending cap ($50 by default). Admins are warned at 80%          |
-| `STRIPE_*`                              | Host plans, in Stripe test mode. See "Testing card payments" below          |
+| Setting                                 | What it's for                                                                                                                                                                     |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`, `TEST_DATABASE_URL`     | The main database and a test one (tests wipe the test one)                                                                                                                        |
+| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Sign-in. The URL is also used in emails and AI connection links                                                                                                                   |
+| `CRON_SECRET`                           | Protects the scheduled jobs (calendar sync, expiring holds)                                                                                                                       |
+| `DEEPSEEK_API_KEY`                      | Turns on the AI concierge and assistant. Optional                                                                                                                                 |
+| `RESEND_API_KEY`, `EMAIL_FROM`          | Sends emails. Without a key they are only logged. Email verification turns on once `EMAIL_FROM` is on your own verified domain (Resend's test sender only reaches your own inbox) |
+| `AI_MONTHLY_BUDGET_USD`                 | Monthly AI spending cap ($50 by default). Admins are warned at 80%                                                                                                                |
+| `STRIPE_*`                              | Host plans, in Stripe test mode. See "Testing card payments" below                                                                                                                |
 
 ### Testing card payments
 

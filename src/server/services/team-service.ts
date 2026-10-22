@@ -69,7 +69,11 @@ function assertCanGrant(ctx: TenantContext, permissions: readonly Permission[]):
 export async function listRoleOptions(ctx: TenantContext) {
   requirePermission(ctx, "team.manage");
   const roles = await team.listRoles(prisma, ctx.businessId);
-  return roles.map((role) => ({ id: role.id, name: role.name }));
+  // The owner role goes last, so a new member never becomes an owner just by keeping the default choice.
+  return [...roles.filter((role) => !role.isOwner), ...roles.filter((role) => role.isOwner)].map((role) => ({
+    id: role.id,
+    name: role.name,
+  }));
 }
 
 export function listRoles(ctx: TenantContext) {

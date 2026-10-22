@@ -27,7 +27,8 @@ function apply(mode: ColorMode) {
   };
   // A soft cross-fade between modes where the browser supports it.
   if ("startViewTransition" in document && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    document.startViewTransition(update);
+    // A transition the browser skips (another one started, the tab is hidden) rejects; the mode is applied anyway.
+    document.startViewTransition(update).ready.catch(() => undefined);
   } else {
     update();
   }
