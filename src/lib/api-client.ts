@@ -1,12 +1,17 @@
-/** Error carrying the API's own message, safe to show to the user. */
+/** Error carrying the API's own message, safe to show to the user, and the input fields it rejected. */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly invalidFields: readonly string[] = [],
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+interface ErrorBody {
+  error?: { message?: string; details?: { fieldErrors?: Record<string, unknown> } };
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -14,8 +19,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "content-type": "application/json", ...init?.headers },
   });
-  const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-  if (!response.ok) throw new ApiError(response.status, body.error?.message ?? "Something went wrong");
+  const body = (await response.json().catch(() => ({}))) as ErrorBody;
+  if (!response.ok) {
+    const invalidFields = Object.keys(body.error?.details?.fieldErrors ?? {});
+    throw new ApiError(response.status, body.error?.message ?? "Something went wrong", invalidFields);
+  }
   return body as T;
 }
 

@@ -202,7 +202,11 @@
     "guests": "Guests",
     "nights": "Nights",
     "total": "Total",
-    "depositNote": "After the host confirms, you pay a deposit of <strong>{amount}</strong> directly to them."
+    "depositNote": "After the host confirms, you pay a deposit of <strong>{amount}</strong> directly to them.",
+    "checkFields": "Please check the highlighted fields.",
+    "invalidName": "Enter your full name (at least 2 letters).",
+    "invalidPhone": "Use an international number, for example +961 71 123 456.",
+    "invalidEmail": "This email doesn't look right."
   },
   "confirmation": {
     "title": "Your booking",

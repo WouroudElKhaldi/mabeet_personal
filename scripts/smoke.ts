@@ -3,49 +3,7 @@
  * Drives the real HTTP API as a guest, a host, an admin and an outsider. Uses the seeded demo data.
  * Run: pnpm smoke (with pnpm dev and the database running). Cleans up the bookings it creates.
  */
-import { PrismaClient } from "@prisma/client";
-
-const BASE = process.env.SMOKE_URL ?? "http://localhost:3000";
-const PASSWORD = process.env.SEED_PASSWORD ?? "demo-password-123";
-const db = new PrismaClient();
-let failures = 0;
-const check = (name: string, ok: boolean, extra = "") => {
-  if (!ok) failures += 1;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
-};
-
-async function http(path: string, init: RequestInit & { cookie?: string } = {}) {
-  const headers = new Headers(init.headers);
-  headers.set("origin", BASE);
-  if (init.cookie) headers.set("cookie", init.cookie);
-  if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
-  return fetch(`${BASE}${path}`, { ...init, headers, redirect: "manual" });
-}
-
-async function signIn(email: string) {
-  const response = await http("/api/auth/sign-in/email", {
-    method: "POST",
-    body: JSON.stringify({ email, password: PASSWORD }),
-  });
-  const cookie = response.headers
-    .getSetCookie()
-    .map((value) => value.split(";")[0])
-    .join("; ");
-  check(`sign in as ${email}`, response.status === 200 && cookie.length > 0, `status ${response.status}`);
-  return cookie;
-}
-
-const isoIn = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
-
-/**
- * With loading skeletons, Next.js has already sent status 200 when a page discovers it does not exist;
- * it then renders the not-found page and marks it noindex. Either outcome means "not found".
- */
-async function isNotFound(response: Response): Promise<boolean> {
-  if (response.status === 404) return true;
-  const html = await response.text();
-  return html.includes("This page wandered off") && /name="robots" content="noindex/.test(html);
-}
+import { BASE, check, db, finish, http, isNotFound, isoIn, signIn } from "./lib/e2e";
 
 async function main() {
   // Leftovers from an interrupted earlier run would skew the checks.
@@ -420,9 +378,7 @@ async function main() {
   // Clean up only what this script created.
   await db.booking.deleteMany({ where: { guestName: "E2E Guest" } });
   await db.sessionBooking.deleteMany({ where: { guestName: "E2E Guest" } });
-  await db.$disconnect();
-  console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
-  process.exit(failures === 0 ? 0 : 1);
+  await finish();
 }
 
 /** Plays an MCP client: finds the auth server, registers, signs the host in, picks a workspace, consents, calls MCP. */

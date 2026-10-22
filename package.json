@@ -22,7 +22,8 @@
     "smoke": "tsx --env-file=.env scripts/smoke.ts",
     "docs:erd": "tsx scripts/erd.ts",
     "docs:openapi": "tsx --env-file-if-exists=.env scripts/openapi.ts",
-    "docs": "pnpm docs:erd && pnpm docs:openapi && prettier --write docs --log-level warn"
+    "docs": "pnpm docs:erd && pnpm docs:openapi && prettier --write docs --log-level warn",
+    "edge-cases": "tsx --env-file=.env scripts/edge-cases.ts"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.7.12",

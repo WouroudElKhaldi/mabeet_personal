@@ -19,6 +19,9 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
   const t = useTranslations("bookPage");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [invalidFields, setInvalidFields] = useState<readonly string[]>([]);
+  const fieldError = (field: string, message: string) =>
+    invalidFields.includes(field) ? message : undefined;
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -26,6 +29,7 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
     const form = new FormData(event.currentTarget);
     setSubmitting(true);
     setError(null);
+    setInvalidFields([]);
     try {
       const booking = await api.post<{ publicToken: string }>(`/api/public/places/${slug}/bookings`, {
         ...stay,
@@ -36,7 +40,15 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
       });
       router.push(`/b/${booking.publicToken}`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("genericError"));
+      const fields = caught instanceof ApiError ? caught.invalidFields : [];
+      setInvalidFields(fields);
+      setError(
+        fields.length > 0
+          ? t("checkFields")
+          : caught instanceof ApiError
+            ? caught.message
+            : t("genericError"),
+      );
       setSubmitting(false);
     }
   };
@@ -51,6 +63,7 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
         maxLength={80}
         autoComplete="name"
         defaultValue={defaults.name}
+        error={fieldError("guestName", t("invalidName"))}
       />
       <Field
         label={t("phone")}
@@ -63,6 +76,7 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
         placeholder="+961 71 123 456"
         defaultValue={defaults.phone ?? "+961 "}
         hint={t("phoneHint")}
+        error={fieldError("guestPhone", t("invalidPhone"))}
       />
       <Field
         label={t("email")}
@@ -71,6 +85,7 @@ export function GuestDetailsForm({ slug, stay, defaults }: GuestDetailsFormProps
         autoComplete="email"
         defaultValue={defaults.email}
         hint={t("emailHint")}
+        error={fieldError("guestEmail", t("invalidEmail"))}
       />
       <TextArea label={t("note")} name="note" maxLength={1000} placeholder={t("notePlaceholder")} />
 

@@ -202,7 +202,11 @@
     "guests": "الضيوف",
     "nights": "الليالي",
     "total": "المجموع",
-    "depositNote": "بعد تأكيد المضيف، تدفع عربونًا قدره <strong>{amount}</strong> له مباشرة."
+    "depositNote": "بعد تأكيد المضيف، تدفع عربونًا قدره <strong>{amount}</strong> له مباشرة.",
+    "checkFields": "يرجى مراجعة الحقول المحدّدة.",
+    "invalidName": "أدخل اسمك الكامل (حرفان على الأقل).",
+    "invalidPhone": "استخدم رقمًا دوليًا، مثلًا ‎+961 71 123 456.",
+    "invalidEmail": "يبدو أن هذا البريد غير صحيح."
   },
   "confirmation": {
     "title": "حجزك",
