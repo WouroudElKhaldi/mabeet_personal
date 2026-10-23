@@ -6,6 +6,7 @@ import { prisma } from "../src/server/db/client";
 import { auth } from "../src/server/auth/better-auth";
 import { secureToken } from "../src/lib/tokens";
 import { createWorkspace } from "../src/server/services/onboarding-service";
+import { seedHistory } from "./seed-history";
 import { KIND_CATEGORIES, seedOfferings, seedPlaceDetails } from "./seed-offerings";
 
 const CATEGORIES = [
@@ -232,6 +233,22 @@ async function ensurePhotos(businessId: string, place: DemoPlace) {
   });
 }
 
+/**
+ * Demo photos are stock pictures in the same order for every place (outside, a bedroom, a view, a living room,
+ * an outdoor space), so the photo tour has parts to show. Only fills photos nobody has labelled yet.
+ */
+const DEMO_PHOTO_AREAS = ["EXTERIOR", "BEDROOM", null, "LIVING_ROOM", "TERRACE"] as const;
+
+async function ensurePhotoAreas() {
+  for (const [position, area] of DEMO_PHOTO_AREAS.entries()) {
+    if (!area) continue;
+    await prisma.photo.updateMany({
+      where: { position, area: null, roomId: null, offeringId: null, alt: { endsWith: "stock photo" } },
+      data: { area },
+    });
+  }
+}
+
 async function seedPlace(place: DemoPlace, ownerId: string) {
   const existing = await prisma.business.findFirst({ where: { name: place.name } });
   if (existing) return ensurePhotos(existing.id, place);
@@ -276,6 +293,33 @@ async function seedFrontDeskStaff(password: string) {
   });
 }
 
+/** Demo ways for hosts to pay Mabeet by hand, so the billing pages show the flow. Replace with real details. */
+async function seedPaymentOptions() {
+  if ((await prisma.platformPaymentOption.count()) > 0) return;
+  await prisma.platformPaymentOption.createMany({
+    data: [
+      {
+        method: "BANK_TRANSFER",
+        label: "Demo bank account (USD)",
+        details: [
+          "Account holder: Mabeet SAL",
+          "IBAN: LB00 0000 0000 0000 0000 0000 0000",
+          "SWIFT: DEMOLBBE",
+        ].join("\n"),
+        position: 0,
+      },
+      { method: "WHISH", label: "Whish Money", details: "+961 70 000 000 (Mabeet)", position: 1 },
+      { method: "CRYPTO", label: "USDT (TRC-20)", details: "TDemoWalletAddressReplaceMe000000", position: 2 },
+      {
+        method: "CASH",
+        label: "Cash at our office",
+        details: "Hamra, Beirut · Mon to Fri, 9:00 to 17:00",
+        position: 3,
+      },
+    ],
+  });
+}
+
 async function main() {
   const categories = [
     ...CATEGORIES.map((category) => ({ ...category, kind: "HOME" as const })),
@@ -297,8 +341,11 @@ async function main() {
   await seedFrontDeskStaff(password);
   await seedPlaceDetails();
   const offerings = await seedOfferings();
+  const history = await seedHistory();
+  await seedPaymentOptions();
+  await ensurePhotoAreas();
   console.log(
-    `Seeded ${categories.length} categories, ${PLACES.length} demo places and ${offerings} experiences and services.`,
+    `Seeded ${categories.length} categories, ${PLACES.length} demo places, ${offerings} experiences and services, and ${history} demo bookings.`,
   );
   console.log(
     "Sign in as host@mabeet.test, staff@mabeet.test, guest@mabeet.test or admin@mabeet.test (password: SEED_PASSWORD).",

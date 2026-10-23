@@ -18,7 +18,7 @@ export function soldNightsByChannel(db: Db, businessId: string, range: DateRange
   return db.$queryRawUnsafe<ChannelNights[]>(
     `SELECT CASE
               WHEN o.kind = 'DIRECT' THEN 'DIRECT'
-              WHEN o.kind = 'IMPORTED' THEN COALESCE(f.source::text, 'OTHER')
+              WHEN o.kind = 'IMPORTED' THEN COALESCE(f.source::text, o.source::text, 'OTHER')
               ELSE COALESCE(o.source::text, 'MANUAL')
             END AS channel,
             SUM(LEAST(o."checkOut", $3::date) - GREATEST(o."checkIn", $2::date))::int AS nights

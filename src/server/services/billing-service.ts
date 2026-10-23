@@ -145,14 +145,21 @@ export async function settlePlanPayment(planPaymentId: string, now = new Date())
   if (status !== "success") return status === "failed" ? "failed" : "pending";
   await runInTransaction(async (tx) => {
     if (!(await money.markPlanPaid(tx, payment.id, now))) return;
-    const current = await billing.findBilling(tx, payment.businessId);
-    const from =
-      current?.plan === payment.plan && current.planRenewsAt && current.planRenewsAt > now
-        ? current.planRenewsAt
-        : now;
-    await money.extendPlan(tx, payment.businessId, payment.plan, new Date(from.getTime() + PLAN_MONTH_MS));
+    await addPlanMonths(tx, payment.businessId, payment.plan, 1, now);
   });
   return "paid";
+}
+
+/**
+ * Paid months of a plan paid by Whish or by hand: they follow on from what is left of the same plan, or start
+ * now. When they run out without a new payment, housekeeping puts the business back on Free.
+ */
+export async function addPlanMonths(tx: Tx, businessId: string, plan: Plan, months: number, now: Date) {
+  await money.lockBusiness(tx, businessId);
+  const current = await billing.findBilling(tx, businessId);
+  const from =
+    current?.plan === plan && current.planRenewsAt && current.planRenewsAt > now ? current.planRenewsAt : now;
+  await money.extendPlan(tx, businessId, plan, new Date(from.getTime() + months * PLAN_MONTH_MS));
 }
 
 /** A Whish callback: for a guest's payment or a plan payment. Either way, Whish's own status decides. */

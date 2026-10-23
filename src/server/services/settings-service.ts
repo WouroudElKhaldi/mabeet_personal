@@ -34,6 +34,24 @@ export async function updateSettings(ctx: TenantContext, input: z.infer<typeof s
   await recordAction(ctx, "settings.updated", "business", ctx.businessId);
 }
 
+/** How guests book and pay here: readable by anyone who handles bookings (and their AI, read-only included). */
+export async function getBookingSetup(ctx: TenantContext) {
+  requirePermission(ctx, "bookings.read");
+  const settings = await findBusinessSettings(prisma, ctx.businessId);
+  return {
+    bookingUnit: settings.bookingUnit,
+    bookingMode: settings.bookingMode,
+    paymentCollection: settings.paymentCollection,
+    onlineAmount: settings.onlineAmount,
+    refundPolicy: settings.refundPolicy,
+    depositPercent: settings.depositPercent,
+    holdHours: settings.holdHours,
+    currency: settings.currency,
+    commissionRatePercent: settings.commissionRateBps / 100,
+    listedPublicly: settings.listedPublicly,
+  };
+}
+
 /** The business's time zone, for showing session times. Any member may know it. */
 export async function getTimezone(ctx: TenantContext): Promise<string> {
   return (await findBusinessSettings(prisma, ctx.businessId)).timezone;

@@ -2,7 +2,10 @@ import { z } from "zod";
 import { BOOKING_STATUSES } from "@/config/enums";
 import { addDays, parseIsoDate, rangesOverlap, toDateRange, toIsoDate, todayUtc } from "@/lib/dates";
 import type { TenantContext } from "@/server/auth/tenant-context";
-import { getBusinessReport } from "@/server/services/analytics-service";
+import { getAnalytics, getBusinessReport } from "@/server/services/analytics-service";
+import { getBusinessNotifications } from "@/server/services/notification-feed-service";
+import { getPayouts } from "@/server/services/payout-service";
+import { getBookingSetup } from "@/server/services/settings-service";
 import {
   confirmBooking,
   declineBooking,
@@ -14,6 +17,7 @@ import { getSchedule } from "@/server/services/offering-service";
 import { listReviewsForTeam } from "@/server/services/review-service";
 import { listSessionBookings } from "@/server/services/session-booking-service";
 import { listRooms } from "@/server/services/room-service";
+import { listMyPlaces, resolvePlaceContext } from "@/server/services/team-service";
 import { type AiTool, defineTool } from "./tool";
 
 // Tools for owners and staff. Each one calls the same service the dashboard uses,
@@ -32,7 +36,7 @@ const defaultWindow = () => ({ checkIn: addDays(todayUtc(), -30), checkOut: addD
 
 const team = <Input extends z.ZodObject>(tool: AiTool<Input, TenantContext>) => defineTool(tool);
 
-const TEAM_TOOLS = [
+const SINGLE_PLACE_TOOLS = [
   team({
     name: "list_rooms",
     description: "The business's rooms with capacity, nightly base rate (cents) and amenities.",
@@ -46,8 +50,84 @@ const TEAM_TOOLS = [
         capacity: room.capacity,
         baseRateCents: room.baseRateCents,
         amenities: room.amenities,
-        bookable: room.active,
+        /** ROOM, or the single unit used when the place is booked as a whole. */
+        kind: room.kind,
+        active: room.active,
       })),
+  }),
+  team({
+    name: "get_booking_setup",
+    description:
+      "How guests book and pay here: by room or the whole place, request or instant booking, paid to the host or online through Mabeet (deposit or full), deposit %, how long requests are held, and the refund policy.",
+    input: z.object({}),
+    requires: "bookings.read",
+    mutates: false,
+    run: (_input, ctx) => getBookingSetup(ctx),
+  }),
+  team({
+    name: "get_analytics",
+    description:
+      "Analytics for a period from the database: occupancy, nights sold, direct revenue and commission saved per currency, requests by outcome, response time, rating, nights and revenue by month, channels, and a per-place breakdown. scope 'all' covers every place the member can see (only in the dashboard assistant, not through an AI key). Money is in cents.",
+    input: z.object({ from: isoDate, to: isoDate, scope: z.enum(["place", "all"]).default("place") }),
+    requires: "analytics.read",
+    mutates: false,
+    run: async ({ from, to, scope }, ctx) => {
+      const data = await getAnalytics(ctx, scope, toDateRange({ checkIn: from, checkOut: to }));
+      return {
+        range: data.range,
+        totals: data.totals,
+        places: data.places.map((place) => ({
+          name: place.name,
+          currency: place.report.currency,
+          occupancyRate: place.report.occupancyRate,
+          nightsSold: place.report.nightsSold,
+          directRevenueCents: place.report.directRevenueCents,
+          commissionSavedCents: place.report.commissionSavedCents,
+          rating: place.report.rating,
+        })),
+      };
+    },
+  }),
+  team({
+    name: "get_payouts",
+    description:
+      "Money guests paid online through Mabeet for this business: available to pay out, upcoming (stays not started yet), already paid out and requested, plus recent payouts. Owners only. Mabeet takes no commission. Money is in cents.",
+    input: z.object({}),
+    requires: "analytics.read",
+    mutates: false,
+    run: async (_input, ctx) => {
+      const data = await getPayouts(ctx);
+      return {
+        balances: data.balances,
+        payouts: data.payouts.slice(0, 10).map((payout) => ({
+          amountCents: payout.amountCents,
+          currency: payout.currency,
+          method: payout.method,
+          status: payout.status,
+          requestedAt: payout.createdAt,
+          decidedAt: payout.decidedAt,
+        })),
+      };
+    },
+  }),
+  team({
+    name: "list_notifications",
+    description:
+      "The latest things that happened in the business: requests, confirmations, cancellations, payments, payouts, reviews, team changes.",
+    input: z.object({}),
+    requires: "bookings.read",
+    mutates: false,
+    run: async (_input, ctx) => {
+      const { items } = await getBusinessNotifications(ctx, 1);
+      return items.map((item) => ({
+        what: item.action,
+        when: item.createdAt,
+        by: item.user?.name ?? null,
+        booking: item.booking
+          ? { reference: item.booking.reference, guest: guestWritten(item.booking.guestName) }
+          : null,
+      }));
+    },
   }),
   team({
     name: "check_availability",
@@ -283,6 +363,41 @@ const TEAM_TOOLS = [
 ];
 
 /** Only the tools this member's permissions allow; their AI never learns the others exist. */
+const placeArgument = z
+  .string()
+  .max(80)
+  .optional()
+  .describe(
+    "Which of the member's places this is about: its name, part of its name, or its id (list_places shows them). Leave out for the current place.",
+  );
+
+/**
+ * Every team tool works in any of the member's places: it takes an optional `place`, and runs as the member in
+ * that place, with their role there. Without it, the place of the key, token or dashboard.
+ */
+function inAnyPlace(tool: AiTool<z.ZodObject, TenantContext>): AiTool<z.ZodObject, TenantContext> {
+  return {
+    ...tool,
+    input: tool.input.extend({ place: placeArgument }),
+    run: async (input, ctx) => {
+      const { place, ...rest } = input as { place?: string };
+      return tool.run(rest, await resolvePlaceContext(ctx, place));
+    },
+  };
+}
+
+const TEAM_TOOLS = [
+  team({
+    name: "list_places",
+    description:
+      "The member's places (businesses), with their role in each and which one is current. Use a place's name in any other tool's `place` to ask about it.",
+    input: z.object({}),
+    mutates: false,
+    run: (_input, ctx) => listMyPlaces(ctx),
+  }),
+  ...SINGLE_PLACE_TOOLS.map((tool) => inAnyPlace(tool as unknown as AiTool<z.ZodObject, TenantContext>)),
+];
+
 export function teamToolsFor(ctx: TenantContext) {
   return TEAM_TOOLS.filter((tool) => !tool.requires || ctx.permissions.has(tool.requires));
 }

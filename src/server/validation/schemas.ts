@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { BOOKING_STATUSES, CURRENCIES, FEED_SOURCES, MANUAL_PAYMENT_METHODS } from "@/config/enums";
+import {
+  BOOKING_STATUSES,
+  CURRENCIES,
+  FEED_SOURCES,
+  MANUAL_PAYMENT_METHODS,
+  PLAN_PAYMENT_METHODS,
+} from "@/config/enums";
 import { AMENITIES } from "@/config/amenities";
 import { PALETTES } from "@/config/appearance";
 import {
@@ -299,6 +305,7 @@ export const workspaceParams = z.object({ businessId: id });
 export const blockParams = workspaceParams.extend({ blockId: id });
 export const feedParams = workspaceParams.extend({ feedId: id });
 export const roomParams = workspaceParams.extend({ roomId: id });
+export const planRequestParams = workspaceParams.extend({ requestId: id });
 export const bookingParams = workspaceParams.extend({ bookingId: id });
 export const roleParams = workspaceParams.extend({ roleId: id });
 export const memberParams = workspaceParams.extend({ membershipId: id });
@@ -355,6 +362,30 @@ export const siteSettingsInput = z.object({ palette: z.enum(PALETTES) });
 
 /** A paid plan to start through Stripe Checkout. */
 export const checkoutInput = z.object({ plan: z.enum(["PRO", "BUSINESS"]) });
+
+export const paymentOptionInput = z.object({
+  method: z.enum(PLAN_PAYMENT_METHODS),
+  label: z.string().trim().min(2).max(80),
+  details: z.string().trim().min(3).max(1000),
+  active: z.boolean().default(true),
+  position: z.number().int().min(0).max(999).default(0),
+});
+
+export const paymentOptionUpdate = paymentOptionInput.partial();
+
+/** The fields of a manual plan request; the receipt comes as the multipart `receipt` file. */
+export const planRequestFields = z.object({
+  plan: z.enum(["PRO", "BUSINESS"]),
+  months: z.coerce.number().int().min(1).max(12),
+  optionId: z.string().min(1).max(64),
+  payerReference: z.string().trim().max(120).nullish(),
+  note: z.string().trim().max(500).nullish(),
+});
+
+export const planRequestDecision = z.object({
+  action: z.enum(["approve", "reject"]),
+  note: z.string().trim().max(500).nullish(),
+});
 
 const categoryFields = z.object({
   nameEn: z.string().trim().min(2).max(40),

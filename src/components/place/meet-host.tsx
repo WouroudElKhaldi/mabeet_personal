@@ -1,6 +1,7 @@
 import { BadgeCheck, MessageCircle, ShieldCheck } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { HostSection } from "@/server/services/host-service";
+import { isTrustedHost } from "./listing-summary";
 
 const initials = (name: string) =>
   name
@@ -37,7 +38,7 @@ export async function MeetHost({
         : host.medianResponseMinutes <= 24 * 60
           ? t("withinDay")
           : t("withinDays");
-  const trusted = rating.count >= 3 && rating.average >= 4.7 && (host.responseRate ?? 0) >= 0.9;
+  const trusted = isTrustedHost(rating, host);
 
   return (
     <section className="mt-12 border-t border-line pt-12" aria-labelledby="meet-host">

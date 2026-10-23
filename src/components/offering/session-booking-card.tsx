@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
 import { GuestCounter } from "@/components/ui/guest-counter";
+import { SheetDialog } from "@/components/ui/sheet-dialog";
 import { api, ApiError } from "@/lib/api-client";
 import { formatMoney } from "@/lib/format";
 
@@ -73,7 +74,45 @@ export function SessionBookingCard(props: SessionBookingCardProps) {
     minute: "2-digit",
     timeZone: props.timezone,
   });
-  const shownDays = showAll ? days : days.slice(0, FIRST_DAYS_SHOWN);
+  // The first days, plus the day of a time picked from the "more dates" popup, so the choice stays in view.
+  const shownDays = days.filter(
+    ([, sessions], index) => index < FIRST_DAYS_SHOWN || sessions.some((session) => session.id === sessionId),
+  );
+
+  const dayList = (list: typeof days, picked?: () => void) =>
+    list.map(([day, sessions]) => (
+      <div key={day} className="grid gap-2">
+        <p className="text-xs font-semibold text-muted">{day}</p>
+        <div className="flex flex-wrap gap-2">
+          {sessions.map((session) => {
+            const full = session.seatsLeft <= 0;
+            const active = session.id === sessionId;
+            return (
+              <button
+                key={session.id}
+                type="button"
+                disabled={full}
+                aria-pressed={active}
+                onClick={() => {
+                  setSessionId(session.id);
+                  picked?.();
+                }}
+                className={clsx(
+                  "grid rounded-lg px-3.5 py-2 text-start ring-1 transition-shadow",
+                  active ? "ring-2 ring-ink" : "ring-line-strong hover:ring-ink/60",
+                  full && "cursor-not-allowed opacity-40",
+                )}
+              >
+                <span className="text-sm font-semibold">{timeFormat.format(new Date(session.startsAt))}</span>
+                <span className="text-xs text-muted">
+                  {t("seatsLeft", { count: Math.max(0, session.seatsLeft) })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ));
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -116,39 +155,8 @@ export function SessionBookingCard(props: SessionBookingCardProps) {
       <fieldset className="grid gap-3">
         <legend className="mb-2 text-sm font-semibold">{t("chooseTime")}</legend>
         {days.length === 0 && <p className="text-sm text-muted">{t("noSessions")}</p>}
-        {shownDays.map(([day, sessions]) => (
-          <div key={day} className="grid gap-2">
-            <p className="text-xs font-semibold text-muted">{day}</p>
-            <div className="flex flex-wrap gap-2">
-              {sessions.map((session) => {
-                const full = session.seatsLeft <= 0;
-                const active = session.id === sessionId;
-                return (
-                  <button
-                    key={session.id}
-                    type="button"
-                    disabled={full}
-                    aria-pressed={active}
-                    onClick={() => setSessionId(session.id)}
-                    className={clsx(
-                      "grid rounded-lg px-3.5 py-2 text-start ring-1 transition-shadow",
-                      active ? "ring-2 ring-ink" : "ring-line-strong hover:ring-ink/60",
-                      full && "cursor-not-allowed opacity-40",
-                    )}
-                  >
-                    <span className="text-sm font-semibold">
-                      {timeFormat.format(new Date(session.startsAt))}
-                    </span>
-                    <span className="text-xs text-muted">
-                      {t("seatsLeft", { count: Math.max(0, session.seatsLeft) })}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        {!showAll && days.length > FIRST_DAYS_SHOWN && (
+        {dayList(shownDays)}
+        {days.length > FIRST_DAYS_SHOWN && (
           <button
             type="button"
             onClick={() => setShowAll(true)}
@@ -157,6 +165,9 @@ export function SessionBookingCard(props: SessionBookingCardProps) {
             {t("showMore", { count: days.length - FIRST_DAYS_SHOWN })}
           </button>
         )}
+        <SheetDialog open={showAll} onClose={() => setShowAll(false)} title={t("chooseTime")}>
+          <div className="grid gap-5 p-5">{dayList(days, () => setShowAll(false))}</div>
+        </SheetDialog>
       </fieldset>
 
       {selected && (

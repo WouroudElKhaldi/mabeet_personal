@@ -1,10 +1,12 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { ManageBillingButton, UpgradeButton, WhishPlanButton } from "@/components/billing/billing-buttons";
+import { ManualPlanRequest } from "@/components/billing/manual-plan";
 import { PlanCards } from "@/components/billing/plan-cards";
-import { PLANS, type PlanName } from "@/config/plans";
+import { PLAN_LIMITS, PLANS, type PlanName } from "@/config/plans";
 import { formatDate } from "@/lib/format";
 import { requirePageAccess } from "@/server/http/session";
 import { getBilling, settlePlanPayment } from "@/server/services/billing-service";
+import { listMyPlanRequests, listPaymentOptions } from "@/server/services/plan-request-service";
 
 type PageProps = {
   params: Promise<{ businessId: string }>;
@@ -18,7 +20,13 @@ export default async function BillingPage({ params, searchParams }: PageProps) {
   const ctx = await requirePageAccess(businessId, ["settings.manage"]);
   // Back from Whish: check the payment now rather than waiting for its callback.
   const whishResult = whish ? await settlePlanPayment(whish).catch(() => "pending") : null;
-  const [t, locale, billing] = await Promise.all([getTranslations("plans"), getLocale(), getBilling(ctx)]);
+  const [t, locale, billing, options, requests] = await Promise.all([
+    getTranslations("plans"),
+    getLocale(),
+    getBilling(ctx),
+    listPaymentOptions(),
+    ctx.isOwner ? listMyPlanRequests(ctx) : [],
+  ]);
   const usage = [
     { label: t("usage.rooms"), used: billing.usage.rooms, max: billing.limits.rooms },
     { label: t("usage.offerings"), used: billing.usage.offerings, max: billing.limits.offerings },
@@ -84,6 +92,15 @@ export default async function BillingPage({ params, searchParams }: PageProps) {
           ) : null
         }
       />
+
+      {billing.canManage && !billing.hasSubscription && (
+        <ManualPlanRequest
+          businessId={businessId}
+          options={options}
+          requests={requests}
+          monthlyUsd={{ PRO: PLAN_LIMITS.PRO.monthlyUsd, BUSINESS: PLAN_LIMITS.BUSINESS.monthlyUsd }}
+        />
+      )}
     </div>
   );
 }

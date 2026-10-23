@@ -192,7 +192,12 @@
     "baths": "{count, plural, one {# bath} other {# baths}}",
     "showAllPhotos": "Show all photos",
     "whereYoullSleep": "Where you'll sleep",
-    "wholePlaceIntro": "You book the whole place, for up to {guests} guests. These are its rooms."
+    "wholePlaceIntro": "You book the whole place, for up to {guests} guests. These are its rooms.",
+    "wholeHomeIn": "Entire home in {area}",
+    "wholeHome": "Entire home",
+    "roomsIn": "Guesthouse rooms in {area}",
+    "roomsHere": "Guesthouse rooms",
+    "guestsCount": "{count, plural, one {# guest} other {# guests}}"
   },
   "booking": {
     "perNight": "a night",
@@ -972,7 +977,8 @@
     "copy": "Copy",
     "copied": "Copied",
     "loading": "Loading…",
-    "error": "Something went wrong. Please try again."
+    "error": "Something went wrong. Please try again.",
+    "close": "Close"
   },
   "assistant": {
     "placeholder": "Ask anything…",
@@ -1181,7 +1187,8 @@
         "content": "Content",
         "operations": "Operations"
       },
-      "hosts": "Hosts"
+      "hosts": "Hosts",
+      "billing": "Plan payments"
     },
     "overviewIntro": "The platform at a glance, and what needs you today.",
     "businessesIntro": "Every business on Mabeet. Suspending one hides it everywhere at once.",
@@ -1356,7 +1363,13 @@
     "showMore": "Show {count} more dates",
     "noReviews": "No reviews yet. Guests can review after taking part.",
     "bookNow": "Book now",
-    "payOnlineNote": "You pay online after booking, with Whish or a card. Mabeet takes no commission."
+    "payOnlineNote": "You pay online after booking, with Whish or a card. Mabeet takes no commission.",
+    "showAllPhotos": "Show all photos",
+    "experienceIn": "Experience in {area}",
+    "serviceIn": "Service in {area}",
+    "experience": "Experience",
+    "service": "Service",
+    "upTo": "{count, plural, one {Up to # guest} other {Up to # guests}}"
   },
   "serverErrors": {
     "messages": {
@@ -1751,7 +1764,10 @@
       "payout_requested": "{actor} asked for a payout",
       "member_added": "{actor} added someone to the team",
       "member_removed": "{actor} removed someone from the team",
-      "member_role_changed": "{actor} changed someone's role"
+      "member_role_changed": "{actor} changed someone's role",
+      "plan_requested": "{actor} paid for a plan by hand and is waiting for approval",
+      "plan_approved": "Your plan payment was approved; the plan is on",
+      "plan_rejected": "Your plan payment was not approved; see the note"
     },
     "viewAll": "View all notifications",
     "failed": "Couldn't load notifications. Try again.",
@@ -1883,5 +1899,82 @@
       "recommendations": "What to do next",
       "disclaimer": "Written by AI from your data. Check important decisions against the numbers above."
     }
+  },
+  "listingSummary": {
+    "hostedBy": "Hosted by {name}",
+    "trusted": "Trusted host",
+    "new": "New on Mabeet",
+    "ratedOutOf": "Rated {rating} out of 5",
+    "reviews": "{count, plural, one {# review} other {# reviews}}",
+    "yearsHosting": "{count, plural, =0 {New host} one {# year hosting} other {# years hosting}}",
+    "hours": "{count, plural, one {# hour} other {# hours}}"
+  },
+  "manualPlan": {
+    "title": "Pay another way",
+    "intro": "Send the plan's price by bank transfer, Whish, OMT, crypto or cash, then send us the receipt. Your plan starts as soon as we check it, usually within a day.",
+    "step1": "1. Choose the plan and how long",
+    "step2": "2. Send the money to one of these",
+    "step3": "3. Send the proof",
+    "plan": "Plan",
+    "months": "How long",
+    "monthsOption": "{count, plural, one {# month} other {# months}}",
+    "total": "Total to send:",
+    "receipt": "Receipt or screenshot",
+    "receiptHint": "A photo, a screenshot or a PDF, up to 5 MB. Only you and Mabeet's team can see it.",
+    "reference": "Transfer reference (optional)",
+    "referenceHint": "The reference or transaction ID, if the payment has one.",
+    "note": "Note for Mabeet (optional)",
+    "send": "Send for approval",
+    "sent": "Sent. We'll let you know as soon as your plan is on.",
+    "waiting": "Waiting for approval: {plan} for {months, plural, one {# month} other {# months}}, {amount}.",
+    "cancel": "Cancel request",
+    "noOptions": "Mabeet hasn't listed other ways to pay yet. Pay by card above, or contact us.",
+    "history": "Your requests",
+    "planMonths": "{plan} · {count, plural, one {# month} other {# months}}",
+    "viewReceipt": "Receipt",
+    "adminNote": "Mabeet: {note}",
+    "methods": {
+      "BANK_TRANSFER": "Bank transfer",
+      "WHISH": "Whish",
+      "OMT": "OMT",
+      "CRYPTO": "Crypto",
+      "CASH": "Cash",
+      "OTHER": "Other",
+      "STRIPE": "Card"
+    },
+    "status": {
+      "PENDING": "Waiting",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "adminBilling": {
+    "title": "Plan payments",
+    "intro": "Hosts who paid for a plan by hand. Check the receipt, then approve: the plan starts at once for the months paid and counts as revenue.",
+    "waiting": "Waiting ({count})",
+    "noneWaiting": "No requests waiting.",
+    "receipt": "Open receipt",
+    "ref": "ref. {reference}",
+    "note": "Note for the host (optional)",
+    "approve": "Approve and start plan",
+    "reject": "Reject",
+    "decided": "Decided",
+    "optionsTitle": "How hosts can pay you",
+    "optionsIntro": "Your bank accounts, Whish or OMT numbers, crypto wallets or an office for cash. Hosts see the active ones on their billing page.",
+    "noOptions": "None yet. Add the first way to pay below.",
+    "addTitle": "Add a way to pay",
+    "method": "Kind",
+    "label": "Name",
+    "labelPlaceholder": "e.g. Bank Audi (USD)",
+    "details": "Details hosts need",
+    "detailsPlaceholder": "Account holder, IBAN, SWIFT · or the phone number · or the wallet address and network",
+    "position": "Order",
+    "active": "Shown to hosts",
+    "hidden": "Hidden",
+    "add": "Add",
+    "save": "Save",
+    "edit": "Edit",
+    "remove": "Remove"
   }
 }

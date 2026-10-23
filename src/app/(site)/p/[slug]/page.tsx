@@ -21,11 +21,11 @@ import { ReviewList } from "@/components/listing/review-list";
 import { PlaceMap } from "@/components/listing/place-map";
 import { CategoryIcon } from "@/components/place/category-icon";
 import { FavoriteButton } from "@/components/place/favorite-button";
+import { ListingSummary, isTrustedHost } from "@/components/place/listing-summary";
 import { MeetHost } from "@/components/place/meet-host";
 import { PhotoTour, photoGroups } from "@/components/place/photo-tour";
 import { ShareButton } from "@/components/place/share-button";
 import { Gallery } from "@/components/place/gallery";
-import { Rating } from "@/components/ui/rating";
 import { formatMoney } from "@/lib/format";
 import { findPageOr404 } from "@/server/http/page";
 import { getCurrentUser } from "@/server/http/session";
@@ -62,6 +62,16 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
   // Booked whole: the rooms are shown as "where you'll sleep"; booked by room: each room can be booked.
   const roomsToShow = wholePlace ? place.showcaseRooms : place.rooms;
   const tourGroups = await photoGroups(place.photos, roomsToShow);
+  // Booked room by room: the place's size is its bookable rooms added up.
+  const sizes = place.rooms.reduce(
+    (sum, room) => ({
+      guests: sum.guests + room.capacity,
+      bedrooms: sum.bedrooms + room.bedrooms,
+      beds: sum.beds + room.beds,
+      baths: sum.baths + room.bathrooms,
+    }),
+    { guests: 0, bedrooms: 0, beds: 0, baths: 0 },
+  );
   const unit = place.rooms[0];
   const summary = [
     place.area,
@@ -132,7 +142,6 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
         <div>
           <h1 className="text-[1.75rem] leading-tight font-semibold">{place.name}</h1>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Rating average={place.rating.average} count={place.rating.count} label={t("newListing")} />
             {place.area && (
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="size-4" aria-hidden />
@@ -152,14 +161,32 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
         seed={place.slug}
         name={place.name}
         allPhotos={
-          photos.length > 0 ? { href: `/p/${place.slug}/photos`, label: t("showAllPhotos") } : undefined
+          photos.length > 0
+            ? { href: `/p/${place.slug}/photos`, label: t("showAllPhotos"), groups: tourGroups }
+            : undefined
         }
       />
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-20">
         <div className="min-w-0">
+          <ListingSummary
+            heading={
+              place.area
+                ? t(wholePlace ? "wholeHomeIn" : "roomsIn", { area: place.area })
+                : t(wholePlace ? "wholeHome" : "roomsHere")
+            }
+            facts={[
+              t("guestsCount", { count: wholePlace && unit ? unit.capacity : sizes.guests }),
+              t("bedrooms", { count: wholePlace && unit ? unit.bedrooms : sizes.bedrooms }),
+              t("beds", { count: wholePlace && unit ? unit.beds : sizes.beds }),
+              t("baths", { count: wholePlace && unit ? unit.bathrooms : sizes.baths }),
+            ]}
+            rating={place.rating}
+            host={host}
+            trusted={isTrustedHost(place.rating, host)}
+          />
           {place.categories.length > 0 && (
-            <ul className="flex flex-wrap gap-2">
+            <ul className="mt-6 flex flex-wrap gap-2">
               {place.categories.map(({ category }) => (
                 <li
                   key={category.slug}
@@ -259,7 +286,7 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
           <MeetHost host={host} rating={place.rating} placeName={place.name} />
         </div>
 
-        <aside className="lg:sticky lg:top-28 lg:self-start">
+        <aside className="lg:sticky lg:top-28 lg:-m-1 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:p-1">
           {place.rooms.length > 0 ? (
             <BookingWidget
               slug={place.slug}

@@ -24,7 +24,7 @@ export async function ReviewList({
 }) {
   const [t, locale] = await Promise.all([getTranslations("placePage"), getLocale()]);
   return (
-    <section className="mt-12 border-t border-line pt-12">
+    <section id="reviews" className="mt-12 scroll-mt-24 border-t border-line pt-12">
       <h2 className="flex items-center gap-3 text-[1.375rem] font-semibold">
         {t("reviews")}
         {rating.count > 0 && <Rating average={rating.average} count={rating.count} label="" />}

@@ -31,6 +31,16 @@ export const MANUAL_PAYMENT_METHODS = [
   "OTHER",
 ] as const satisfies readonly PaymentMethod[];
 
+/** Ways a host can pay Mabeet for a plan by hand, as the super admin lists them. Cards go through Stripe. */
+export const PLAN_PAYMENT_METHODS = [
+  "BANK_TRANSFER",
+  "WHISH",
+  "OMT",
+  "CRYPTO",
+  "CASH",
+  "OTHER",
+] as const satisfies readonly PaymentMethod[];
+
 export const CURRENCIES = ["USD", "LBP", "EUR"] as const;
 
 /** Parts of a place a photo can show, in the order the photo tour lists them. */

@@ -18,13 +18,16 @@ import { Duration } from "@/components/offering/duration";
 import { SessionBookingCard } from "@/components/offering/session-booking-card";
 import { CategoryIcon } from "@/components/place/category-icon";
 import { Gallery } from "@/components/place/gallery";
-import { Rating } from "@/components/ui/rating";
+import { ListingSummary, isTrustedHost } from "@/components/place/listing-summary";
+import { MeetHost } from "@/components/place/meet-host";
+import { ShareButton } from "@/components/place/share-button";
 import { ACCESSIBILITY, keepKnown, LANGUAGES, TAGS } from "@/config/listing";
 import { findPageOr404 } from "@/server/http/page";
 import { getCurrentUser } from "@/server/http/session";
 import { getOffering } from "@/server/services/directory-service";
 import { categoryName } from "@/config/appearance";
 import { listOfferingReviews } from "@/server/services/review-service";
+import { getHostSection } from "@/server/services/host-service";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -45,7 +48,11 @@ export default async function OfferingPage({ params }: PageProps) {
     getLocale(),
   ]);
 
-  const reviews = await listOfferingReviews(offering.id, 6);
+  const [reviews, host, tDuration] = await Promise.all([
+    listOfferingReviews(offering.id, 6),
+    getHostSection(offering.business),
+    getTranslations("listingSummary"),
+  ]);
   const accessibility = keepKnown(ACCESSIBILITY, offering.accessibility);
   const languages = keepKnown(LANGUAGES, offering.languages);
   const tags = keepKnown(TAGS, offering.tags);
@@ -103,7 +110,19 @@ export default async function OfferingPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto max-w-280 px-4 pt-6 sm:px-6 lg:px-10">
-      <h1 className="text-[1.75rem] leading-tight font-semibold">{offering.title}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-[1.75rem] leading-tight font-semibold">{offering.title}</h1>
+        <ShareButton
+          title={offering.title}
+          summary={[
+            offering.area,
+            offering.rating.count > 0 ? `★${offering.rating.average.toFixed(2)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          path={`/o/${offering.slug}`}
+        />
+      </div>
       <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.9375rem]">
         {offering.category && (
           <span className="inline-flex items-center gap-1.5 font-semibold">
@@ -121,23 +140,44 @@ export default async function OfferingPage({ params }: PageProps) {
           <Clock className="size-4" aria-hidden />
           <Duration minutes={offering.durationMinutes} />
         </span>
-        {offering.rating.count > 0 && (
-          <Rating average={offering.rating.average} count={offering.rating.count} label="" />
-        )}
       </p>
 
       <div className="mt-6">
-        <Gallery photos={offering.photos} seed={offering.slug} name={offering.title} />
+        <Gallery
+          photos={offering.photos}
+          seed={offering.slug}
+          name={offering.title}
+          allPhotos={
+            offering.photos.length > 1
+              ? {
+                  href: `/o/${offering.slug}/photos`,
+                  label: t("showAllPhotos"),
+                  groups: [{ key: "all", label: offering.title, photos: offering.photos }],
+                }
+              : undefined
+          }
+        />
       </div>
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-20">
         <div className="min-w-0">
-          <div className="flex items-center gap-4 border-b border-line pb-8">
-            <span className="grid size-12 place-items-center rounded-full bg-ink text-lg font-semibold text-paper">
-              {offering.business.name.slice(0, 1)}
-            </span>
-            <p className="text-lg font-semibold">{t("hostedBy", { name: offering.business.name })}</p>
-          </div>
+          <ListingSummary
+            heading={
+              offering.area
+                ? t(offering.kind === "SERVICE" ? "serviceIn" : "experienceIn", { area: offering.area })
+                : t(offering.kind === "SERVICE" ? "service" : "experience")
+            }
+            facts={[
+              tDuration("hours", { count: Math.round((offering.durationMinutes / 60) * 10) / 10 }),
+              t("upTo", { count: offering.maxGuests }),
+              ...(languages.length > 0
+                ? [languages.map((code) => tListing(`languages.${code}`)).join(", ")]
+                : []),
+            ]}
+            rating={offering.rating}
+            host={host}
+            trusted={isTrustedHost(offering.rating, host)}
+          />
           {offering.description && (
             <p className="mt-8 text-[1.0625rem] leading-relaxed whitespace-pre-line">
               {offering.description}
@@ -158,6 +198,7 @@ export default async function OfferingPage({ params }: PageProps) {
 
           <ThingsToKnow title={tKnow("title")} items={items} />
           <ReviewList reviews={reviews} rating={offering.rating} emptyLabel={t("noReviews")} />
+          <MeetHost host={host} rating={offering.rating} placeName={offering.title} />
           <PlaceMap
             title={t("whereYouMeet")}
             latitude={offering.latitude}
@@ -168,7 +209,7 @@ export default async function OfferingPage({ params }: PageProps) {
           />
         </div>
 
-        <aside className="lg:sticky lg:top-28 lg:self-start">
+        <aside className="lg:sticky lg:top-28 lg:-m-1 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:p-1">
           <SessionBookingCard
             slug={offering.slug}
             currency={offering.business.currency}

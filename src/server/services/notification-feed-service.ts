@@ -28,11 +28,19 @@ const BOOKING_NEWS = [
 ] as const;
 
 /** For owners: money and the team. */
-const OWNER_NEWS = ["payout.requested", "member.added", "member.removed", "member.role_changed"] as const;
+const OWNER_NEWS = [
+  "payout.requested",
+  "plan.approved",
+  "plan.rejected",
+  "member.added",
+  "member.removed",
+  "member.role_changed",
+] as const;
 
 /** For platform admins: what needs them, across every business. */
 const PLATFORM_NEWS = [
   "payout.requested",
+  "plan.requested",
   "payment.online_late",
   "booking.requested",
   "review.submitted",

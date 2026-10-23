@@ -19,6 +19,15 @@ export async function findAdminAccess(db: Db, userId: string, businessId: string
   return user?.platformRole === "SUPER_ADMIN" && business !== null;
 }
 
+/** Every place this person is an active member of, with their role there. */
+export function listActiveMemberships(db: Db, userId: string) {
+  return db.membership.findMany({
+    where: { userId, status: "ACTIVE", business: { status: "ACTIVE" } },
+    include: { ...membershipWithRole, business: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 export function findMembershipById(db: Db, businessId: string, membershipId: string) {
   return db.membership.findFirst({
     where: { id: membershipId, businessId, status: "ACTIVE", business: { status: "ACTIVE" } },

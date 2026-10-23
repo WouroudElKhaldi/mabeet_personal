@@ -48,6 +48,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   hostProfile        HostProfile?
   aiChats            AiChat[]
+  planRequests       PlanRequest[]
 }
 
 /// A saved conversation with an assistant: the team assistant in one business, or the guests' concierge
@@ -285,6 +286,7 @@ model Business {
   refunds         Refund[]
   payouts         Payout[]
   planPayments    PlanPayment[]
+  planRequests    PlanRequest[]
   aiChats         AiChat[]
 }
 
@@ -539,6 +541,7 @@ enum PaymentMethod {
   OMT
   BANK_TRANSFER
   STRIPE
+  CRYPTO
   OTHER
 }
 
@@ -656,6 +659,57 @@ model PlanPayment {
 
   @@index([businessId])
   @@index([status, paidAt])
+}
+
+/// One way a host can pay Mabeet for a plan by hand: a bank account, a Whish or OMT number, a crypto wallet,
+/// cash at an office. The super admin writes them; owners see the active ones on their billing page.
+model PlatformPaymentOption {
+  id        String        @id @default(cuid())
+  method    PaymentMethod
+  /// e.g. "Bank Audi (USD)", "USDT on TRON".
+  label     String
+  /// What the payer needs: IBAN and holder, phone number, wallet address, office address.
+  details   String
+  active    Boolean       @default(true)
+  position  Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+enum PlanRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// A host asking for a plan they paid by hand, with proof of the payment. A super admin approves it (the plan
+/// starts at once, for the months paid) or rejects it. One waiting request per business at a time.
+model PlanRequest {
+  id             String            @id @default(cuid())
+  businessId     String
+  business       Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  requestedById  String?
+  requestedBy    User?             @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  plan           Plan
+  months         Int
+  amountCents    Int
+  currency       String            @default("USD")
+  method         PaymentMethod
+  /// The transfer or transaction reference the host gave.
+  payerReference String?
+  note           String?
+  /// The receipt or screenshot. Private: only the business's owners and platform admins can open it.
+  receiptMime    String
+  receiptBytes   Bytes
+  status         PlanRequestStatus @default(PENDING)
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  createdAt      DateTime          @default(now())
+
+  @@index([status, createdAt])
+  @@index([businessId, createdAt])
 }
 
 /// The simulated Whish Pay server's own records (WHISH_MODE=simulator). Not used with real Whish keys.

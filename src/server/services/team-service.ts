@@ -26,7 +26,54 @@ function contextFrom(membership: MembershipWithRole, channel: Channel, writeAcce
     isOwner: membership.role.isOwner,
     permissions: writeAccess ? granted : readOnly(granted),
     channel,
+    readOnly: !writeAccess,
   };
+}
+
+const normalize = (text: string) =>
+  text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+/** The places this person can act in, for an AI to choose from. */
+export async function listMyPlaces(ctx: TenantContext) {
+  const memberships = await team.listActiveMemberships(prisma, ctx.userId);
+  return memberships.map((membership) => ({
+    id: membership.businessId,
+    name: membership.business.name,
+    role: membership.role.name,
+    current: membership.businessId === ctx.businessId,
+  }));
+}
+
+/**
+ * An AI working for a person across their places: the place they named (an id, a name or part of one), with
+ * their own role's permissions there. Only places they belong to; a read-only key stays read-only; a name that
+ * fits several places is refused rather than guessed. No place named: the one the key or chat belongs to.
+ */
+export async function resolvePlaceContext(
+  ctx: TenantContext,
+  place: string | undefined,
+): Promise<TenantContext> {
+  if (!place?.trim() || ctx.platformAdmin) return ctx;
+  const memberships = await team.listActiveMemberships(prisma, ctx.userId);
+  const wanted = normalize(place);
+  const exact = memberships.filter(
+    (membership) => membership.businessId === place.trim() || normalize(membership.business.name) === wanted,
+  );
+  const matches =
+    exact.length > 0
+      ? exact
+      : memberships.filter((membership) => normalize(membership.business.name).includes(wanted));
+  if (matches.length === 0) throw notFound("Place");
+  if (matches.length > 1) {
+    throw invalid(
+      `Several of your places match "${place}": ${matches.map((match) => match.business.name).join(", ")}`,
+    );
+  }
+  return contextFrom(matches[0]!, ctx.channel, !ctx.readOnly);
 }
 
 /**

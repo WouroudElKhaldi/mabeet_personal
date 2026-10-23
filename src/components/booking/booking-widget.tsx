@@ -4,7 +4,7 @@ import { clsx } from "clsx";
 import { ArrowRight, CalendarDays, ShieldCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { DateRangePicker, type StayRange } from "@/components/ui/date-range-picker";
 import { GuestCounter } from "@/components/ui/guest-counter";
@@ -43,6 +43,7 @@ export function BookingWidget({ slug, currency, rooms, initial, instant, payOnli
   });
   const [guests, setGuests] = useState(Math.min(initial.guests ?? 2, room.capacity));
   const [pickingDates, setPickingDates] = useState(false);
+  const calendar = useRef<HTMLDivElement>(null);
   const taken = useTakenNights(slug, room.id);
   const quote = useRoomQuote(slug, room.id, range.checkIn, range.checkOut);
 
@@ -121,9 +122,15 @@ export function BookingWidget({ slug, currency, rooms, initial, instant, payOnli
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 34 }}
+            // Once open, bring the whole calendar into view, inside the card or the page.
+            onAnimationComplete={(definition: { height?: number | string }) => {
+              // The closing animation ends at height 0: nothing to show then.
+              if (definition.height === 0) return;
+              calendar.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }}
             className="overflow-hidden"
           >
-            <div className="pt-4">
+            <div ref={calendar} className="pt-4">
               <DateRangePicker value={range} onChange={pickRange} taken={taken} months={1} />
             </div>
           </motion.div>

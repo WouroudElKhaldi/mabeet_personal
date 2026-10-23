@@ -17,10 +17,13 @@ export function useAction() {
       setError(null);
       try {
         await call();
-        onDone?.();
-        router.refresh();
+        // After an await, updates must be wrapped again to stay part of this transition (React 19).
+        startTransition(() => {
+          onDone?.();
+          router.refresh();
+        });
       } catch (caught) {
-        setError(caught instanceof ApiError ? caught.message : t("error"));
+        startTransition(() => setError(caught instanceof ApiError ? caught.message : t("error")));
       }
     });
 

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { exportMyData } from "@/server/services/account-service";
 import { deleteChat, getChat, listChats, saveTurn } from "@/server/services/chat-service";
+import { saveMyHostProfile } from "@/server/services/host-service";
 import { createPlace, createUser, resetDatabase } from "./helpers";
 
 describe("saved assistant chats", () => {
@@ -37,5 +39,25 @@ describe("saved assistant chats", () => {
       code: "NOT_FOUND",
     });
     expect(await listChats(theirs)).toEqual([]);
+  });
+
+  it("hands the person all of it in Download my data, host profile included", async () => {
+    const { owner, business, ctx } = await createPlace();
+    await saveTurn(
+      { userId: owner.id, surface: "team", businessId: business.id },
+      null,
+      "Revenue this month?",
+      {
+        content: "$1,200 so far.",
+        data: null,
+      },
+    );
+    await saveMyHostProfile(ctx, { languages: ["ar"], showOnListings: false, bio: "Hello" });
+    const data = await exportMyData(owner.id);
+    expect(data.aiChats[0]?.messages.map((message) => message.content)).toEqual([
+      "Revenue this month?",
+      "$1,200 so far.",
+    ]);
+    expect(data.hostProfile).toMatchObject({ bio: "Hello", showOnListings: false });
   });
 });

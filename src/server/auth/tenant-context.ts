@@ -16,6 +16,8 @@ export interface TenantContext {
    * Their actions are logged under their own user id. They have no membership, so `membershipId` is empty.
    */
   readonly platformAdmin?: boolean;
+  /** A read-only AI key or token: it stays read-only in every place it reaches. */
+  readonly readOnly?: boolean;
 }
 
 export function can(ctx: TenantContext, permission: Permission): boolean {

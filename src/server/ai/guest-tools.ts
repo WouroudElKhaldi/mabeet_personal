@@ -7,6 +7,7 @@ import {
   searchOfferings,
   searchPlaces,
 } from "@/server/services/directory-service";
+import { getHostSection } from "@/server/services/host-service";
 import { defineTool } from "./tool";
 
 // Public, read-only tools over listed places. They never return bookings, guests or anything unpublished.
@@ -78,11 +79,13 @@ export const GUEST_TOOLS = [
   }),
   defineTool({
     name: "get_place",
-    description: "Public profile of one place: description, area, rooms, amenities, categories and rating.",
+    description:
+      "Public profile of one place: description, area, rooms, amenities, categories, rating, how to book and pay (instant or request, online or to the host), refund policy, whether it's booked as a whole, and its host.",
     input: z.object({ slug: z.string().max(64) }),
     mutates: false,
     run: async ({ slug }) => {
       const place = await getPlace(slug);
+      const host = await getHostSection(place);
       return {
         slug: place.slug,
         name: place.name,
@@ -92,12 +95,26 @@ export const GUEST_TOOLS = [
         checkOut: place.checkOutTime,
         rating: place.rating,
         categories: place.categories.map(({ category }) => category.slug),
+        bookedAs: place.bookingUnit === "WHOLE_PLACE" ? "the whole place" : "room by room",
+        booking: place.bookingMode === "INSTANT" ? "instant" : "request, the host answers",
+        payment:
+          place.paymentCollection === "ONLINE"
+            ? `online through Mabeet with Whish or a card (${place.onlineAmount === "FULL" ? "full amount" : "the deposit"})`
+            : `to the host directly (deposit ${place.depositPercent}%)`,
+        refundPolicy: place.refundPolicy,
         rooms: place.rooms.map((room) => ({
           name: room.name,
           capacity: room.capacity,
           nightlyRateCents: room.baseRateCents,
           amenities: room.amenities,
         })),
+        roomsInsideWholePlace: place.showcaseRooms.map((room) => ({ name: room.name, beds: room.beds })),
+        host: {
+          name: host.name,
+          yearsHosting: host.yearsHosting,
+          languages: host.languages,
+          responseRate: host.responseRate,
+        },
         bookingLink: placeUrl(place.slug),
       };
     },

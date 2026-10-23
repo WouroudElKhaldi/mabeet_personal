@@ -192,7 +192,12 @@
     "baths": "{count, plural, zero {ولا حمّام} one {حمّام واحد} two {حمّامين} few {# حمّامات} many {# حمّام} other {# حمّام}}",
     "showAllPhotos": "شوف كل الصور",
     "whereYoullSleep": "وين رح تنام",
-    "wholePlaceIntro": "بتحجز المحل كلّو، لحدّ {guests} ضيوف. هيدي أوضو."
+    "wholePlaceIntro": "بتحجز المحل كلّو، لحدّ {guests} ضيوف. هيدي أوضو.",
+    "wholeHomeIn": "بيت كامل بـ {area}",
+    "wholeHome": "بيت كامل",
+    "roomsIn": "أوض بيت ضيافة بـ {area}",
+    "roomsHere": "أوض بيت ضيافة",
+    "guestsCount": "{count, plural, one {ضيف واحد} two {ضيفين} few {# ضيوف} many {# ضيف} other {# ضيف}}"
   },
   "booking": {
     "perNight": "بالليلة",
@@ -972,7 +977,8 @@
     "copy": "انسخ",
     "copied": "انتسخ",
     "loading": "عم يحمّل…",
-    "error": "صار شي غلط. جرّب مرّة تانية."
+    "error": "صار شي غلط. جرّب مرّة تانية.",
+    "close": "سكّر"
   },
   "assistant": {
     "placeholder": "اسأل أي شي…",
@@ -1181,7 +1187,8 @@
         "content": "المحتوى",
         "operations": "التشغيل"
       },
-      "hosts": "المضيفين"
+      "hosts": "المضيفين",
+      "billing": "دفعات الخطط"
     },
     "overviewIntro": "المنصة بنظرة وحدة، وشو ناطرك اليوم.",
     "businessesIntro": "كل المحلات عمبيت. الإيقاف بيخبّي المحل من كل مكان دغري.",
@@ -1356,7 +1363,13 @@
     "showMore": "ورجيني {count} مواعيد كمان",
     "noReviews": "ما في تقييمات بعد. الضيوف فيهن يقيّموا بعد ما يشاركوا.",
     "bookNow": "احجز هلّق",
-    "payOnlineNote": "بتدفع أونلاين بعد الحجز، بـ Whish أو بالكارت. مبيت ما بياخد عمولة."
+    "payOnlineNote": "بتدفع أونلاين بعد الحجز، بـ Whish أو بالكارت. مبيت ما بياخد عمولة.",
+    "showAllPhotos": "شوف كل الصور",
+    "experienceIn": "تجربة بـ {area}",
+    "serviceIn": "خدمة بـ {area}",
+    "experience": "تجربة",
+    "service": "خدمة",
+    "upTo": "{count, plural, one {لحدّ ضيف واحد} two {لحدّ ضيفين} few {لحدّ # ضيوف} many {لحدّ # ضيف} other {لحدّ # ضيف}}"
   },
   "serverErrors": {
     "messages": {
@@ -1751,7 +1764,10 @@
       "payout_requested": "{actor} طلب تحويل",
       "member_added": "{actor} زاد حدا عالفريق",
       "member_removed": "{actor} شال حدا من الفريق",
-      "member_role_changed": "{actor} غيّر دور حدا"
+      "member_role_changed": "{actor} غيّر دور حدا",
+      "plan_requested": "{actor} دفع خطة باليد وناطر الموافقة",
+      "plan_approved": "انقبلت دفعتك والخطة تفعّلت",
+      "plan_rejected": "ما انقبلت دفعتك؛ شوف الملاحظة"
     },
     "viewAll": "شوف كل الإشعارات",
     "failed": "ما قدرنا نحمّل الإشعارات. جرّب كمان مرّة.",
@@ -1883,5 +1899,82 @@
       "recommendations": "شو تعمل بعدين",
       "disclaimer": "مكتوب بالذكاء من بياناتك. راجع القرارات المهمّة مع الأرقام فوق."
     }
+  },
+  "listingSummary": {
+    "hostedBy": "بيستضيفك {name}",
+    "trusted": "مضيف موثوق",
+    "new": "جديد عمبيت",
+    "ratedOutOf": "التقييم {rating} من 5",
+    "reviews": "{count, plural, zero {ولا تقييم} one {تقييم واحد} two {تقييمين} few {# تقييمات} many {# تقييم} other {# تقييم}}",
+    "yearsHosting": "{count, plural, =0 {مضيف جديد} one {سنة استضافة} two {سنتين استضافة} few {# سنين استضافة} many {# سنة استضافة} other {# سنة استضافة}}",
+    "hours": "{count, plural, zero {أقل من ساعة} one {ساعة وحدة} two {ساعتين} few {# ساعات} many {# ساعة} other {# ساعة}}"
+  },
+  "manualPlan": {
+    "title": "إدفع بطريقة تانية",
+    "intro": "بعات سعر الخطة بتحويل عالبنك، ويش، OMT، كريبتو أو كاش، وبعدين بعتلنا الإيصال. خطتك بتبلّش أوّل ما نتأكد منه، عادةً خلال يوم.",
+    "step1": "١. نقّي الخطة وقدّيش",
+    "step2": "٢. بعات المصاري لوحدة من هول",
+    "step3": "٣. بعات الإثبات",
+    "plan": "الخطة",
+    "months": "قدّيش",
+    "monthsOption": "{count, plural, one {شهر واحد} two {شهرين} few {# أشهر} many {# شهر} other {# شهر}}",
+    "total": "المبلغ يلّي لازم تبعتو:",
+    "receipt": "الإيصال أو سكرين شوت",
+    "receiptHint": "صورة، سكرين شوت أو PDF، لحد 5 ميغا. ما حدا بيشوفو غيرك وغير فريق مبيت.",
+    "reference": "رقم التحويل (اختياري)",
+    "referenceHint": "الرقم المرجعي أو رقم العملية إذا في.",
+    "note": "ملاحظة لمبيت (اختياري)",
+    "send": "بعات للموافقة",
+    "sent": "انبعتت. منخبرك أوّل ما تتفعّل خطتك.",
+    "waiting": "ناطرين الموافقة: {plan} لـ {months, plural, one {شهر} two {شهرين} few {# أشهر} many {# شهر} other {# شهر}}، {amount}.",
+    "cancel": "إلغي الطلب",
+    "noOptions": "مبيت بعد ما حطّ طرق دفع تانية. إدفع بالكارت فوق أو حاكينا.",
+    "history": "طلباتك",
+    "planMonths": "{plan} · {count, plural, one {شهر} two {شهرين} few {# أشهر} many {# شهر} other {# شهر}}",
+    "viewReceipt": "الإيصال",
+    "adminNote": "مبيت: {note}",
+    "methods": {
+      "BANK_TRANSFER": "تحويل عالبنك",
+      "WHISH": "ويش",
+      "OMT": "OMT",
+      "CRYPTO": "كريبتو",
+      "CASH": "كاش",
+      "OTHER": "غير شي",
+      "STRIPE": "كارت"
+    },
+    "status": {
+      "PENDING": "ناطر",
+      "APPROVED": "مقبول",
+      "REJECTED": "مرفوض",
+      "CANCELLED": "ملغى"
+    }
+  },
+  "adminBilling": {
+    "title": "دفعات الخطط",
+    "intro": "المضيفين يلّي دفعوا خطة باليد. شوف الإيصال ووافق: الخطة بتبلّش فورًا للأشهر المدفوعة وبتنحسب دخل.",
+    "waiting": "ناطرين ({count})",
+    "noneWaiting": "ما في طلبات ناطرة.",
+    "receipt": "إفتح الإيصال",
+    "ref": "رقم {reference}",
+    "note": "ملاحظة للمضيف (اختياري)",
+    "approve": "وافق وفعّل الخطة",
+    "reject": "إرفض",
+    "decided": "انحسمت",
+    "optionsTitle": "كيف المضيفين بيدفعولك",
+    "optionsIntro": "حساباتك بالبنك، أرقام ويش أو OMT، محافظ كريبتو أو مكتب للكاش. المضيفين بيشوفو المفعّلة بصفحة الفوترة.",
+    "noOptions": "بعد ما في. زيد أول طريقة دفع تحت.",
+    "addTitle": "زيد طريقة دفع",
+    "method": "النوع",
+    "label": "الاسم",
+    "labelPlaceholder": "مثلًا: بنك عوده (دولار)",
+    "details": "التفاصيل يلّي بيحتاجها المضيف",
+    "detailsPlaceholder": "صاحب الحساب، IBAN، SWIFT · أو رقم التلفون · أو عنوان المحفظة والشبكة",
+    "position": "الترتيب",
+    "active": "ظاهر للمضيفين",
+    "hidden": "مخفي",
+    "add": "زيد",
+    "save": "إحفظ",
+    "edit": "عدّل",
+    "remove": "إحذف"
   }
 }

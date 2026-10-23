@@ -3,7 +3,7 @@ import { POST as mcp } from "@/app/api/mcp/route";
 import { createKey, revokeKey } from "@/server/services/api-key-service";
 import { requestBooking } from "@/server/services/booking-service";
 import { removeMember } from "@/server/services/team-service";
-import { createPlace, guestRequest, memberWith, resetDatabase } from "./helpers";
+import { createPlace, guestRequest, memberWith, prisma, resetDatabase } from "./helpers";
 
 async function callMcp(secret: string | null, method: string, params: unknown) {
   const request = new Request("http://localhost/api/mcp", {
@@ -71,7 +71,56 @@ describe("owner MCP: keys, permissions and tenant isolation", () => {
     const { secret } = await createKey(housekeeping, { name: "test", canWrite: true, expiresInDays: 30 });
     const { body } = await callMcp(secret, "tools/list", {});
     const names = (body.result?.tools as Array<{ name: string }>).map((tool) => tool.name).sort();
-    expect(names).toEqual(["check_availability", "get_calendar"]);
+    expect(names).toEqual(["check_availability", "get_calendar", "list_places"]);
+  });
+
+  it("works across every place the owner runs, with their role in each", async () => {
+    // The same owner runs both places; a key made in Alpha reaches Bravo when asked about it.
+    await prisma.membership.update({ where: { id: b.ctx.membershipId }, data: { userId: a.owner.id } });
+    const { secret } = await createKey(a.ctx, { name: "test", canWrite: false, expiresInDays: 30 });
+    const { body: list } = await callMcp(secret, "tools/list", {});
+    const names = (list.result?.tools as Array<{ name: string }>).map((tool) => tool.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "list_places",
+        "get_analytics",
+        "get_booking_setup",
+        "get_payouts",
+        "list_notifications",
+      ]),
+    );
+    // Read-only stays read-only in every place.
+    expect(names).not.toContain("confirm_booking");
+
+    const call = async (name: string, args: Record<string, unknown>) =>
+      JSON.parse(toolText((await callMcp(secret, "tools/call", { name, arguments: args })).body)) as unknown;
+    const places = (await call("list_places", {})) as Array<{ name: string }>;
+    expect(places.map((place) => place.name).sort()).toEqual(["Beit Alpha", "Beit Bravo"]);
+    const all = (await call("get_analytics", { from: "2026-01-01", to: "2027-12-31", scope: "all" })) as {
+      places: unknown[];
+    };
+    expect(all.places).toHaveLength(2);
+    const bravo = (await call("list_bookings", { place: "bravo" })) as Array<{ reference: string }>;
+    expect(bravo.map((row) => row.reference)).toEqual([referenceB]);
+    expect(await call("get_booking_setup", {})).toMatchObject({
+      bookingUnit: "ROOMS",
+      bookingMode: "REQUEST",
+    });
+  });
+
+  it("never reaches a place the member doesn't belong to", async () => {
+    const frontDesk = await memberWith(a.business.id, ["bookings.read", "calendar.read", "ai.use"]);
+    const { secret } = await createKey(frontDesk, { name: "test", canWrite: false, expiresInDays: 30 });
+    const { body: list } = await callMcp(secret, "tools/list", {});
+    expect((list.result?.tools as Array<{ name: string }>).map((tool) => tool.name)).not.toContain(
+      "get_payouts",
+    );
+    const { body } = await callMcp(secret, "tools/call", {
+      name: "list_bookings",
+      arguments: { place: "Beit Bravo" },
+    });
+    expect(body.result?.isError).toBe(true);
+    expect(toolText(body)).toContain("not found");
   });
 
   it("stops working the moment a key is revoked or its member is removed", async () => {

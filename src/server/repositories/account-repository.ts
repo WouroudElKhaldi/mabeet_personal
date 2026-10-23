@@ -65,6 +65,41 @@ export function findMyData(db: Db, userId: string) {
         orderBy: { createdAt: "desc" },
         select: { action: true, entity: true, createdAt: true },
       },
+      hostProfile: {
+        select: {
+          displayName: true,
+          bio: true,
+          phone: true,
+          whatsapp: true,
+          city: true,
+          languages: true,
+          hostingSince: true,
+          showOnListings: true,
+          updatedAt: true,
+        },
+      },
+      aiChats: {
+        orderBy: { updatedAt: "desc" },
+        select: {
+          surface: true,
+          title: true,
+          createdAt: true,
+          business: { select: { name: true } },
+          messages: { orderBy: { createdAt: "asc" }, select: { role: true, content: true, createdAt: true } },
+        },
+      },
+      // Names and dates only: a key's hash and a device's push keys are secrets, not personal data to hand out.
+      apiKeys: {
+        select: {
+          name: true,
+          prefix: true,
+          canWrite: true,
+          createdAt: true,
+          lastUsedAt: true,
+          revokedAt: true,
+        },
+      },
+      pushSubscriptions: { select: { createdAt: true } },
     },
   });
 }

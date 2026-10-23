@@ -8,6 +8,7 @@ import {
   CreditCard,
   Inbox,
   Landmark,
+  Receipt,
   type LucideIcon,
   Star,
   UsersRound,
@@ -37,6 +38,9 @@ const ICONS: Record<string, LucideIcon> = {
   "payment.online_late": CreditCard,
   "review.submitted": Star,
   "payout.requested": Landmark,
+  "plan.requested": Receipt,
+  "plan.approved": Receipt,
+  "plan.rejected": Receipt,
   "member.added": UsersRound,
   "member.removed": UsersRound,
   "member.role_changed": UsersRound,
@@ -47,6 +51,7 @@ function hrefFor(item: NotificationItem, admin: boolean): string | null {
   const businessId = item.business?.id;
   if (!businessId) return null;
   if (item.action === "payout.requested") return admin ? "/admin/money" : `/dashboard/${businessId}/payouts`;
+  if (item.action.startsWith("plan.")) return admin ? "/admin/billing" : `/dashboard/${businessId}/billing`;
   if (item.action.startsWith("member.")) return `/dashboard/${businessId}/team`;
   if (item.action === "review.submitted") return `/dashboard/${businessId}/reviews`;
   return `/dashboard/${businessId}/bookings?tab=all`;

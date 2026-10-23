@@ -32,7 +32,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         { href: "/admin/users", label: t("users"), icon: "users" },
       ],
     },
-    { label: t("groups.money"), items: [{ href: "/admin/money", label: t("money"), icon: "wallet" }] },
+    {
+      label: t("groups.money"),
+      items: [
+        { href: "/admin/money", label: t("money"), icon: "wallet" },
+        { href: "/admin/billing", label: t("billing"), icon: "card" },
+      ],
+    },
     {
       label: t("groups.content"),
       items: [
