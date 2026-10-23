@@ -77,6 +77,24 @@ STRIPE_API_KEY=sk_test_… stripe listen --forward-to localhost:3000/api/webhook
 Put the signing secret it prints into `STRIPE_WEBHOOK_SECRET`. On the dashboard's Billing page, pay with the test
 card `4242 4242 4242 4242`, any future date and any CVC.
 
+## Going live
+
+Every push to `main` runs CI (types, lint, formatting, unused code, unit and integration tests). Only if all of
+it passes does the **Deploy to Vercel** job update the production database (`prisma migrate deploy`) and publish
+the new version. Pull requests never deploy. Hosting: Vercel (app, Frankfurt region) and Neon (Postgres).
+
+GitHub repository secrets:
+
+| Secret                               | What it's for                                                |
+| ------------------------------------ | ------------------------------------------------------------ |
+| `VERCEL_TOKEN`                       | Lets CI deploy. Without it the deploy job skips itself       |
+| `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | Which Vercel project to deploy (from `.vercel/project.json`) |
+| `APP_URL`, `CRON_SECRET`             | Let the scheduled jobs call the live site every 15 minutes   |
+
+The app's own settings (database, secrets, keys) live in the Vercel project's production environment, never in
+the repository. Seed the live database once with a private `SEED_PASSWORD`, so the demo accounts don't use the
+public default.
+
 ## Useful commands
 
 | Command                 | What it does                                                            |

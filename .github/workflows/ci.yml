@@ -74,3 +74,50 @@ jobs:
       - run: pnpm exec prisma generate
       # Overlap constraint, seat trigger, race tests, tenant isolation over HTTP and MCP.
       - run: pnpm test:integration
+
+  deploy:
+    name: Deploy to Vercel
+    # Only a push to main that passed every check above goes live. Pull requests never deploy.
+    needs: [checks, integration]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Stop when Vercel isn't connected yet
+        if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
+        run: echo "::notice::Set VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID to deploy." && exit 0
+      - uses: actions/checkout@v4
+        if: env.VERCEL_TOKEN != ''
+      - uses: pnpm/action-setup@v4
+        if: env.VERCEL_TOKEN != ''
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        if: env.VERCEL_TOKEN != ''
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Get the production settings from Vercel
+        if: env.VERCEL_TOKEN != ''
+        run: pnpm dlx vercel@65.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Install
+        if: env.VERCEL_TOKEN != ''
+        run: pnpm install --frozen-lockfile
+      # Migrations run before the new code goes live, against the database the production settings name.
+      - name: Update the production database
+        if: env.VERCEL_TOKEN != ''
+        run: |
+          set -a && . .vercel/.env.production.local && set +a
+          pnpm exec prisma migrate deploy
+      - name: Build
+        if: env.VERCEL_TOKEN != ''
+        run: pnpm dlx vercel@65.2.0 build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy
+        if: env.VERCEL_TOKEN != ''
+        run: pnpm dlx vercel@65.2.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"

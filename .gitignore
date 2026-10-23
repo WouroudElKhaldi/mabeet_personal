@@ -47,3 +47,6 @@ backups/
 
 # private planning material (pilot host contacts, analysis)
 docs/internal/
+
+# Local analysis export, never published
+artifact.md
