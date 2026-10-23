@@ -52,7 +52,12 @@ describe("saved assistant chats", () => {
         data: null,
       },
     );
-    await saveMyHostProfile(ctx, { languages: ["ar"], showOnListings: false, bio: "Hello" });
+    await saveMyHostProfile(ctx, {
+      languages: ["ar"],
+      showOnListings: false,
+      contactBy: "BOTH",
+      bio: "Hello",
+    });
     const data = await exportMyData(owner.id);
     expect(data.aiChats[0]?.messages.map((message) => message.content)).toEqual([
       "Revenue this month?",

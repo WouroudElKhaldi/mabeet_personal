@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { ArrowLeft, ExternalLink, LayoutDashboard } from "lucide-react";
+import { ExternalLink, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { BusinessStatusToggle } from "@/components/dashboard/business-status-toggle";
@@ -36,13 +36,6 @@ export default async function AdminHostPage({ params }: PageProps) {
 
   return (
     <>
-      <Link
-        href="/admin/hosts"
-        className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-ink"
-      >
-        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
-        {t("title")}
-      </Link>
       <PageHeader
         title={profile?.displayName ?? host.name}
         intro={profile?.displayName ? host.name : undefined}

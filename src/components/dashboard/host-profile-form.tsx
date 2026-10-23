@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
+import { HOST_CONTACT_OPTIONS } from "@/config/enums";
 import { LANGUAGES } from "@/config/listing";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
@@ -17,6 +18,7 @@ interface HostProfile {
   languages: string[];
   hostingSince: number | null;
   showOnListings: boolean;
+  contactBy: (typeof HOST_CONTACT_OPTIONS)[number];
 }
 
 /** The owner's own details. Always kept; shown to guests only when "show on my listings" is on. */
@@ -49,6 +51,7 @@ export function HostProfileForm({
           languages: data.getAll("languages"),
           hostingSince: since ? Number(since) : null,
           showOnListings: data.get("showOnListings") === "on",
+          contactBy: data.get("contactBy"),
         }),
       () => setSaved(true),
     );
@@ -130,6 +133,27 @@ export function HostProfileForm({
           <span className="block text-muted">{t("showHint")}</span>
         </span>
       </label>
+      <fieldset className="grid gap-2 sm:col-span-2">
+        <legend className="mb-1 text-sm font-semibold">{t("contactBy")}</legend>
+        <p className="mb-1 text-sm text-muted">{t("contactByHint")}</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {HOST_CONTACT_OPTIONS.map((option) => (
+            <label
+              key={option}
+              className="flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold ring-1 ring-line has-checked:bg-accent/10 has-checked:ring-2 has-checked:ring-accent"
+            >
+              <input
+                type="radio"
+                name="contactBy"
+                value={option}
+                defaultChecked={(profile?.contactBy ?? "BOTH") === option}
+                className="accent-accent"
+              />
+              {t(`contact.${option}`)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {t("save")}

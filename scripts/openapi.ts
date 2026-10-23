@@ -48,6 +48,15 @@ const OPERATIONS: Operation[] = [
   },
   {
     method: "post",
+    path: "/api/public/places/{slug}/messages",
+    summary: "Email the host a question from the Contact host page (rate limited)",
+    tag: "Guests",
+    auth: "public",
+    body: s.hostMessageInput,
+    status: 201,
+  },
+  {
+    method: "post",
     path: "/api/public/experiences/{slug}/bookings",
     summary: "Request seats in an experience or service session (rate limited)",
     tag: "Guests",

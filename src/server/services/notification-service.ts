@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { BookingStatus } from "@prisma/client";
+import { parseIsoDate } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
 import { formatSessionTime } from "@/lib/zoned-time";
 import { prisma } from "@/server/db/client";
@@ -162,7 +164,7 @@ function thing(notice: Notice, l: Lang): string {
 const formatHold = (date: Date, l: Lang) =>
   new Intl.DateTimeFormat(l, { dateStyle: "medium", timeStyle: "short" }).format(date);
 
-type Letter = { subject: string; idempotencyKey: string; message: Message };
+type Letter = { subject: string; idempotencyKey: string; message: Message; replyTo?: string };
 
 /** The push version of an email: its title, first paragraph and button link. */
 const pushOf = (message: Message): PushMessage => ({
@@ -177,10 +179,11 @@ async function tellHosts(businessId: string, build: (l: Lang) => Letter) {
   const languages = [...new Set(hosts.map((host) => lang(host.locale)))];
   await Promise.all([
     ...languages.map((l) => {
-      const { subject, idempotencyKey, message } = build(l);
+      const { subject, idempotencyKey, message, replyTo } = build(l);
       return sendEmail({
         to: hosts.filter((host) => lang(host.locale) === l).map((host) => host.email),
         idempotencyKey: `${idempotencyKey}-${l}`,
+        replyTo,
         ...render(subject, message, l),
       });
     }),
@@ -533,6 +536,60 @@ export function notifyRefund(bookingId: string, amountCents: number, kind: Notic
           url: url(`/b/${notice.publicToken}`),
         },
       },
+    });
+  });
+}
+
+/** A guest's question from the Contact host page, as the host will read it. */
+export interface HostMessage {
+  businessId: string;
+  placeName: string;
+  name: string;
+  email: string;
+  message: string;
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+}
+
+/** A guest wrote from the Contact host page: the people who handle bookings get it, and replying reaches the guest. */
+export function notifyHostMessage(question: HostMessage): void {
+  const id = randomUUID();
+  inBackground("host message", async () => {
+    const when = (l: Lang) =>
+      question.checkIn && question.checkOut
+        ? formatStayDates(parseIsoDate(question.checkIn), parseIsoDate(question.checkOut), l)
+        : null;
+    await tellHosts(question.businessId, (l) => {
+      const dates = when(l);
+      return {
+        subject:
+          l === "ar"
+            ? `سؤال من ${question.name} عن ${question.placeName}`
+            : `Question from ${question.name} about ${question.placeName}`,
+        idempotencyKey: `host-message-${id}`,
+        replyTo: question.email,
+        message: {
+          kicker: l === "ar" ? "رسالة جديدة" : "New message",
+          title: l === "ar" ? `${question.name} لديه سؤال` : `${question.name} has a question`,
+          body: [
+            question.message,
+            l === "ar"
+              ? "ردّ على هذا البريد ليصل جوابك إلى الضيف مباشرة."
+              : "Reply to this email and your answer goes straight to the guest.",
+          ],
+          details: [
+            { label: LABELS[l].place, value: question.placeName },
+            ...(dates ? [{ label: LABELS[l].dates, value: dates }] : []),
+            ...(question.guests ? [{ label: LABELS[l].guests, value: String(question.guests) }] : []),
+            { label: l === "ar" ? "البريد" : "Email", value: question.email },
+          ],
+          action: {
+            label: l === "ar" ? `ردّ على ${question.name}` : `Reply to ${question.name}`,
+            url: `mailto:${question.email}`,
+          },
+        },
+      };
     });
   });
 }

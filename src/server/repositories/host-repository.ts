@@ -1,3 +1,4 @@
+import type { HostContact } from "@prisma/client";
 import type { Db } from "@/server/db/client";
 
 // Hosts: the people who own businesses, and their own profile. A host is a user with an active owner
@@ -18,6 +19,7 @@ export interface HostProfileFields {
   languages: string[];
   hostingSince: number | null;
   showOnListings: boolean;
+  contactBy: HostContact;
 }
 
 export function saveHostProfile(db: Db, userId: string, fields: HostProfileFields) {

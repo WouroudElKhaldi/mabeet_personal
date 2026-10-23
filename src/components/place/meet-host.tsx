@@ -1,4 +1,5 @@
-import { BadgeCheck, MessageCircle, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { HostSection } from "@/server/services/host-service";
 import { isTrustedHost } from "./listing-summary";
@@ -12,15 +13,25 @@ const initials = (name: string) =>
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
+/** How quickly the host usually answers, as a message key, or null for a host with no requests yet. */
+export function responseTimeKey(minutes: number | null) {
+  if (minutes === null) return null;
+  if (minutes <= 60) return "withinHour" as const;
+  return minutes <= 24 * 60 ? ("withinDay" as const) : ("withinDays" as const);
+}
+
 /** "Meet your host": who runs the place, how long they've hosted, how they answer, and a way to message them. */
 export async function MeetHost({
   host,
   rating,
   placeName,
+  contactHref,
 }: {
   host: HostSection;
   rating: { average: number; count: number };
   placeName: string;
+  /** The listing's Contact host page, when it has one. */
+  contactHref?: string;
 }) {
   const [t, tLang, locale] = await Promise.all([
     getTranslations("meetHost"),
@@ -30,15 +41,10 @@ export async function MeetHost({
   const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const whatsapp = host.whatsapp?.replace(/\D/g, "");
   const languages = host.languages.map((code) => tLang(code as "ar" | "en" | "fr"));
-  const responseTime =
-    host.medianResponseMinutes === null
-      ? null
-      : host.medianResponseMinutes <= 60
-        ? t("withinHour")
-        : host.medianResponseMinutes <= 24 * 60
-          ? t("withinDay")
-          : t("withinDays");
+  const responseKey = responseTimeKey(host.medianResponseMinutes);
+  const responseTime = responseKey && t(responseKey);
   const trusted = isTrustedHost(rating, host);
+  const messageable = host.acceptsMessages && contactHref !== undefined;
 
   return (
     <section className="mt-12 border-t border-line pt-12" aria-labelledby="meet-host">
@@ -101,16 +107,36 @@ export async function MeetHost({
               {responseTime && <li>{responseTime}</li>}
             </ul>
           </div>
-          {whatsapp && (
-            <a
-              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(t("messageText", { place: placeName }))}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-12 w-fit items-center gap-2 rounded-xl bg-ink px-6 font-semibold text-paper transition-opacity hover:opacity-90"
-            >
-              <MessageCircle className="size-5" aria-hidden />
-              {t("message")}
-            </a>
+          {/* The host decides, for all their listings, whether guests see WhatsApp, the Contact host page, or both. */}
+          {(whatsapp || messageable) && (
+            <div className="flex flex-wrap items-center gap-3">
+              {messageable && (
+                <Link
+                  href={contactHref}
+                  className="inline-flex h-12 items-center gap-2 rounded-xl bg-ink px-6 font-semibold text-paper transition-opacity hover:opacity-90"
+                >
+                  <Mail className="size-5" aria-hidden />
+                  {t("contact")}
+                </Link>
+              )}
+              {whatsapp && (
+                <a
+                  href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(t("messageText", { place: placeName }))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("whatsapp")}
+                  title={t("whatsapp")}
+                  className={
+                    messageable
+                      ? "grid size-12 place-items-center rounded-xl bg-[#25d366] text-white transition-opacity hover:opacity-90"
+                      : "inline-flex h-12 items-center gap-2 rounded-xl bg-[#25d366] px-6 font-semibold text-white transition-opacity hover:opacity-90"
+                  }
+                >
+                  <MessageCircle className="size-5" aria-hidden />
+                  {!messageable && t("whatsapp")}
+                </a>
+              )}
+            </div>
           )}
           <p className="flex items-start gap-2 border-t border-line pt-4 text-xs text-muted">
             <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />

@@ -2,12 +2,13 @@
 
 import { clsx } from "clsx";
 import { ArrowRight, CalendarDays, ShieldCheck } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { DateRangePicker, type StayRange } from "@/components/ui/date-range-picker";
 import { GuestCounter } from "@/components/ui/guest-counter";
+import { SheetDialog } from "@/components/ui/sheet-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseIsoDate } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
@@ -43,7 +44,6 @@ export function BookingWidget({ slug, currency, rooms, initial, instant, payOnli
   });
   const [guests, setGuests] = useState(Math.min(initial.guests ?? 2, room.capacity));
   const [pickingDates, setPickingDates] = useState(false);
-  const calendar = useRef<HTMLDivElement>(null);
   const taken = useTakenNights(slug, room.id);
   const quote = useRoomQuote(slug, room.id, range.checkIn, range.checkOut);
 
@@ -100,8 +100,8 @@ export function BookingWidget({ slug, currency, rooms, initial, instant, payOnli
 
       <button
         type="button"
-        onClick={() => setPickingDates((open) => !open)}
-        aria-expanded={pickingDates}
+        onClick={() => setPickingDates(true)}
+        aria-haspopup="dialog"
         className="mt-5 flex w-full items-center gap-3 rounded-t-lg px-4 py-3 text-start ring-1 ring-line-strong transition-shadow hover:ring-ink/50"
       >
         <CalendarDays className="size-5 text-muted" aria-hidden />
@@ -115,27 +115,12 @@ export function BookingWidget({ slug, currency, rooms, initial, instant, payOnli
         </span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {pickingDates && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 34 }}
-            // Once open, bring the whole calendar into view, inside the card or the page.
-            onAnimationComplete={(definition: { height?: number | string }) => {
-              // The closing animation ends at height 0: nothing to show then.
-              if (definition.height === 0) return;
-              calendar.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-            }}
-            className="overflow-hidden"
-          >
-            <div ref={calendar} className="pt-4">
-              <DateRangePicker value={range} onChange={pickRange} taken={taken} months={1} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* A popup, not an inline panel: the card is sticky, so a calendar opened inside it could be cut off. */}
+      <SheetDialog open={pickingDates} onClose={() => setPickingDates(false)} title={t("dates")} wide>
+        <div className="p-6">
+          <DateRangePicker value={range} onChange={pickRange} taken={taken} />
+        </div>
+      </SheetDialog>
 
       <div className="rounded-b-lg px-4 py-3 ring-1 ring-line-strong">
         <GuestCounter value={guests} onChange={setGuests} label={t("guests")} max={room.capacity} />

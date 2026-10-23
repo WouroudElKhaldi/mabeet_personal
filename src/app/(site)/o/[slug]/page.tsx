@@ -49,7 +49,7 @@ export default async function OfferingPage({ params }: PageProps) {
   ]);
 
   const [reviews, host, tDuration] = await Promise.all([
-    listOfferingReviews(offering.id, 6),
+    listOfferingReviews(offering.id, 100),
     getHostSection(offering.business),
     getTranslations("listingSummary"),
   ]);

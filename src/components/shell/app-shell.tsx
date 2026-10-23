@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "./back-link";
 import { clsx } from "clsx";
 import {
   Activity,
@@ -266,6 +267,7 @@ export function AppShell(props: AppShellProps) {
         </header>
 
         <main id="main" className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          <BackLink className="mb-4" />
           {children}
         </main>
       </div>

@@ -197,7 +197,9 @@
     "wholeHome": "منزل كامل",
     "roomsIn": "غرف بيت ضيافة في {area}",
     "roomsHere": "غرف بيت ضيافة",
-    "guestsCount": "{count, plural, one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}"
+    "guestsCount": "{count, plural, one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
+    "showAllReviews": "اعرض كل التقييمات ({count})",
+    "showAllAmenities": "اعرض كل المرافق ({count})"
   },
   "booking": {
     "perNight": "لليلة",
@@ -978,7 +980,8 @@
     "copied": "نُسخ",
     "loading": "جارٍ التحميل…",
     "error": "حدث خطأ ما. حاول مجددًا.",
-    "close": "إغلاق"
+    "close": "إغلاق",
+    "back": "رجوع"
   },
   "assistant": {
     "placeholder": "اسأل أي شيء…",
@@ -1463,7 +1466,8 @@
       "refundNotWaiting": "هذا الاسترداد ليس بانتظار الإرسال.",
       "payByCard": "أنت تدفع بالبطاقة. غيّر باقتك من إدارة الفوترة.",
       "hostOwnersOnly": "المالك وحده لديه ملف مضيف",
-      "adminNoKeys": "لا يمكن لمدير المنصة إنشاء مفاتيح ذكاء اصطناعي لنشاط ليس عضوًا فيه"
+      "adminNoKeys": "لا يمكن لمدير المنصة إنشاء مفاتيح ذكاء اصطناعي لنشاط ليس عضوًا فيه",
+      "whatsappOnly": "هذا المضيف يردّ عبر واتساب فقط"
     },
     "entities": {
       "Block": "الإغلاق",
@@ -1722,7 +1726,14 @@
     "save": "احفظ الملف",
     "saved": "تم الحفظ.",
     "yourHost": "مضيفك",
-    "message": "راسله على واتساب"
+    "message": "راسله على واتساب",
+    "contactBy": "كيف يتواصل معك الضيوف",
+    "contactByHint": "ينطبق على كل أماكنك. «راسل المضيف» يرسل لك سؤال الضيف بالبريد، وتردّ من بريدك.",
+    "contact": {
+      "BOTH": "واتساب و«راسل المضيف»",
+      "WHATSAPP": "واتساب فقط",
+      "MESSAGE": "«راسل المضيف» فقط"
+    }
   },
   "profile": {
     "title": "ملفي الشخصي",
@@ -1786,11 +1797,12 @@
     "withinHour": "يرد خلال ساعة",
     "withinDay": "يرد خلال يوم",
     "withinDays": "يرد خلال أيام",
-    "message": "راسل المضيف",
     "messageText": "مرحبًا! أنا مهتم بـ {place} على مبيت.",
     "protect": "احجز وادفع عبر مبيت ليُسجَّل حجزك وعربونك.",
     "reviews": "{count, plural, zero {تقييمات} one {تقييم} two {تقييمان} few {تقييمات} many {تقييمًا} other {تقييم}}",
-    "years": "{count, plural, zero {سنوات استضافة} one {سنة استضافة} two {سنتا استضافة} few {سنوات استضافة} many {سنة استضافة} other {سنة استضافة}}"
+    "years": "{count, plural, zero {سنوات استضافة} one {سنة استضافة} two {سنتا استضافة} few {سنوات استضافة} many {سنة استضافة} other {سنة استضافة}}",
+    "contact": "راسل المضيف",
+    "whatsapp": "واتساب"
   },
   "photoTour": {
     "title": "جولة بالصور",
@@ -1976,5 +1988,25 @@
     "save": "حفظ",
     "edit": "تعديل",
     "remove": "حذف"
+  },
+  "contactHost": {
+    "metaTitle": "تواصل مع مضيف {place}",
+    "title": "تواصل مع {name}",
+    "mostAsk": "أكثر ما يسأل عنه الضيوف",
+    "gettingThere": "الوصول",
+    "location": "المكان في {area}.",
+    "priceAvailability": "السعر والتوفّر",
+    "deposit": "عربون بنسبة {percent}% يثبّت حجزك.",
+    "stillQuestions": "لديك أسئلة أخرى؟ راسل المضيف",
+    "stillQuestionsBody": "تصل رسالتك إلى {name} بالبريد، ويردّ على العنوان الذي تكتبه.",
+    "name": "اسمك",
+    "email": "بريدك الإلكتروني",
+    "emailHint": "يردّ المضيف هنا.",
+    "message": "الرسالة",
+    "placeholder": "مرحبًا {name}، أودّ أن أعرف…",
+    "send": "أرسل الرسالة",
+    "sentTitle": "أُرسلت الرسالة",
+    "sentBody": "سيردّ {name} على بريدك. تابع صندوق الوارد، والبريد المزعج احتياطًا.",
+    "checkAvailability": "تحقّق من التوفّر"
   }
 }

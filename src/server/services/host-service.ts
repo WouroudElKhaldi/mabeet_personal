@@ -30,6 +30,7 @@ export async function saveMyHostProfile(ctx: TenantContext, input: z.infer<typeo
     languages: input.languages,
     hostingSince: input.hostingSince ?? null,
     showOnListings: input.showOnListings,
+    contactBy: input.contactBy,
   });
   await recordAction(ctx, "host_profile.saved", "user", ctx.userId);
   return profile;
@@ -46,7 +47,10 @@ export interface HostSection {
   yearsHosting: number;
   responseRate: number | null;
   medianResponseMinutes: number | null;
+  /** The number to open in WhatsApp, or null when the host has none or chose the Contact host page only. */
   whatsapp: string | null;
+  /** Guests can write to the host from the Contact host page, which emails them. */
+  acceptsMessages: boolean;
 }
 
 /**
@@ -62,6 +66,8 @@ export async function getHostSection(
     hosts.responseStats(prisma, place.id, new Date(now.getTime() - YEAR_MS)),
   ]);
   const profile = owner?.hostProfile?.showOnListings ? owner.hostProfile : null;
+  // The contact choice applies whether or not the profile itself is shown.
+  const contactBy = owner?.hostProfile?.contactBy ?? "BOTH";
   const since = profile?.hostingSince
     ? new Date(Date.UTC(profile.hostingSince, 0, 1))
     : (owner?.createdAt ?? now);
@@ -73,7 +79,8 @@ export async function getHostSection(
     yearsHosting: Math.max(0, Math.floor((now.getTime() - since.getTime()) / YEAR_MS)),
     responseRate: stats.total > 0 ? stats.answered / stats.total : null,
     medianResponseMinutes: stats.minutes,
-    whatsapp: profile?.whatsapp ?? place.whatsapp,
+    whatsapp: contactBy === "MESSAGE" ? null : (profile?.whatsapp ?? place.whatsapp),
+    acceptsMessages: contactBy !== "WHATSAPP",
   };
 }
 

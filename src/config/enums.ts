@@ -1,4 +1,4 @@
-import type { BookingStatus, FeedSource, PaymentMethod, PhotoArea } from "@prisma/client";
+import type { BookingStatus, FeedSource, HostContact, PaymentMethod, PhotoArea } from "@prisma/client";
 
 // Value lists shared by validation, the AI tools and the screens. `satisfies` checks them against the
 // database enums, so adding a status in the schema cannot silently miss a list here.
@@ -40,6 +40,9 @@ export const PLAN_PAYMENT_METHODS = [
   "CASH",
   "OTHER",
 ] as const satisfies readonly PaymentMethod[];
+
+/** How guests reach a host on all their listings: both buttons, WhatsApp only, or the Contact host page only. */
+export const HOST_CONTACT_OPTIONS = ["BOTH", "WHATSAPP", "MESSAGE"] as const satisfies readonly HostContact[];
 
 export const CURRENCIES = ["USD", "LBP", "EUR"] as const;
 

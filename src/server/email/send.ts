@@ -8,6 +8,8 @@ export interface Email {
   subject: string;
   html: string;
   text: string;
+  /** Where a reply goes, e.g. the guest who wrote from a Contact host page. */
+  replyTo?: string;
   /** Lets Resend drop accidental duplicates, e.g. a retried request. */
   idempotencyKey?: string;
 }
@@ -41,6 +43,7 @@ export async function sendEmail(email: Email): Promise<void> {
       subject: email.subject,
       html: email.html,
       text: email.text,
+      ...(email.replyTo && { reply_to: email.replyTo }),
     }),
   });
   if (!response.ok) {

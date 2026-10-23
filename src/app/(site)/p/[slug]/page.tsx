@@ -14,6 +14,7 @@ import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { BookingWidget } from "@/components/booking/booking-widget";
 import { Amenity } from "@/components/place/amenity";
+import { ShowAllDialog } from "@/components/ui/show-all-dialog";
 import { isAmenity } from "@/config/amenities";
 import { ACCESSIBILITY, keepKnown, TAGS } from "@/config/listing";
 import { KnowList, type KnowItem, ThingsToKnow } from "@/components/listing/things-to-know";
@@ -43,6 +44,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return { title: place.name, description: place.description?.slice(0, 160) };
 }
 
+// Amenities beyond these open in a popup.
+const AMENITIES_SHOWN = 10;
+
 export default async function PlacePage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const query = searchSchema.parse(await searchParams);
@@ -54,7 +58,7 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
     getTranslations("thingsToKnow"),
     getTranslations("listing"),
     getTranslations("offeringPage"),
-    listPublicReviews(place.id, 6),
+    listPublicReviews(place.id, 100),
     favoriteSlugs(user?.id),
     getHostSection(place),
   ]);
@@ -85,6 +89,9 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
   const amenities = [
     ...new Set([...place.rooms, ...place.showcaseRooms].flatMap((room) => room.amenities)),
   ].filter(isAmenity);
+  const amenity = (name: (typeof amenities)[number]) => (
+    <Amenity key={name} name={name} label={t(`amenity.${name}`)} />
+  );
   const photos = [
     ...place.photos,
     ...[...place.rooms, ...place.showcaseRooms].flatMap((room) => room.photos),
@@ -265,10 +272,16 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
             <section className="mt-12 border-t border-line pt-12">
               <h2 className="text-[1.375rem] font-semibold">{t("amenities")}</h2>
               <ul className="mt-4 grid gap-x-8 sm:grid-cols-2">
-                {amenities.map((name) => (
-                  <Amenity key={name} name={name} label={t(`amenity.${name}`)} />
-                ))}
+                {amenities.slice(0, AMENITIES_SHOWN).map(amenity)}
               </ul>
+              {amenities.length > AMENITIES_SHOWN && (
+                <ShowAllDialog
+                  label={t("showAllAmenities", { count: amenities.length })}
+                  title={t("amenities")}
+                >
+                  <ul className="grid">{amenities.map(amenity)}</ul>
+                </ShowAllDialog>
+              )}
             </section>
           )}
 
@@ -283,7 +296,12 @@ export default async function PlacePage({ params, searchParams }: PageProps) {
             openLabel={tMap("openMaps")}
           />
           <ThingsToKnow title={tKnow("title")} items={knowItems} />
-          <MeetHost host={host} rating={place.rating} placeName={place.name} />
+          <MeetHost
+            host={host}
+            rating={place.rating}
+            placeName={place.name}
+            contactHref={`/p/${place.slug}/contact`}
+          />
         </div>
 
         <aside className="lg:sticky lg:top-28 lg:-m-1 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:p-1">

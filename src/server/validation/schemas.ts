@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   BOOKING_STATUSES,
   CURRENCIES,
+  HOST_CONTACT_OPTIONS,
   FEED_SOURCES,
   MANUAL_PAYMENT_METHODS,
   PLAN_PAYMENT_METHODS,
@@ -231,7 +232,23 @@ export const hostProfileInput = z.object({
   languages: z.array(z.enum(LANGUAGES)).max(LANGUAGES.length),
   hostingSince: z.number().int().min(1950).max(2100).nullish(),
   showOnListings: z.boolean(),
+  contactBy: z.enum(HOST_CONTACT_OPTIONS).default("BOTH"),
 });
+
+/** A guest's question from a listing's Contact host page. Dates and guest count are optional context. */
+export const hostMessageInput = z
+  .object({
+    name: z.string().trim().min(2).max(80),
+    email: z.email().max(254),
+    message: z.string().trim().min(10).max(2000),
+    checkIn: isoDate.optional(),
+    checkOut: isoDate.optional(),
+    guests: z.number().int().min(1).max(50).optional(),
+  })
+  .refine(({ checkIn, checkOut }) => !checkIn || !checkOut || checkOut > checkIn, {
+    message: "Check-out must be after check-in",
+    path: ["checkOut"],
+  });
 
 export const payoutRequestInput = z
   .object({

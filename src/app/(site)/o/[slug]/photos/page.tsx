@@ -1,7 +1,5 @@
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { findPageOr404 } from "@/server/http/page";
 import { getOffering } from "@/server/services/directory-service";
@@ -20,13 +18,6 @@ export default async function OfferingPhotosPage({ params }: PageProps) {
   const [t, offering] = await Promise.all([getTranslations("photoTour"), findPageOr404(getOffering(slug))]);
   return (
     <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
-      <Link
-        href={`/o/${slug}`}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-ink"
-      >
-        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
-        {offering.title}
-      </Link>
       <h1 className="mt-4 text-3xl font-semibold">{t("title")}</h1>
       {offering.photos.length === 0 ? (
         <p className="mt-6 text-muted">{t("none")}</p>

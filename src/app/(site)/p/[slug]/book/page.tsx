@@ -1,4 +1,3 @@
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -45,13 +44,6 @@ export default async function BookPage({ params, searchParams }: PageProps) {
 
   return (
     <div className="mx-auto max-w-280 px-4 pt-6 sm:px-6 lg:px-10">
-      <Link
-        href={`/p/${slug}`}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-ink"
-      >
-        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
-        {place.name}
-      </Link>
       <h1 className="rise-in font-poster mt-4 text-[clamp(1.75rem,3.2vw,2.25rem)]">{t("title")}</h1>
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-20">

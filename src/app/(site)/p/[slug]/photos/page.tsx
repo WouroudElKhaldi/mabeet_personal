@@ -1,7 +1,5 @@
-import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { photoGroups } from "@/components/place/photo-tour";
 import { findPageOr404 } from "@/server/http/page";
@@ -23,13 +21,6 @@ export default async function PlacePhotosPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
-      <Link
-        href={`/p/${slug}`}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-ink"
-      >
-        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden />
-        {place.name}
-      </Link>
       <h1 className="mt-4 text-3xl font-semibold">{t("title")}</h1>
 
       {groups.length === 0 ? (

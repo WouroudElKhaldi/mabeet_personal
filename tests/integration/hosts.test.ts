@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { POST as sendMessage } from "@/app/api/public/places/[slug]/messages/route";
 import { createKey } from "@/server/services/api-key-service";
 import { getHostSection, listHosts, saveMyHostProfile } from "@/server/services/host-service";
 import { resolveContext } from "@/server/services/team-service";
@@ -13,6 +14,7 @@ const profile = {
   languages: ["ar", "en"] as Array<"ar" | "en" | "fr">,
   hostingSince: 2015,
   showOnListings: false,
+  contactBy: "BOTH" as const,
 };
 
 describe("hosts and their profile", () => {
@@ -29,6 +31,35 @@ describe("hosts and their profile", () => {
       name: "Rima",
       languages: ["ar", "en"],
     });
+  });
+
+  it("lets the host choose WhatsApp, the Contact host page, or both, for every place", async () => {
+    const { business, ctx } = await createPlace();
+    const place = await prisma.business.update({
+      where: { id: business.id },
+      data: { whatsapp: "+96170000000" },
+    });
+    const ask = (body: unknown) =>
+      sendMessage(
+        new Request(`http://localhost/api/public/places/${business.slug}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" },
+          body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ slug: business.slug }) },
+      );
+    const question = { name: "Nour", email: "nour@example.com", message: "Is there parking near the house?" };
+
+    expect(await getHostSection(place)).toMatchObject({ whatsapp: "+96170000000", acceptsMessages: true });
+    expect((await ask(question)).status).toBe(201);
+    expect((await ask({ ...question, message: "short" })).status).toBe(400);
+
+    await saveMyHostProfile(ctx, { ...profile, contactBy: "MESSAGE" });
+    expect(await getHostSection(place)).toMatchObject({ whatsapp: null, acceptsMessages: true });
+
+    await saveMyHostProfile(ctx, { ...profile, contactBy: "WHATSAPP" });
+    expect(await getHostSection(place)).toMatchObject({ acceptsMessages: false });
+    expect((await ask(question)).status).toBe(403);
   });
 
   it("lists a host with five businesses once, with all five", async () => {

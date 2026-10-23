@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ArchWindow } from "@/components/brand/arch-window";
 import { BoardingPass } from "@/components/brand/boarding-pass";
 import { Postmark } from "@/components/brand/postmark";
+import { BackLink } from "@/components/shell/back-link";
 import { Wordmark } from "@/components/site/wordmark";
 import { AppearanceMenu } from "@/components/theme/appearance-menu";
 import { searchPlaces } from "@/server/services/directory-service";
@@ -28,6 +29,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
           <AppearanceMenu />
         </div>
         <main id="main" className="m-auto w-full max-w-sm py-12">
+          <BackLink className="mb-6" />
           {children}
         </main>
         <ul className="mx-auto flex max-w-md flex-wrap justify-center gap-x-5 gap-y-2 text-xs font-semibold text-muted">

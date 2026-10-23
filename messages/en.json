@@ -197,7 +197,9 @@
     "wholeHome": "Entire home",
     "roomsIn": "Guesthouse rooms in {area}",
     "roomsHere": "Guesthouse rooms",
-    "guestsCount": "{count, plural, one {# guest} other {# guests}}"
+    "guestsCount": "{count, plural, one {# guest} other {# guests}}",
+    "showAllReviews": "Show all {count} reviews",
+    "showAllAmenities": "Show all {count} amenities"
   },
   "booking": {
     "perNight": "a night",
@@ -978,7 +980,8 @@
     "copied": "Copied",
     "loading": "Loading…",
     "error": "Something went wrong. Please try again.",
-    "close": "Close"
+    "close": "Close",
+    "back": "Back"
   },
   "assistant": {
     "placeholder": "Ask anything…",
@@ -1463,7 +1466,8 @@
       "refundNotWaiting": "This refund is not waiting to be sent.",
       "payByCard": "You pay by card. Change your plan from Manage billing.",
       "hostOwnersOnly": "Only an owner has a host profile",
-      "adminNoKeys": "Platform admins can't create AI keys for a business they don't belong to"
+      "adminNoKeys": "Platform admins can't create AI keys for a business they don't belong to",
+      "whatsappOnly": "This host answers on WhatsApp only"
     },
     "entities": {
       "Block": "Block",
@@ -1722,7 +1726,14 @@
     "save": "Save profile",
     "saved": "Saved.",
     "yourHost": "Your host",
-    "message": "Message on WhatsApp"
+    "message": "Message on WhatsApp",
+    "contactBy": "How guests reach you",
+    "contactByHint": "Applies to all your places. Contact host emails you the guest's question, and you reply from your inbox.",
+    "contact": {
+      "BOTH": "WhatsApp and Contact host",
+      "WHATSAPP": "WhatsApp only",
+      "MESSAGE": "Contact host only"
+    }
   },
   "profile": {
     "title": "My profile",
@@ -1786,11 +1797,12 @@
     "withinHour": "Responds within an hour",
     "withinDay": "Responds within a day",
     "withinDays": "Responds within a few days",
-    "message": "Message host",
     "messageText": "Hi! I'm interested in {place} on Mabeet.",
     "protect": "Book and pay through Mabeet so your booking and deposit are recorded.",
     "reviews": "{count, plural, one {Review} other {Reviews}}",
-    "years": "{count, plural, one {Year hosting} other {Years hosting}}"
+    "years": "{count, plural, one {Year hosting} other {Years hosting}}",
+    "contact": "Contact host",
+    "whatsapp": "WhatsApp"
   },
   "photoTour": {
     "title": "Photo tour",
@@ -1976,5 +1988,25 @@
     "save": "Save",
     "edit": "Edit",
     "remove": "Remove"
+  },
+  "contactHost": {
+    "metaTitle": "Contact the host of {place}",
+    "title": "Contact {name}",
+    "mostAsk": "Most guests ask about",
+    "gettingThere": "Getting there",
+    "location": "The place is in {area}.",
+    "priceAvailability": "Price and availability",
+    "deposit": "A {percent}% deposit confirms your booking.",
+    "stillQuestions": "Still have questions? Message the host",
+    "stillQuestionsBody": "{name} gets your message by email and replies to the address you give.",
+    "name": "Your name",
+    "email": "Your email",
+    "emailHint": "The host replies here.",
+    "message": "Message",
+    "placeholder": "Hi {name}, I'd like to know…",
+    "send": "Send message",
+    "sentTitle": "Message sent",
+    "sentBody": "{name} will reply to your email. Keep an eye on your inbox, and your spam folder just in case.",
+    "checkAvailability": "Check availability"
   }
 }

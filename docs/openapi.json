@@ -32,7 +32,9 @@
   "paths": {
     "/api/public/places/{slug}/rooms/{roomId}/quote": {
       "get": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Price and availability for a stay",
         "description": "No sign-in.",
         "security": [],
@@ -94,7 +96,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -121,7 +126,9 @@
     },
     "/api/public/places/{slug}/rooms/{roomId}/availability": {
       "get": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Taken nights of a room (no guest details)",
         "description": "No sign-in.",
         "security": [],
@@ -183,7 +190,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -210,7 +220,9 @@
     },
     "/api/public/places/{slug}/bookings": {
       "post": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Request a stay: holds the room at once (rate limited)",
         "description": "No sign-in.",
         "security": [],
@@ -286,7 +298,14 @@
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                   }
                 },
-                "required": ["roomId", "guestCount", "guestName", "guestPhone", "checkIn", "checkOut"]
+                "required": [
+                  "roomId",
+                  "guestCount",
+                  "guestName",
+                  "guestPhone",
+                  "checkIn",
+                  "checkOut"
+                ]
               }
             }
           }
@@ -313,7 +332,127 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/public/places/{slug}/messages": {
+      "post": {
+        "tags": [
+          "Guests"
+        ],
+        "summary": "Email the host a question from the Contact host page (rate limited)",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 2000
+                  },
+                  "checkIn": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "checkOut": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "guests": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  }
+                },
+                "required": [
+                  "name",
+                  "email",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -340,7 +479,9 @@
     },
     "/api/public/experiences/{slug}/bookings": {
       "post": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Request seats in an experience or service session (rate limited)",
         "description": "No sign-in.",
         "security": [],
@@ -406,7 +547,12 @@
                     ]
                   }
                 },
-                "required": ["sessionId", "seats", "guestName", "guestPhone"]
+                "required": [
+                  "sessionId",
+                  "seats",
+                  "guestName",
+                  "guestPhone"
+                ]
               }
             }
           }
@@ -433,7 +579,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -460,7 +609,9 @@
     },
     "/api/public/bookings/{token}": {
       "get": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "A guest's booking by its secret link",
         "description": "No sign-in.",
         "security": [],
@@ -496,7 +647,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -523,7 +677,9 @@
     },
     "/api/public/bookings/{token}/cancel": {
       "post": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "The guest cancels before check-in or before the session (rate limited)",
         "description": "No sign-in.",
         "security": [],
@@ -576,7 +732,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -603,7 +762,9 @@
     },
     "/api/me/bookings": {
       "get": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "The signed-in guest's stays",
         "description": "Signed-in user.",
         "security": [
@@ -634,7 +795,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -661,7 +825,9 @@
     },
     "/api/me/reviews": {
       "post": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Review a finished stay or experience (verified guests only)",
         "description": "Signed-in user.",
         "security": [
@@ -714,7 +880,10 @@
                     "maxLength": 2000
                   }
                 },
-                "required": ["rating", "comment"]
+                "required": [
+                  "rating",
+                  "comment"
+                ]
               }
             }
           }
@@ -741,7 +910,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -768,7 +940,9 @@
     },
     "/api/me/export": {
       "get": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Download everything held about the signed-in person (JSON)",
         "description": "Signed-in user.",
         "security": [
@@ -799,7 +973,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -826,7 +1003,9 @@
     },
     "/api/me/delete": {
       "post": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Delete the signed-in account (repeat the email to confirm)",
         "description": "Signed-in user.",
         "security": [
@@ -847,7 +1026,9 @@
                     "type": "string"
                   }
                 },
-                "required": ["email"]
+                "required": [
+                  "email"
+                ]
               }
             }
           }
@@ -874,7 +1055,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -901,7 +1085,9 @@
     },
     "/api/me/push": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Turn on push notifications on this device for the signed-in person (rate limited)",
         "description": "Signed-in user.",
         "security": [
@@ -937,10 +1123,16 @@
                         "maxLength": 64
                       }
                     },
-                    "required": ["p256dh", "auth"]
+                    "required": [
+                      "p256dh",
+                      "auth"
+                    ]
                   }
                 },
-                "required": ["endpoint", "keys"]
+                "required": [
+                  "endpoint",
+                  "keys"
+                ]
               }
             }
           }
@@ -967,7 +1159,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -992,7 +1187,9 @@
         }
       },
       "delete": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Turn off push notifications on this device",
         "description": "Signed-in user.",
         "security": [
@@ -1014,7 +1211,9 @@
                     "maxLength": 2048
                   }
                 },
-                "required": ["endpoint"]
+                "required": [
+                  "endpoint"
+                ]
               }
             }
           }
@@ -1041,7 +1240,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1068,7 +1270,9 @@
     },
     "/api/public/bookings/{token}/push": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "A guest without an account follows one booking on this device (rate limited)",
         "description": "No sign-in.",
         "security": [],
@@ -1109,10 +1313,16 @@
                         "maxLength": 64
                       }
                     },
-                    "required": ["p256dh", "auth"]
+                    "required": [
+                      "p256dh",
+                      "auth"
+                    ]
                   }
                 },
-                "required": ["endpoint", "keys"]
+                "required": [
+                  "endpoint",
+                  "keys"
+                ]
               }
             }
           }
@@ -1139,7 +1349,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1164,7 +1377,9 @@
         }
       },
       "delete": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Stop following a booking on this device",
         "description": "No sign-in.",
         "security": [],
@@ -1191,7 +1406,9 @@
                     "maxLength": 2048
                   }
                 },
-                "required": ["endpoint"]
+                "required": [
+                  "endpoint"
+                ]
               }
             }
           }
@@ -1218,7 +1435,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1245,7 +1465,9 @@
     },
     "/api/assistant": {
       "post": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Trip concierge chat (DeepSeek, read-only tools)",
         "description": "No sign-in.",
         "security": [],
@@ -1267,7 +1489,10 @@
                       "properties": {
                         "role": {
                           "type": "string",
-                          "enum": ["user", "assistant"]
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
                         },
                         "content": {
                           "type": "string",
@@ -1275,7 +1500,10 @@
                           "maxLength": 2000
                         }
                       },
-                      "required": ["role", "content"]
+                      "required": [
+                        "role",
+                        "content"
+                      ]
                     }
                   },
                   "chatId": {
@@ -1295,7 +1523,9 @@
                     "type": "boolean"
                   }
                 },
-                "required": ["messages"]
+                "required": [
+                  "messages"
+                ]
               }
             }
           }
@@ -1322,7 +1552,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1349,7 +1582,9 @@
     },
     "/api/ical/{token}": {
       "get": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "A room's availability as iCal, for Airbnb and Booking.com",
         "description": "No sign-in.",
         "security": [],
@@ -1385,7 +1620,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1412,7 +1650,9 @@
     },
     "/api/workspaces": {
       "get": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Workspaces the user belongs to",
         "description": "Signed-in user.",
         "security": [
@@ -1443,7 +1683,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1468,7 +1711,9 @@
         }
       },
       "post": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Create a business; the caller becomes its owner",
         "description": "Signed-in user.",
         "security": [
@@ -1499,7 +1744,9 @@
                     "pattern": "^\\+[1-9]\\d{7,14}$"
                   }
                 },
-                "required": ["name"]
+                "required": [
+                  "name"
+                ]
               }
             }
           }
@@ -1526,7 +1773,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1553,7 +1803,9 @@
     },
     "/api/workspaces/{businessId}/settings": {
       "get": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Business settings",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -1593,7 +1845,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1618,7 +1873,9 @@
         }
       },
       "patch": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Update business settings",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -1706,7 +1963,11 @@
                   },
                   "currency": {
                     "type": "string",
-                    "enum": ["USD", "LBP", "EUR"]
+                    "enum": [
+                      "USD",
+                      "LBP",
+                      "EUR"
+                    ]
                   },
                   "lbpRate": {
                     "anyOf": [
@@ -1778,26 +2039,43 @@
                   },
                   "bookingMode": {
                     "type": "string",
-                    "enum": ["REQUEST", "INSTANT"]
+                    "enum": [
+                      "REQUEST",
+                      "INSTANT"
+                    ]
                   },
                   "paymentCollection": {
                     "type": "string",
-                    "enum": ["AT_PLACE", "ONLINE"]
+                    "enum": [
+                      "AT_PLACE",
+                      "ONLINE"
+                    ]
                   },
                   "onlineAmount": {
                     "type": "string",
-                    "enum": ["DEPOSIT", "FULL"]
+                    "enum": [
+                      "DEPOSIT",
+                      "FULL"
+                    ]
                   },
                   "refundPolicy": {
                     "type": "string",
-                    "enum": ["FLEXIBLE", "MODERATE", "STRICT", "NON_REFUNDABLE"]
+                    "enum": [
+                      "FLEXIBLE",
+                      "MODERATE",
+                      "STRICT",
+                      "NON_REFUNDABLE"
+                    ]
                   },
                   "listedPublicly": {
                     "type": "boolean"
                   },
                   "bookingUnit": {
                     "type": "string",
-                    "enum": ["ROOMS", "WHOLE_PLACE"]
+                    "enum": [
+                      "ROOMS",
+                      "WHOLE_PLACE"
+                    ]
                   },
                   "categories": {
                     "maxItems": 6,
@@ -1907,7 +2185,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -1934,7 +2215,9 @@
     },
     "/api/workspaces/{businessId}/analytics": {
       "get": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Occupancy, revenue, commission saved, channels",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -1992,7 +2275,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2019,7 +2305,9 @@
     },
     "/api/workspaces/{businessId}/rooms": {
       "get": {
-        "tags": ["Rooms"],
+        "tags": [
+          "Rooms"
+        ],
         "summary": "Rooms",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2059,7 +2347,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2084,7 +2375,9 @@
         }
       },
       "post": {
-        "tags": ["Rooms"],
+        "tags": [
+          "Rooms"
+        ],
         "summary": "Create a room",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2187,7 +2480,11 @@
                     "type": "boolean"
                   }
                 },
-                "required": ["name", "capacity", "baseRateCents"]
+                "required": [
+                  "name",
+                  "capacity",
+                  "baseRateCents"
+                ]
               }
             }
           }
@@ -2214,7 +2511,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2241,7 +2541,9 @@
     },
     "/api/workspaces/{businessId}/rooms/{roomId}": {
       "get": {
-        "tags": ["Rooms"],
+        "tags": [
+          "Rooms"
+        ],
         "summary": "One room",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2289,7 +2591,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2314,7 +2619,9 @@
         }
       },
       "patch": {
-        "tags": ["Rooms"],
+        "tags": [
+          "Rooms"
+        ],
         "summary": "Update a room",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2451,7 +2758,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2478,7 +2788,9 @@
     },
     "/api/workspaces/{businessId}/rooms/{roomId}/prices": {
       "get": {
-        "tags": ["Rooms"],
+        "tags": [
+          "Rooms"
+        ],
         "summary": "Upcoming special prices, as runs of nights",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2526,7 +2838,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2551,7 +2866,9 @@
         }
       },
       "put": {
-        "tags": ["Rooms"],
+        "tags": [
+          "Rooms"
+        ],
         "summary": "Set a special price for a range of nights (null clears it)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2608,7 +2925,11 @@
                     ]
                   }
                 },
-                "required": ["checkIn", "checkOut", "rateCents"]
+                "required": [
+                  "checkIn",
+                  "checkOut",
+                  "rateCents"
+                ]
               }
             }
           }
@@ -2635,7 +2956,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2662,7 +2986,9 @@
     },
     "/api/workspaces/{businessId}/calendar": {
       "get": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Taken nights from every source",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2729,7 +3055,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2756,7 +3085,9 @@
     },
     "/api/workspaces/{businessId}/blocks": {
       "post": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Close dates (maintenance, phone or Kazderni bookings)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2791,7 +3122,12 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": ["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"]
+                        "enum": [
+                          "AIRBNB",
+                          "BOOKING",
+                          "KAZDERNI",
+                          "OTHER"
+                        ]
                       },
                       {
                         "type": "null"
@@ -2820,7 +3156,11 @@
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                   }
                 },
-                "required": ["roomId", "checkIn", "checkOut"]
+                "required": [
+                  "roomId",
+                  "checkIn",
+                  "checkOut"
+                ]
               }
             }
           }
@@ -2847,7 +3187,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2874,7 +3217,9 @@
     },
     "/api/workspaces/{businessId}/blocks/{blockId}": {
       "delete": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Reopen dates",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2922,7 +3267,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -2947,7 +3295,9 @@
         }
       },
       "patch": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Move closed dates to other nights or another room (calendar drag and drop)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -2997,7 +3347,11 @@
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                   }
                 },
-                "required": ["roomId", "checkIn", "checkOut"]
+                "required": [
+                  "roomId",
+                  "checkIn",
+                  "checkOut"
+                ]
               }
             }
           }
@@ -3024,7 +3378,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3051,7 +3408,9 @@
     },
     "/api/workspaces/{businessId}/feeds": {
       "get": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Export links and imported calendars per room",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3091,7 +3450,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3116,7 +3478,9 @@
         }
       },
       "post": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Connect an Airbnb, Booking.com or Kazderni calendar",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3154,10 +3518,19 @@
                   },
                   "source": {
                     "type": "string",
-                    "enum": ["AIRBNB", "BOOKING", "KAZDERNI", "OTHER"]
+                    "enum": [
+                      "AIRBNB",
+                      "BOOKING",
+                      "KAZDERNI",
+                      "OTHER"
+                    ]
                   }
                 },
-                "required": ["roomId", "url", "source"]
+                "required": [
+                  "roomId",
+                  "url",
+                  "source"
+                ]
               }
             }
           }
@@ -3184,7 +3557,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3211,7 +3587,9 @@
     },
     "/api/workspaces/{businessId}/feeds/{feedId}": {
       "delete": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Disconnect a calendar",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3259,7 +3637,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3286,7 +3667,9 @@
     },
     "/api/workspaces/{businessId}/feeds/{feedId}/sync": {
       "post": {
-        "tags": ["Calendar"],
+        "tags": [
+          "Calendar"
+        ],
         "summary": "Sync a calendar now",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3334,7 +3717,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3361,7 +3747,9 @@
     },
     "/api/workspaces/{businessId}/bookings": {
       "get": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "Stays, filtered",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3383,7 +3771,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["HELD", "AWAITING_PAYMENT", "CONFIRMED", "DECLINED", "EXPIRED", "CANCELLED"]
+              "enum": [
+                "HELD",
+                "AWAITING_PAYMENT",
+                "CONFIRMED",
+                "DECLINED",
+                "EXPIRED",
+                "CANCELLED"
+              ]
             }
           },
           {
@@ -3456,7 +3851,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3483,7 +3881,9 @@
     },
     "/api/workspaces/{businessId}/bookings/{bookingId}": {
       "get": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "One stay",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3531,7 +3931,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3558,7 +3961,9 @@
     },
     "/api/workspaces/{businessId}/bookings/{bookingId}/{action}": {
       "post": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "Confirm, decline or cancel a stay",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3631,7 +4036,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3658,7 +4066,9 @@
     },
     "/api/workspaces/{businessId}/bookings/{bookingId}/payments": {
       "get": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "Payments on a stay",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3706,7 +4116,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3731,7 +4144,9 @@
         }
       },
       "post": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "Record a deposit or payment",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3772,7 +4187,13 @@
                   },
                   "method": {
                     "type": "string",
-                    "enum": ["WHISH", "OMT", "CASH", "BANK_TRANSFER", "OTHER"]
+                    "enum": [
+                      "WHISH",
+                      "OMT",
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "OTHER"
+                    ]
                   },
                   "note": {
                     "anyOf": [
@@ -3786,7 +4207,10 @@
                     ]
                   }
                 },
-                "required": ["amountCents", "method"]
+                "required": [
+                  "amountCents",
+                  "method"
+                ]
               }
             }
           }
@@ -3813,7 +4237,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3840,7 +4267,9 @@
     },
     "/api/workspaces/{businessId}/session-bookings/{bookingId}/{action}": {
       "post": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "Confirm, decline or cancel a session booking",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3913,7 +4342,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -3940,7 +4372,9 @@
     },
     "/api/workspaces/{businessId}/session-bookings/{bookingId}/payments": {
       "post": {
-        "tags": ["Bookings"],
+        "tags": [
+          "Bookings"
+        ],
         "summary": "Record a payment on a session booking",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -3981,7 +4415,13 @@
                   },
                   "method": {
                     "type": "string",
-                    "enum": ["WHISH", "OMT", "CASH", "BANK_TRANSFER", "OTHER"]
+                    "enum": [
+                      "WHISH",
+                      "OMT",
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "OTHER"
+                    ]
                   },
                   "note": {
                     "anyOf": [
@@ -3995,7 +4435,10 @@
                     ]
                   }
                 },
-                "required": ["amountCents", "method"]
+                "required": [
+                  "amountCents",
+                  "method"
+                ]
               }
             }
           }
@@ -4022,7 +4465,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4049,7 +4495,9 @@
     },
     "/api/workspaces/{businessId}/offerings": {
       "get": {
-        "tags": ["Experiences"],
+        "tags": [
+          "Experiences"
+        ],
         "summary": "Experiences and services",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4089,7 +4537,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4114,7 +4565,9 @@
         }
       },
       "post": {
-        "tags": ["Experiences"],
+        "tags": [
+          "Experiences"
+        ],
         "summary": "Create an experience or service",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4142,7 +4595,10 @@
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": ["EXPERIENCE", "SERVICE"]
+                    "enum": [
+                      "EXPERIENCE",
+                      "SERVICE"
+                    ]
                   },
                   "title": {
                     "type": "string",
@@ -4229,7 +4685,10 @@
                   },
                   "priceUnit": {
                     "type": "string",
-                    "enum": ["PER_PERSON", "PER_GROUP"]
+                    "enum": [
+                      "PER_PERSON",
+                      "PER_GROUP"
+                    ]
                   },
                   "maxGuests": {
                     "type": "integer",
@@ -4252,7 +4711,11 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": ["LIGHT", "MODERATE", "CHALLENGING"]
+                        "enum": [
+                          "LIGHT",
+                          "MODERATE",
+                          "CHALLENGING"
+                        ]
                       },
                       {
                         "type": "null"
@@ -4263,7 +4726,11 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": ["BEGINNER", "INTERMEDIATE", "ADVANCED"]
+                        "enum": [
+                          "BEGINNER",
+                          "INTERMEDIATE",
+                          "ADVANCED"
+                        ]
                       },
                       {
                         "type": "null"
@@ -4312,7 +4779,11 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": ["ar", "en", "fr"]
+                      "enum": [
+                        "ar",
+                        "en",
+                        "fr"
+                      ]
                     }
                   },
                   "tags": {
@@ -4344,7 +4815,14 @@
                     "maximum": 720
                   }
                 },
-                "required": ["kind", "title", "durationMinutes", "priceCents", "priceUnit", "maxGuests"]
+                "required": [
+                  "kind",
+                  "title",
+                  "durationMinutes",
+                  "priceCents",
+                  "priceUnit",
+                  "maxGuests"
+                ]
               }
             }
           }
@@ -4371,7 +4849,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4398,7 +4879,9 @@
     },
     "/api/workspaces/{businessId}/offerings/{offeringId}": {
       "patch": {
-        "tags": ["Experiences"],
+        "tags": [
+          "Experiences"
+        ],
         "summary": "Update an experience or service",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4434,7 +4917,10 @@
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": ["EXPERIENCE", "SERVICE"]
+                    "enum": [
+                      "EXPERIENCE",
+                      "SERVICE"
+                    ]
                   },
                   "title": {
                     "type": "string",
@@ -4521,7 +5007,10 @@
                   },
                   "priceUnit": {
                     "type": "string",
-                    "enum": ["PER_PERSON", "PER_GROUP"]
+                    "enum": [
+                      "PER_PERSON",
+                      "PER_GROUP"
+                    ]
                   },
                   "maxGuests": {
                     "type": "integer",
@@ -4544,7 +5033,11 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": ["LIGHT", "MODERATE", "CHALLENGING"]
+                        "enum": [
+                          "LIGHT",
+                          "MODERATE",
+                          "CHALLENGING"
+                        ]
                       },
                       {
                         "type": "null"
@@ -4555,7 +5048,11 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": ["BEGINNER", "INTERMEDIATE", "ADVANCED"]
+                        "enum": [
+                          "BEGINNER",
+                          "INTERMEDIATE",
+                          "ADVANCED"
+                        ]
                       },
                       {
                         "type": "null"
@@ -4604,7 +5101,11 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": ["ar", "en", "fr"]
+                      "enum": [
+                        "ar",
+                        "en",
+                        "fr"
+                      ]
                     }
                   },
                   "tags": {
@@ -4665,7 +5166,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4692,7 +5196,9 @@
     },
     "/api/workspaces/{businessId}/offerings/{offeringId}/sessions": {
       "post": {
-        "tags": ["Experiences"],
+        "tags": [
+          "Experiences"
+        ],
         "summary": "Schedule sessions on dates at one local time",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4746,7 +5252,11 @@
                     "maximum": 500
                   }
                 },
-                "required": ["dates", "time", "capacity"]
+                "required": [
+                  "dates",
+                  "time",
+                  "capacity"
+                ]
               }
             }
           }
@@ -4773,7 +5283,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4800,7 +5313,9 @@
     },
     "/api/workspaces/{businessId}/sessions/{sessionId}": {
       "delete": {
-        "tags": ["Experiences"],
+        "tags": [
+          "Experiences"
+        ],
         "summary": "Cancel a session with nobody booked",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4848,7 +5363,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4875,7 +5393,9 @@
     },
     "/api/workspaces/{businessId}/photos": {
       "post": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Upload a photo (multipart: file, optional offeringId); JPEG, PNG or WebP up to 2.5 MB",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4915,7 +5435,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -4942,7 +5465,9 @@
     },
     "/api/workspaces/{businessId}/photos/{photoId}": {
       "patch": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Make a photo the cover",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -4990,7 +5515,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5015,7 +5543,9 @@
         }
       },
       "delete": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "Delete a photo and its stored bytes",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5063,7 +5593,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5090,7 +5623,9 @@
     },
     "/api/images/{imageId}": {
       "get": {
-        "tags": ["Photos"],
+        "tags": [
+          "Photos"
+        ],
         "summary": "An uploaded photo, cached forever",
         "description": "No sign-in.",
         "security": [],
@@ -5126,7 +5661,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5153,7 +5691,9 @@
     },
     "/api/workspaces/{businessId}/members": {
       "get": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Team members",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5193,7 +5733,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5218,7 +5761,9 @@
         }
       },
       "post": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Add a member with a role",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5255,7 +5800,10 @@
                     "maxLength": 64
                   }
                 },
-                "required": ["email", "roleId"]
+                "required": [
+                  "email",
+                  "roleId"
+                ]
               }
             }
           }
@@ -5282,7 +5830,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5309,7 +5860,9 @@
     },
     "/api/workspaces/{businessId}/members/{membershipId}": {
       "patch": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Change a member's role",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5349,7 +5902,9 @@
                     "maxLength": 64
                   }
                 },
-                "required": ["roleId"]
+                "required": [
+                  "roleId"
+                ]
               }
             }
           }
@@ -5376,7 +5931,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5401,7 +5959,9 @@
         }
       },
       "delete": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Remove a member",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5449,7 +6009,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5476,7 +6039,9 @@
     },
     "/api/workspaces/{businessId}/roles": {
       "get": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Custom roles",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5516,7 +6081,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5541,7 +6109,9 @@
         }
       },
       "post": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Create a role from permissions",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5609,7 +6179,10 @@
                     }
                   }
                 },
-                "required": ["name", "permissions"]
+                "required": [
+                  "name",
+                  "permissions"
+                ]
               }
             }
           }
@@ -5636,7 +6209,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5663,7 +6239,9 @@
     },
     "/api/workspaces/{businessId}/roles/{roleId}": {
       "patch": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Edit a role",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5765,7 +6343,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5790,7 +6371,9 @@
         }
       },
       "delete": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Delete an unused role",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5838,7 +6421,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5865,7 +6451,9 @@
     },
     "/api/workspaces/{businessId}/reviews/{reviewId}": {
       "patch": {
-        "tags": ["Team"],
+        "tags": [
+          "Team"
+        ],
         "summary": "Reply to or hide a review",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -5907,7 +6495,9 @@
                         "maxLength": 1000
                       }
                     },
-                    "required": ["reply"]
+                    "required": [
+                      "reply"
+                    ]
                   },
                   {
                     "type": "object",
@@ -5925,7 +6515,9 @@
                         ]
                       }
                     },
-                    "required": ["hiddenReason"]
+                    "required": [
+                      "hiddenReason"
+                    ]
                   }
                 ]
               }
@@ -5954,7 +6546,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -5981,7 +6576,9 @@
     },
     "/api/workspaces/{businessId}/assistant": {
       "post": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Team assistant chat, limited to the member's permissions",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -6016,7 +6613,10 @@
                       "properties": {
                         "role": {
                           "type": "string",
-                          "enum": ["user", "assistant"]
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
                         },
                         "content": {
                           "type": "string",
@@ -6024,7 +6624,10 @@
                           "maxLength": 2000
                         }
                       },
-                      "required": ["role", "content"]
+                      "required": [
+                        "role",
+                        "content"
+                      ]
                     }
                   },
                   "chatId": {
@@ -6044,7 +6647,9 @@
                     "type": "boolean"
                   }
                 },
-                "required": ["messages"]
+                "required": [
+                  "messages"
+                ]
               }
             }
           }
@@ -6071,7 +6676,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6098,7 +6706,9 @@
     },
     "/api/workspaces/{businessId}/keys": {
       "get": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "The member's MCP keys",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -6138,7 +6748,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6163,7 +6776,9 @@
         }
       },
       "post": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Create an MCP key (secret shown once)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -6212,7 +6827,9 @@
                     ]
                   }
                 },
-                "required": ["name"]
+                "required": [
+                  "name"
+                ]
               }
             }
           }
@@ -6239,7 +6856,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6266,7 +6886,9 @@
     },
     "/api/workspaces/{businessId}/keys/{keyId}": {
       "delete": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Revoke an MCP key",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -6314,7 +6936,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6341,7 +6966,9 @@
     },
     "/api/mcp": {
       "post": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Owner and staff MCP server (Streamable HTTP; API key or OAuth access token)",
         "description": "Bearer MCP key; tools are limited to the key owner's permissions.",
         "security": [
@@ -6372,7 +6999,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6399,7 +7029,9 @@
     },
     "/api/mcp/guest": {
       "post": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Public guest MCP server, read-only (rate limited)",
         "description": "No sign-in.",
         "security": [],
@@ -6426,7 +7058,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6453,7 +7088,9 @@
     },
     "/api/admin/businesses/{businessId}": {
       "patch": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Suspend or reactivate a business",
         "description": "Super admin only.",
         "security": [
@@ -6481,10 +7118,15 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["ACTIVE", "SUSPENDED"]
+                    "enum": [
+                      "ACTIVE",
+                      "SUSPENDED"
+                    ]
                   }
                 },
-                "required": ["status"]
+                "required": [
+                  "status"
+                ]
               }
             }
           }
@@ -6511,7 +7153,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6538,7 +7183,9 @@
     },
     "/api/admin/site": {
       "patch": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Set the website's colour palette",
         "description": "Super admin only.",
         "security": [
@@ -6557,10 +7204,18 @@
                 "properties": {
                   "palette": {
                     "type": "string",
-                    "enum": ["cedar", "byblos", "batroun", "baalbek", "jounieh"]
+                    "enum": [
+                      "cedar",
+                      "byblos",
+                      "batroun",
+                      "baalbek",
+                      "jounieh"
+                    ]
                   }
                 },
-                "required": ["palette"]
+                "required": [
+                  "palette"
+                ]
               }
             }
           }
@@ -6587,7 +7242,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6614,7 +7272,9 @@
     },
     "/api/admin/categories": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Categories and their use",
         "description": "Super admin only.",
         "security": [
@@ -6645,7 +7305,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6670,7 +7333,9 @@
         }
       },
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Add a browse category",
         "description": "Super admin only.",
         "security": [
@@ -6714,10 +7379,21 @@
                   },
                   "kind": {
                     "type": "string",
-                    "enum": ["HOME", "EXPERIENCE", "SERVICE"]
+                    "enum": [
+                      "HOME",
+                      "EXPERIENCE",
+                      "SERVICE"
+                    ]
                   }
                 },
-                "required": ["nameEn", "nameAr", "icon", "position", "slug", "kind"]
+                "required": [
+                  "nameEn",
+                  "nameAr",
+                  "icon",
+                  "position",
+                  "slug",
+                  "kind"
+                ]
               }
             }
           }
@@ -6744,7 +7420,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6771,7 +7450,9 @@
     },
     "/api/admin/categories/{slug}": {
       "patch": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Rename, re-icon or reorder a category",
         "description": "Super admin only.",
         "security": [
@@ -6844,7 +7525,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6869,7 +7553,9 @@
         }
       },
       "delete": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Delete an unused category",
         "description": "Super admin only.",
         "security": [
@@ -6909,7 +7595,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -6936,7 +7625,9 @@
     },
     "/api/workspaces/{businessId}/billing/checkout": {
       "post": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Start Stripe Checkout for a paid plan (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -6964,10 +7655,15 @@
                 "properties": {
                   "plan": {
                     "type": "string",
-                    "enum": ["PRO", "BUSINESS"]
+                    "enum": [
+                      "PRO",
+                      "BUSINESS"
+                    ]
                   }
                 },
-                "required": ["plan"]
+                "required": [
+                  "plan"
+                ]
               }
             }
           }
@@ -6994,7 +7690,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7021,7 +7720,9 @@
     },
     "/api/workspaces/{businessId}/billing/portal": {
       "post": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Open the Stripe billing portal (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -7061,7 +7762,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7088,7 +7792,9 @@
     },
     "/api/webhooks/stripe": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Stripe events: plan subscriptions, plan invoices and card payments for bookings (signed; each applied once)",
         "description": "No sign-in.",
         "security": [],
@@ -7115,7 +7821,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7142,7 +7851,9 @@
     },
     "/.well-known/oauth-protected-resource/api/mcp": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "How AI apps get a token for the host MCP server (RFC 9728)",
         "description": "No sign-in.",
         "security": [],
@@ -7169,7 +7880,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7196,7 +7910,9 @@
     },
     "/.well-known/oauth-authorization-server/api/auth": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "OAuth server metadata: registration, authorize and token endpoints (RFC 8414)",
         "description": "No sign-in.",
         "security": [],
@@ -7223,7 +7939,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7250,7 +7969,9 @@
     },
     "/api/oauth/workspace": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Pick the workspace an AI app will act in, during OAuth",
         "description": "Signed-in user.",
         "security": [
@@ -7271,7 +7992,9 @@
                     "type": "string"
                   }
                 },
-                "required": ["businessId"]
+                "required": [
+                  "businessId"
+                ]
               }
             }
           }
@@ -7298,7 +8021,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7325,7 +8051,9 @@
     },
     "/api/cron/sync-feeds": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Sync calendars that are due",
         "description": "Bearer CRON_SECRET.",
         "security": [
@@ -7356,7 +8084,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7383,7 +8114,9 @@
     },
     "/api/cron/expire-holds": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Housekeeping: expire unanswered or unpaid bookings, re-check pending online payments, end lapsed Whish plans",
         "description": "Bearer CRON_SECRET.",
         "security": [
@@ -7414,7 +8147,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7441,7 +8177,9 @@
     },
     "/api/workspaces/{businessId}/host-profile": {
       "get": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "The signed-in owner's own host profile (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -7481,7 +8219,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7506,7 +8247,9 @@
         }
       },
       "put": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Save the host profile and whether guests see it on the host's listings (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -7592,7 +8335,11 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": ["ar", "en", "fr"]
+                      "enum": [
+                        "ar",
+                        "en",
+                        "fr"
+                      ]
                     }
                   },
                   "hostingSince": {
@@ -7609,9 +8356,21 @@
                   },
                   "showOnListings": {
                     "type": "boolean"
+                  },
+                  "contactBy": {
+                    "default": "BOTH",
+                    "type": "string",
+                    "enum": [
+                      "BOTH",
+                      "WHATSAPP",
+                      "MESSAGE"
+                    ]
                   }
                 },
-                "required": ["languages", "showOnListings"]
+                "required": [
+                  "languages",
+                  "showOnListings"
+                ]
               }
             }
           }
@@ -7638,7 +8397,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7665,7 +8427,9 @@
     },
     "/api/me/profile": {
       "patch": {
-        "tags": ["Guests"],
+        "tags": [
+          "Guests"
+        ],
         "summary": "Change the signed-in person's own name and phone",
         "description": "Signed-in user.",
         "security": [
@@ -7699,7 +8463,9 @@
                     ]
                   }
                 },
-                "required": ["name"]
+                "required": [
+                  "name"
+                ]
               }
             }
           }
@@ -7726,7 +8492,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7753,7 +8522,9 @@
     },
     "/api/workspaces/{businessId}/assistant/chats": {
       "get": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "The member's own saved team-assistant chats in this business",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -7793,7 +8564,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7820,7 +8594,9 @@
     },
     "/api/workspaces/{businessId}/assistant/chats/{chatId}": {
       "get": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "One of the member's own saved chats, with its messages",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -7868,7 +8644,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7893,7 +8672,9 @@
         }
       },
       "delete": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Delete one of the member's own saved chats",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -7941,7 +8722,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -7968,7 +8752,9 @@
     },
     "/api/me/chats": {
       "get": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "The signed-in guest's saved concierge chats",
         "description": "Signed-in user.",
         "security": [
@@ -7999,7 +8785,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8026,7 +8815,9 @@
     },
     "/api/me/chats/{chatId}": {
       "get": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "One of the guest's own saved concierge chats",
         "description": "Signed-in user.",
         "security": [
@@ -8066,7 +8857,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8091,7 +8885,9 @@
         }
       },
       "delete": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "Delete one of the guest's own saved concierge chats",
         "description": "Signed-in user.",
         "security": [
@@ -8131,7 +8927,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8158,7 +8957,9 @@
     },
     "/api/workspaces/{businessId}/notifications": {
       "get": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "The bell: the latest five notifications in this business",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8198,7 +8999,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8223,7 +9027,9 @@
         }
       },
       "post": {
-        "tags": ["Workspaces"],
+        "tags": [
+          "Workspaces"
+        ],
         "summary": "Mark notifications read (the bell was opened)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8263,7 +9069,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8290,7 +9099,9 @@
     },
     "/api/admin/notifications": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "The admin bell: the latest five platform notifications",
         "description": "Super admin only.",
         "security": [
@@ -8321,7 +9132,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8346,7 +9160,9 @@
         }
       },
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Mark platform notifications read",
         "description": "Super admin only.",
         "security": [
@@ -8377,7 +9193,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8404,7 +9223,9 @@
     },
     "/api/workspaces/{businessId}/analytics/report": {
       "post": {
-        "tags": ["AI"],
+        "tags": [
+          "AI"
+        ],
         "summary": "AI report of the database's numbers for a period, for this place or all the person's places",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8442,7 +9263,10 @@
                   },
                   "scope": {
                     "type": "string",
-                    "enum": ["place", "all"]
+                    "enum": [
+                      "place",
+                      "all"
+                    ]
                   },
                   "topics": {
                     "minItems": 1,
@@ -8450,11 +9274,23 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": ["occupancy", "revenue", "channels", "requests", "reviews", "places"]
+                      "enum": [
+                        "occupancy",
+                        "revenue",
+                        "channels",
+                        "requests",
+                        "reviews",
+                        "places"
+                      ]
                     }
                   }
                 },
-                "required": ["from", "to", "scope", "topics"]
+                "required": [
+                  "from",
+                  "to",
+                  "scope",
+                  "topics"
+                ]
               }
             }
           }
@@ -8481,7 +9317,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8508,7 +9347,9 @@
     },
     "/api/public/bookings/{token}/checkout": {
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "The guest pays a booking that waits for payment, with Whish or a card; returns the payment page",
         "description": "No sign-in.",
         "security": [],
@@ -8532,10 +9373,15 @@
                 "properties": {
                   "method": {
                     "type": "string",
-                    "enum": ["WHISH", "CARD"]
+                    "enum": [
+                      "WHISH",
+                      "CARD"
+                    ]
                   }
                 },
-                "required": ["method"]
+                "required": [
+                  "method"
+                ]
               }
             }
           }
@@ -8562,7 +9408,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8589,7 +9438,9 @@
     },
     "/api/payments/whish/callback": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Whish's callback after a payment attempt; only triggers a status check with Whish",
         "description": "No sign-in.",
         "security": [],
@@ -8643,7 +9494,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8670,7 +9524,9 @@
     },
     "/api/workspaces/{businessId}/billing/whish": {
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Pay one month of a plan with Whish (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8698,10 +9554,15 @@
                 "properties": {
                   "plan": {
                     "type": "string",
-                    "enum": ["PRO", "BUSINESS"]
+                    "enum": [
+                      "PRO",
+                      "BUSINESS"
+                    ]
                   }
                 },
-                "required": ["plan"]
+                "required": [
+                  "plan"
+                ]
               }
             }
           }
@@ -8728,7 +9589,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8755,7 +9619,9 @@
     },
     "/api/workspaces/{businessId}/billing/requests": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "The business's requests for a plan paid by hand (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8795,7 +9661,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8820,7 +9689,9 @@
         }
       },
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Ask for a plan paid by hand (multipart: plan, months, optionId, payerReference, note, receipt as an image or PDF up to 5 MB)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8860,7 +9731,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8887,7 +9761,9 @@
     },
     "/api/workspaces/{businessId}/billing/requests/{requestId}": {
       "delete": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Withdraw a plan request that is still waiting",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -8935,7 +9811,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -8962,7 +9841,9 @@
     },
     "/api/workspaces/{businessId}/billing/requests/{requestId}/receipt": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "The receipt sent with a plan request (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -9010,7 +9891,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9037,7 +9921,9 @@
     },
     "/api/workspaces/{businessId}/payouts": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "What Mabeet holds for the business, its online payments and payouts (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -9077,7 +9963,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9102,7 +9991,9 @@
         }
       },
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Ask for a payout to a bank account (IBAN) or a Whish number, up to the available balance (owners)",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
@@ -9135,11 +10026,18 @@
                   },
                   "currency": {
                     "type": "string",
-                    "enum": ["USD", "LBP", "EUR"]
+                    "enum": [
+                      "USD",
+                      "LBP",
+                      "EUR"
+                    ]
                   },
                   "method": {
                     "type": "string",
-                    "enum": ["BANK_TRANSFER", "WHISH"]
+                    "enum": [
+                      "BANK_TRANSFER",
+                      "WHISH"
+                    ]
                   },
                   "accountName": {
                     "type": "string",
@@ -9159,7 +10057,10 @@
                     ]
                   },
                   "iban": {
-                    "type": ["string", "null"]
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "whishPhone": {
                     "anyOf": [
@@ -9173,7 +10074,12 @@
                     ]
                   }
                 },
-                "required": ["amountCents", "currency", "method", "accountName"]
+                "required": [
+                  "amountCents",
+                  "currency",
+                  "method",
+                  "accountName"
+                ]
               }
             }
           }
@@ -9200,7 +10106,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9227,7 +10136,9 @@
     },
     "/api/admin/payouts/{payoutId}": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Mark a payout as sent, with its transfer reference, or refuse it",
         "description": "Super admin only.",
         "security": [
@@ -9255,7 +10166,10 @@
                 "properties": {
                   "action": {
                     "type": "string",
-                    "enum": ["paid", "rejected"]
+                    "enum": [
+                      "paid",
+                      "rejected"
+                    ]
                   },
                   "reference": {
                     "anyOf": [
@@ -9280,7 +10194,9 @@
                     ]
                   }
                 },
-                "required": ["action"]
+                "required": [
+                  "action"
+                ]
               }
             }
           }
@@ -9307,7 +10223,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9334,7 +10253,9 @@
     },
     "/api/admin/plan-requests": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Every business's requests for a plan paid by hand, waiting ones first (optional ?status=)",
         "description": "Super admin only.",
         "security": [
@@ -9365,7 +10286,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9392,7 +10316,9 @@
     },
     "/api/admin/plan-requests/{requestId}": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Approve a plan request (the plan starts at once, for the months paid) or reject it",
         "description": "Super admin only.",
         "security": [
@@ -9420,7 +10346,10 @@
                 "properties": {
                   "action": {
                     "type": "string",
-                    "enum": ["approve", "reject"]
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ]
                   },
                   "note": {
                     "anyOf": [
@@ -9434,7 +10363,9 @@
                     ]
                   }
                 },
-                "required": ["action"]
+                "required": [
+                  "action"
+                ]
               }
             }
           }
@@ -9461,7 +10392,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9488,7 +10422,9 @@
     },
     "/api/admin/plan-requests/{requestId}/receipt": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "The receipt a host sent with a plan request",
         "description": "Super admin only.",
         "security": [
@@ -9528,7 +10464,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9555,7 +10494,9 @@
     },
     "/api/admin/payment-options": {
       "get": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "The ways hosts can pay Mabeet by hand (bank, Whish, OMT, crypto, cash)",
         "description": "Super admin only.",
         "security": [
@@ -9586,7 +10527,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9611,7 +10555,9 @@
         }
       },
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Add a way hosts can pay Mabeet",
         "description": "Super admin only.",
         "security": [
@@ -9630,7 +10576,14 @@
                 "properties": {
                   "method": {
                     "type": "string",
-                    "enum": ["BANK_TRANSFER", "WHISH", "OMT", "CRYPTO", "CASH", "OTHER"]
+                    "enum": [
+                      "BANK_TRANSFER",
+                      "WHISH",
+                      "OMT",
+                      "CRYPTO",
+                      "CASH",
+                      "OTHER"
+                    ]
                   },
                   "label": {
                     "type": "string",
@@ -9653,7 +10606,11 @@
                     "maximum": 999
                   }
                 },
-                "required": ["method", "label", "details"]
+                "required": [
+                  "method",
+                  "label",
+                  "details"
+                ]
               }
             }
           }
@@ -9680,7 +10637,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9707,7 +10667,9 @@
     },
     "/api/admin/payment-options/{optionId}": {
       "patch": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Change, hide or reorder a way to pay",
         "description": "Super admin only.",
         "security": [
@@ -9735,7 +10697,14 @@
                 "properties": {
                   "method": {
                     "type": "string",
-                    "enum": ["BANK_TRANSFER", "WHISH", "OMT", "CRYPTO", "CASH", "OTHER"]
+                    "enum": [
+                      "BANK_TRANSFER",
+                      "WHISH",
+                      "OMT",
+                      "CRYPTO",
+                      "CASH",
+                      "OTHER"
+                    ]
                   },
                   "label": {
                     "type": "string",
@@ -9784,7 +10753,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9809,7 +10781,9 @@
         }
       },
       "delete": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Remove a way to pay",
         "description": "Super admin only.",
         "security": [
@@ -9849,7 +10823,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9876,7 +10853,9 @@
     },
     "/api/admin/refunds/{refundId}": {
       "post": {
-        "tags": ["Platform"],
+        "tags": [
+          "Platform"
+        ],
         "summary": "Mark a refund sent by hand (partial Whish refunds, or ones a provider refused)",
         "description": "Super admin only.",
         "security": [
@@ -9940,7 +10919,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -9967,7 +10949,9 @@
     },
     "/api/whish-simulator/payment/whish": {
       "post": {
-        "tags": ["Whish simulator"],
+        "tags": [
+          "Whish simulator"
+        ],
         "summary": "Simulated Whish Pay: create a payment and get its collectUrl",
         "description": "No sign-in.",
         "security": [],
@@ -10049,7 +11033,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -10076,7 +11063,9 @@
     },
     "/api/whish-simulator/payment/collect/status": {
       "post": {
-        "tags": ["Whish simulator"],
+        "tags": [
+          "Whish simulator"
+        ],
         "summary": "Simulated Whish Pay: a payment's collectStatus",
         "description": "No sign-in.",
         "security": [],
@@ -10103,7 +11092,10 @@
                     "maxLength": 300
                   }
                 },
-                "required": ["currency", "externalId"]
+                "required": [
+                  "currency",
+                  "externalId"
+                ]
               }
             }
           }
@@ -10130,7 +11122,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -10157,7 +11152,9 @@
     },
     "/api/whish-simulator/payment/whish/refund": {
       "post": {
-        "tags": ["Whish simulator"],
+        "tags": [
+          "Whish simulator"
+        ],
         "summary": "Simulated Whish Pay: refund a successful payment in full",
         "description": "No sign-in.",
         "security": [],
@@ -10184,7 +11181,10 @@
                     "maxLength": 300
                   }
                 },
-                "required": ["currency", "externalId"]
+                "required": [
+                  "currency",
+                  "externalId"
+                ]
               }
             }
           }
@@ -10211,7 +11211,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }
@@ -10238,7 +11241,9 @@
     },
     "/api/whish-simulator/pay/{code}": {
       "post": {
-        "tags": ["Whish simulator"],
+        "tags": [
+          "Whish simulator"
+        ],
         "summary": "Simulated Whish payment page: pay with phone 96170123456 and code 111111",
         "description": "No sign-in.",
         "security": [],
@@ -10271,7 +11276,10 @@
                     "maxLength": 8
                   }
                 },
-                "required": ["phone", "otp"]
+                "required": [
+                  "phone",
+                  "otp"
+                ]
               }
             }
           }
@@ -10298,7 +11306,10 @@
                         },
                         "details": {}
                       },
-                      "required": ["code", "message"]
+                      "required": [
+                        "code",
+                        "message"
+                      ]
                     }
                   }
                 }

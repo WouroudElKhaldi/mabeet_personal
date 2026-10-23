@@ -50,6 +50,7 @@ erDiagram
     String_list languages
     Int hostingSince
     Boolean showOnListings
+    HostContact contactBy
     DateTime createdAt
     DateTime updatedAt
   }
@@ -315,6 +316,35 @@ erDiagram
     String providerRef UK
     String checkoutUrl
     DateTime paidAt
+    DateTime createdAt
+  }
+  PlatformPaymentOption {
+    String id PK
+    PaymentMethod method
+    String label
+    String details
+    Boolean active
+    Int position
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  PlanRequest {
+    String id PK
+    String businessId FK
+    String requestedById FK
+    Plan plan
+    Int months
+    Int amountCents
+    String currency
+    PaymentMethod method
+    String payerReference
+    String note
+    String receiptMime
+    Bytes receiptBytes
+    PlanRequestStatus status
+    String decidedById
+    DateTime decidedAt
+    String decisionNote
     DateTime createdAt
   }
   WhishSandboxPayment {
@@ -650,6 +680,8 @@ erDiagram
   Payment ||--o{ Refund : "payment"
   Business ||--o{ Payout : "business"
   Business ||--o{ PlanPayment : "business"
+  Business ||--o{ PlanRequest : "business"
+  User |o--o{ PlanRequest : "requestedBy"
   User ||--o{ Favorite : "user"
   Business ||--o{ Favorite : "business"
   Business ||--o{ Review : "business"
