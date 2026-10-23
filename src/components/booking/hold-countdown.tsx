@@ -32,7 +32,8 @@ export function HoldCountdown({ expiresAt }: { expiresAt: string }) {
   }, [until, router]);
 
   return (
-    <p className="font-display text-3xl tabular-nums" aria-live="polite">
+    // The time left is counted from the moment it renders: the server's minute and the browser's can differ.
+    <p className="font-display text-3xl tabular-nums" aria-live="polite" suppressHydrationWarning>
       {left.done ? t("holdOver") : t("holdLeft", { hours: left.hours, minutes: left.minutes })}
     </p>
   );

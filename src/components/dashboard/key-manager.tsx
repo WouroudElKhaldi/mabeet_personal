@@ -156,7 +156,8 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
                   <p className="font-semibold">
                     {key.name} <code className="ms-2 text-xs text-muted">{key.prefix}…</code>
                   </p>
-                  <p className="text-sm text-muted">
+                  {/* Shown in the viewer's own time zone, which the server can't know. */}
+                  <p className="text-sm text-muted" suppressHydrationWarning>
                     {key.canWrite ? t("readWrite") : t("readOnly")} ·{" "}
                     {key.lastUsedAt
                       ? t("lastUsed", { when: new Date(key.lastUsedAt).toLocaleString(locale) })

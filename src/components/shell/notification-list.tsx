@@ -137,7 +137,10 @@ export function NotificationList({
               </span>
               <span className="block text-xs text-muted">
                 {admin && item.business ? `${item.business.name} · ` : ""}
-                {ago(at)}
+                {/* Relative to the moment it renders, so the server's and the browser's text can differ by a minute. */}
+                <time dateTime={at.toISOString()} suppressHydrationWarning>
+                  {ago(at)}
+                </time>
               </span>
             </span>
             {unread && <span className="size-2 shrink-0 rounded-full bg-glow" aria-label={t("unread")} />}

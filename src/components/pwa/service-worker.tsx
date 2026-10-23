@@ -7,7 +7,8 @@ import { captureInstallPrompt } from "./install-prompt";
 export function ServiceWorker() {
   useEffect(() => {
     captureInstallPrompt();
-    if ("serviceWorker" in navigator) {
+    // Only the built app: during development a worker would sit between the browser and the dev server.
+    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
     }
   }, []);
