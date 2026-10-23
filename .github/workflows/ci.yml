@@ -37,7 +37,7 @@ jobs:
       - run: pnpm test
       - name: Generated docs are up to date
         run: |
-          pnpm docs
+          pnpm run docs
           git diff --exit-code docs/
 
   integration:
