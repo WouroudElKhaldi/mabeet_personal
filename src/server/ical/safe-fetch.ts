@@ -37,7 +37,9 @@ export async function assertPublicHttpsUrl(rawUrl: string): Promise<URL> {
   const url = new URL(rawUrl);
   if (url.protocol !== "https:") throw invalid("Calendar links must start with https://");
   if (url.username || url.password) throw invalid("Calendar links cannot contain credentials");
-  const addresses = await lookup(url.hostname, { all: true }).catch(() => {
+  // An IPv6 address keeps its brackets in URL.hostname ("[::1]"); the resolver needs it without them.
+  const host = url.hostname.replace(/^\[(.*)\]$/, "$1");
+  const addresses = await lookup(host, { all: true }).catch(() => {
     throw invalid("That calendar link's website could not be found");
   });
   if (addresses.length === 0 || addresses.some(({ address }) => isPrivateAddress(address))) {
