@@ -10,10 +10,13 @@ Guests and hosts can also ask an AI, on the site or from Claude and ChatGPT.
 
 ## Who it's for
 
-- **Guests** find a stay, an experience or a service, ask to book, and pay the deposit straight to the host.
-- **Hosts** run rooms, sessions, one shared calendar, requests, deposits, numbers and their team.
+- **Guests** find a stay, an experience or a service, ask to book or book instantly, pay the host or pay online,
+  and reach the host by WhatsApp or the Contact host page.
+- **Hosts** run rooms or a whole place, sessions, one shared calendar, requests, payments, analytics with AI
+  reports, payouts and their team, across all their places.
 - **Staff** see and do only what their role allows, whether they use the screens or an AI.
-- **Platform admins** watch the platform and can suspend a business.
+- **Platform admins** watch the platform, open any business to help, approve plan payments made by hand, send
+  payouts and can suspend a business.
 
 English, Arabic and Lebanese Arabic throughout, designed for phones first. Mabeet installs on a phone's home screen
 and sends push notifications for everything it would email.
@@ -42,6 +45,10 @@ pnpm dev                # open http://localhost:3000
 
 The front desk role handles bookings, guests, deposits and closed dates, but can't see the numbers, change rooms
 or settings, or manage the team. Owners can change that on the **Team** page.
+
+The seed also adds about five months of past and two months of upcoming demo bookings, payments, reviews and
+notifications, so the calendar, analytics and money pages have something to show. They are fictional and their
+references start with `DEMO`.
 
 ## Settings (`.env`)
 
@@ -148,3 +155,6 @@ expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets 
   appear on the admin's money page to send by hand.
 - Payouts are sent by an admin and marked as sent; Mabeet doesn't move money to hosts automatically.
 - On iPhone, push notifications only work once Mabeet is added to the Home Screen and opened from there.
+- Emails (Contact host messages included) only reach other people's inboxes once a domain is verified on Resend.
+  With Resend's test sender they reach only the Resend account's own address.
+- Contact host is on place pages. Experience and service pages offer WhatsApp only.

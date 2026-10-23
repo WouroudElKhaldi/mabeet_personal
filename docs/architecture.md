@@ -49,8 +49,11 @@ These are three separate questions, answered in this order:
 2. **Which business are you acting in?** (tenant isolation) Your `Membership` in that business. A workspace URL
    names a business (`/api/workspaces/{businessId}/…`), but that id only picks between businesses you belong to.
    `tenantRoute()` looks up your active membership before the handler runs. No membership means `404`, never
-   `403`, so nobody learns that a business exists. An API key or OAuth token is tied to one membership, so the
-   business comes from the key, not from the request.
+   `403`, so nobody learns that a business exists. An API key or OAuth token starts in the membership it was made
+   in. An AI can switch to another of the same person's places by naming it (`resolvePlaceContext`): only places
+   they are an active member of, with their own role there, and a read-only key stays read-only. A name that fits
+   several places is refused, never guessed. A platform admin can open any business's dashboard on the website
+   (never through AI keys); their actions are logged under their own user id.
 3. **What may you do there?** (authorization) The membership's role gives a set of permissions. The result is a
    `TenantContext` (`src/server/auth/tenant-context.ts`): user, business, permissions and channel. Every service
    function takes it and calls `requirePermission(ctx, "bookings.decide")` (or similar) itself.
@@ -241,6 +244,12 @@ Whoever gets an email about a booking also gets a push on every device they turn
 - guests: confirmed, declined, expired, cancelled, deposit recorded. Guests without an account follow one booking
   from its private link
 - platform admins: AI budget warnings
+- hosts and staff who can decide bookings: questions from a place's Contact host page, sent with the guest's
+  address as reply-to, so answering the email reaches the guest. A host can turn this page off (WhatsApp only) for
+  all their places; the route then refuses messages
+
+Inside the app, a bell shows each person the latest five events of their businesses (or of the platform, for
+admins), built from the audit log; "View all" opens the paged list.
 
 Push subscriptions are only accepted for the browsers' own push services. A forged subscription can't make the
 server call an address of the attacker's choosing.
@@ -283,7 +292,12 @@ guest ──POST /api/public/bookings/{token}/checkout──▶ Payment (PENDING
   tested). An admin sends the money and marks it sent with the transfer reference. Payouts go to an IBAN or a
   Whish number; Mabeet never asks for card numbers.
 - **Plans**: Stripe subscriptions as before, with each paid invoice (`invoice.paid`) recorded as revenue. Or one
-  month at a time with Whish; a month that runs out without a new payment returns the business to Free.
+  month at a time with Whish; a month that runs out without a new payment returns the business to Free. Or paid by
+  hand: the owner picks a plan and a number of months, pays one of the ways the admin listed (bank, Whish, OMT,
+  crypto, cash) and uploads a receipt. Nothing changes until an admin approves it; then the plan runs for the
+  months paid, after any months already paid, and the revenue is recorded. One request can wait at a time, and
+  receipts are served only to their own business and to admins. Plan limits (rooms, experiences, members, AI) are
+  checked in the services that create those things.
 - **Whish simulator.** Until Mabeet has Whish keys, `WHISH_MODE=simulator` serves Whish's own API from inside the
   app (`/api/whish-simulator/*`) with a payment page that follows Whish's sandbox rules (phone `96170123456`,
   OTP `111111`, wrong OTP = failed attempt, link stays payable). The real client runs unchanged against it;
@@ -307,8 +321,12 @@ call to an existing service with the caller's `TenantContext`. So the AI has exa
 person behind it, isolation included.
 
 - **Owner/staff MCP** (`/api/mcp`): API key or OAuth token → membership → `TenantContext`. Read-only keys see no
-  write tools. Every call is logged in `McpAuditLog`.
-- **Dashboard assistant**: same tools, same context, from the signed-in session.
+  write tools. `list_places` shows the person's places, and every place-specific tool takes an optional `place`,
+  resolved as described in the isolation section. Tools cover bookings, calendar, rooms, sessions, reviews,
+  booking setup, analytics, payouts (owners) and the notification feed. Every call is logged in `McpAuditLog`.
+- **Dashboard assistant**: same tools, same context, from the signed-in session. Chats are saved per person, or
+  kept temporary and never stored. Analytics reports are written by the same model from the numbers the Analytics
+  page shows.
 - **Guest concierge and guest MCP** (`/api/mcp/guest`): read-only search tools over public data. They never see
   guests' contact details.
 - **Cost**: a monthly budget in `AiUsage`. Admins are warned at 80%, and AI pauses at 100%.
