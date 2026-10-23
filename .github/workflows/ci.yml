@@ -109,12 +109,7 @@ jobs:
       - name: Install
         if: env.VERCEL_TOKEN != ''
         run: pnpm install --frozen-lockfile
-      # Migrations run before the new code goes live, against the database the production settings name.
-      - name: Update the production database
-        if: env.VERCEL_TOKEN != ''
-        run: |
-          set -a && . .vercel/.env.production.local && set +a
-          pnpm exec prisma migrate deploy
+      # The build updates the production database first (vercel.json buildCommand).
       - name: Build
         if: env.VERCEL_TOKEN != ''
         run: pnpm dlx vercel@65.2.0 build --prod --token="$VERCEL_TOKEN"

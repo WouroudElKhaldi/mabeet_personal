@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["fra1"],
-  "git": { "deploymentEnabled": false }
+  "git": {
+    "deploymentEnabled": false
+  },
+  "buildCommand": "pnpm exec prisma migrate deploy && pnpm build"
 }

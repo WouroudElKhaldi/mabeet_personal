@@ -80,7 +80,7 @@ card `4242 4242 4242 4242`, any future date and any CVC.
 ## Going live
 
 Every push to `main` runs CI (types, lint, formatting, unused code, unit and integration tests). Only if all of
-it passes does the **Deploy to Vercel** job update the production database (`prisma migrate deploy`) and publish
+it passes does the **Deploy to Vercel** job build (which first runs `prisma migrate deploy` on the production database) and publish
 the new version. Pull requests never deploy. Hosting: Vercel (app, Frankfurt region) and Neon (Postgres).
 
 GitHub repository secrets:
