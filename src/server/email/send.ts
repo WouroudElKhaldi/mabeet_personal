@@ -21,11 +21,27 @@ const RESEND_TEST_SENDER = "@resend.dev";
 export const emailReachesEveryone = () =>
   Boolean(env.RESEND_API_KEY) && !env.EMAIL_FROM.includes(RESEND_TEST_SENDER);
 
-/** Sends one email through Resend. Without RESEND_API_KEY it logs instead, so local development needs no account. */
+/**
+ * Top-level domains reserved so they can never receive email (RFC 2606 and RFC 6761). Demo and test accounts use
+ * them (host@mabeet.test), so sending there would only fail or bounce.
+ */
+const RESERVED_DOMAIN = /\.(test|example|invalid|localhost)$/i;
+
+const canReceiveEmail = (address: string) => !RESERVED_DOMAIN.test(address.trim());
+
+/**
+ * Sends one email through Resend. Without RESEND_API_KEY it logs instead, so local development needs no account.
+ * Addresses on reserved test domains are skipped.
+ */
 export async function sendEmail(email: Email): Promise<void> {
+  const recipients = (Array.isArray(email.to) ? email.to : [email.to]).filter(canReceiveEmail);
+  if (recipients.length === 0) {
+    console.warn(`[email not sent: only test addresses] to=${String(email.to)} subject="${email.subject}"`);
+    return;
+  }
   if (!env.RESEND_API_KEY) {
     console.warn(
-      `[email not sent: RESEND_API_KEY is empty] to=${String(email.to)} subject="${email.subject}"`,
+      `[email not sent: RESEND_API_KEY is empty] to=${recipients.join(",")} subject="${email.subject}"`,
     );
     return;
   }
@@ -39,7 +55,7 @@ export async function sendEmail(email: Email): Promise<void> {
     },
     body: JSON.stringify({
       from: env.EMAIL_FROM,
-      to: email.to,
+      to: recipients,
       subject: email.subject,
       html: email.html,
       text: email.text,

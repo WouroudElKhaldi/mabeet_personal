@@ -71,7 +71,7 @@ Names:
 | `tests/unit/`                     | Fast tests with no database                                                                                |
 | `tests/integration/`              | Tests with a real database: services, database rules, races, business isolation                            |
 
-## All files (563)
+## All files (564)
 
 ```
 .env.example
@@ -898,6 +898,7 @@ tests/
     pricing.test.ts
     privacy.test.ts
     push.test.ts
+    send-email.test.ts
     whish.test.ts
     zoned-time.test.ts
 tsconfig.json

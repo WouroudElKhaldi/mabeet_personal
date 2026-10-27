@@ -689,6 +689,8 @@ Shared pieces:
 - One HTML template (`templates.ts`). Guest text is made safe. Arabic is right-to-left.
 - Each email is in the reader's language.
 - Without an API key, emails are printed in the log.
+- Addresses on reserved test domains (`.test`, `.example`, `.invalid`, `.localhost`) are never sent to, because they
+  can never receive email. The demo accounts (`host@mabeet.test`) use them.
 - Emails only reach other people's inboxes after the sending domain is verified on Resend.
 
 ### E. Experiences and services

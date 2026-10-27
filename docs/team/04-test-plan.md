@@ -247,13 +247,14 @@ yet: `rooms.test.ts`, `booking-actions.test.ts`, `assistant-actions.test.ts`, `s
 
 ### Quality of the whole app
 
-| File                                   | What it checks                                                                                   | Why                                       | Owner   | Priority |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------- | ------- | -------- |
-| `tests/integration/rate-limit.test.ts` | 20 requests at once against a limit of N: exactly N pass                                         | Public forms and AI cost money if abused  | Wouroud | P2       |
-| `tests/unit/background.test.ts`        | Side work does not make the request wait; a failing email is logged and never breaks the request | "An email problem never breaks a booking" | Wouroud | P1       |
-| `tests/unit/messages.test.ts`          | Every English key is in Arabic (and Lebanese Arabic), nothing extra, no empty texts              | A missing key shows a raw key on stage    | Fatima  | P1       |
-| `tests/unit/openapi.test.ts`           | Every API route is in `docs/openapi.json`                                                        | The brief asks for the API contract       | Wouroud | P1       |
-| `tests/unit/email.test.ts`             | Guest text is made safe in emails; the plain-text version has the link; Arabic is right-to-left  | Emails must not let guests inject code    | Fatima  | P2       |
+| File                                   | What it checks                                                                                    | Why                                                | Owner   | Priority |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ------- | -------- |
+| `tests/integration/rate-limit.test.ts` | 20 requests at once against a limit of N: exactly N pass                                          | Public forms and AI cost money if abused           | Wouroud | P2       |
+| `tests/unit/background.test.ts`        | Side work does not make the request wait; a failing email is logged and never breaks the request  | "An email problem never breaks a booking"          | Wouroud | P1       |
+| `tests/unit/messages.test.ts`          | Every English key is in Arabic (and Lebanese Arabic), nothing extra, no empty texts               | A missing key shows a raw key on stage             | Fatima  | P1       |
+| `tests/unit/openapi.test.ts`           | Every API route is in `docs/openapi.json`                                                         | The brief asks for the API contract                | Wouroud | P1       |
+| `tests/unit/email.test.ts`             | Guest text is made safe in emails; the plain-text version has the link; Arabic is right-to-left   | Emails must not let guests inject code             | Fatima  | P2       |
+| `tests/unit/send-email.test.ts`        | Reserved test addresses (`.test`, `.example`) are never sent to; only real addresses go to Resend | Demo and test accounts must not cause failed sends | Fatima  | P2       |
 
 ### Demo data
 
