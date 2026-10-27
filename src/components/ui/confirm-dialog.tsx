@@ -3,6 +3,7 @@
 import { clsx } from "clsx";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useRef, useState } from "react";
+import { Button } from "./button";
 import { inputClass } from "./field";
 
 export interface ConfirmOptions {
@@ -52,7 +53,7 @@ export function useConfirm(): [(options: ConfirmOptions) => Promise<ConfirmResul
       aria-labelledby="confirm-title"
       onCancel={() => settle({ confirmed: false })}
       onClick={(event) => event.target === dialog.current && settle({ confirmed: false })}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl bg-surface p-0 text-ink shadow-lift backdrop:bg-black/50"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl bg-surface p-0 text-ink shadow-lift backdrop:bg-scrim"
     >
       {options && (
         <form
@@ -82,24 +83,17 @@ export function useConfirm(): [(options: ConfirmOptions) => Promise<ConfirmResul
             </label>
           )}
           <div className="mt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => settle({ confirmed: false })}
-              className="h-11 rounded-lg px-4 text-sm font-semibold hover:bg-surface-2"
-            >
+            <Button variant="ghost" onClick={() => settle({ confirmed: false })}>
               {t("keep")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant={options.danger ? "danger" : "primary"}
               disabled={tooShort}
               autoFocus
-              className={clsx(
-                "h-11 rounded-lg px-5 text-sm font-semibold text-white transition-opacity disabled:opacity-40",
-                options.danger ? "bg-danger hover:brightness-110" : "bg-ink text-paper hover:opacity-90",
-              )}
             >
               {options.confirmLabel}
-            </button>
+            </Button>
           </div>
         </form>
       )}

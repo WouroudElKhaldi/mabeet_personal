@@ -509,6 +509,14 @@ const OPERATIONS: Operation[] = [
     body: s.chatInput,
   },
   {
+    method: "post",
+    path: "/api/workspaces/{businessId}/assistant/actions",
+    summary: "Carry out a change the team assistant proposed, once the member confirms it",
+    tag: "AI",
+    auth: "member",
+    body: s.assistantActionInput,
+  },
+  {
     method: "get",
     path: "/api/workspaces/{businessId}/keys",
     summary: "The member's MCP keys",

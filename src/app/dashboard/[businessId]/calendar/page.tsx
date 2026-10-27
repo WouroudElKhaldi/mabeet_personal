@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
-import { CalendarBoard, type CalendarEntry } from "@/components/dashboard/calendar-board";
+import { CalendarBoard } from "@/components/dashboard/calendar-board";
+import type { CalendarEntry } from "@/components/dashboard/calendar-model";
 import { PageHeader } from "@/components/shell/page-header";
 import { addDays, parseIsoDate, toIsoDate, todayUtc } from "@/lib/dates";
 import { can } from "@/server/auth/tenant-context";

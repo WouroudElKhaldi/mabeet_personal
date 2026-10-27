@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { BOOKING_STATUSES } from "@/config/enums";
+import { ANALYTICS_SCOPES, BLOCK_SOURCES, BOOKING_STATUSES } from "@/config/enums";
 import { addDays, parseIsoDate, rangesOverlap, toDateRange, toIsoDate, todayUtc } from "@/lib/dates";
-import type { TenantContext } from "@/server/auth/tenant-context";
+import { can, type TenantContext } from "@/server/auth/tenant-context";
 import { getAnalytics, getBusinessReport } from "@/server/services/analytics-service";
 import { getBusinessNotifications } from "@/server/services/notification-feed-service";
 import { getPayouts } from "@/server/services/payout-service";
 import { getBookingSetup } from "@/server/services/settings-service";
 import {
+  cancelBooking,
   confirmBooking,
   declineBooking,
   getBookingByReference,
@@ -16,7 +17,7 @@ import { addBlock, getCalendarBoard, getChannelSetup, removeBlock } from "@/serv
 import { getSchedule } from "@/server/services/offering-service";
 import { listReviewsForTeam } from "@/server/services/review-service";
 import { listSessionBookings } from "@/server/services/session-booking-service";
-import { listRooms } from "@/server/services/room-service";
+import { findRoomByNameOrId, listRooms } from "@/server/services/room-service";
 import { listMyPlaces, resolvePlaceContext } from "@/server/services/team-service";
 import { type AiTool, defineTool } from "./tool";
 
@@ -68,7 +69,7 @@ const SINGLE_PLACE_TOOLS = [
     name: "get_analytics",
     description:
       "Analytics for a period from the database: occupancy, nights sold, direct revenue and commission saved per currency, requests by outcome, response time, rating, nights and revenue by month, channels, and a per-place breakdown. scope 'all' covers every place the member can see (only in the dashboard assistant, not through an AI key). Money is in cents.",
-    input: z.object({ from: isoDate, to: isoDate, scope: z.enum(["place", "all"]).default("place") }),
+    input: z.object({ from: isoDate, to: isoDate, scope: z.enum(ANALYTICS_SCOPES).default("place") }),
     requires: "analytics.read",
     mutates: false,
     run: async ({ from, to, scope }, ctx) => {
@@ -328,25 +329,40 @@ const SINGLE_PLACE_TOOLS = [
     },
   }),
   team({
+    name: "cancel_booking",
+    description:
+      "Cancel a confirmed booking or a waiting request. If the guest paid online, they are refunded in full. Ask the user before calling this.",
+    input: z.object({ reference, reason: z.string().max(300).optional() }),
+    requires: "bookings.decide",
+    mutates: true,
+    run: async ({ reference: ref, reason }, ctx) => {
+      const booking = await getBookingByReference(ctx, ref);
+      const cancelled = await cancelBooking(ctx, { bookingId: booking.id, reason });
+      return { reference: ref, status: cancelled.status };
+    },
+  }),
+  team({
     name: "close_dates",
-    description: "Block nights in one room (maintenance, or a booking taken by phone or on Kazderni).",
+    description:
+      "Block nights in one room (maintenance, or a booking taken by phone or on Kazderni). checkOut is the morning after the last closed night.",
     input: z.object({
-      roomId: z.string().max(64),
+      room: z.string().max(80).describe("The room's name (as list_rooms shows it) or its id"),
       checkIn: isoDate,
       checkOut: isoDate,
-      source: z.enum(["KAZDERNI", "OTHER"]).optional(),
+      source: z.enum(BLOCK_SOURCES).optional(),
       note: z.string().max(200).optional(),
     }),
     requires: "blocks.manage",
     mutates: true,
-    run: async ({ roomId, checkIn, checkOut, source, note }, ctx) => {
+    run: async ({ room, checkIn, checkOut, source, note }, ctx) => {
+      const target = await findRoomByNameOrId(ctx, room);
       const block = await addBlock(ctx, {
-        roomId,
+        roomId: target.id,
         range: toDateRange({ checkIn, checkOut }),
         source: source ?? null,
         note: note ?? null,
       });
-      return { blockId: block.id };
+      return { blockId: block.id, room: target.name, checkIn, checkOut };
     },
   }),
   team({
@@ -362,7 +378,7 @@ const SINGLE_PLACE_TOOLS = [
   }),
 ];
 
-/** Only the tools this member's permissions allow; their AI never learns the others exist. */
+/** The optional argument every place-specific tool gains, so an AI can work in any of the member's places. */
 const placeArgument = z
   .string()
   .max(80)
@@ -395,9 +411,10 @@ const TEAM_TOOLS = [
     mutates: false,
     run: (_input, ctx) => listMyPlaces(ctx),
   }),
-  ...SINGLE_PLACE_TOOLS.map((tool) => inAnyPlace(tool as unknown as AiTool<z.ZodObject, TenantContext>)),
+  ...SINGLE_PLACE_TOOLS.map(inAnyPlace),
 ];
 
+/** Only the tools this member's permissions allow; their AI never learns the others exist. */
 export function teamToolsFor(ctx: TenantContext) {
-  return TEAM_TOOLS.filter((tool) => !tool.requires || ctx.permissions.has(tool.requires));
+  return TEAM_TOOLS.filter((tool) => !tool.requires || can(ctx, tool.requires));
 }

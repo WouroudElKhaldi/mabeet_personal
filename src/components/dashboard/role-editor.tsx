@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 import type { Permission } from "@/server/auth/permissions";
 import { useAction } from "@/hooks/use-action";
@@ -98,7 +99,7 @@ export function RoleEditor({ businessId, role, grantable, allPermissions }: Role
                   value={permission}
                   defaultChecked={locked || role?.permissions.includes(permission)}
                   disabled={!allowed}
-                  className="mt-0.5 size-4 accent-(--accent)"
+                  className="mt-0.5 size-4 accent-accent"
                 />
                 <span className="grid">
                   <span className="text-sm font-semibold">{tPermission(`${permission}.title`)}</span>
@@ -135,11 +136,7 @@ export function RoleEditor({ businessId, role, grantable, allPermissions }: Role
               {t("deleteRole")}
             </Button>
           )}
-          {error && (
-            <p role="alert" className="text-sm font-semibold text-danger">
-              {error}
-            </p>
-          )}
+          <FormError message={error} />
         </div>
       )}
     </form>

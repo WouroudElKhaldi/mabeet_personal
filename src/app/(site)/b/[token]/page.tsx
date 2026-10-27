@@ -10,6 +10,7 @@ import { GuestCancelButton } from "@/components/booking/guest-cancel-button";
 import { HoldCountdown } from "@/components/booking/hold-countdown";
 import { PayOnline } from "@/components/booking/pay-online";
 import { PhoneAlerts } from "@/components/pwa/phone-alerts";
+import { isActiveBooking } from "@/config/enums";
 import { buttonClass } from "@/components/ui/button";
 import { todayUtc } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
@@ -98,8 +99,7 @@ async function loadView(token: string, locale: string): Promise<GuestBookingView
       whatsapp: stay.business.whatsapp,
       depositInstructions: stay.business.depositInstructions,
       guestName: stay.guestName,
-      cancellable:
-        ["HELD", "AWAITING_PAYMENT", "CONFIRMED"].includes(stay.status) && stay.checkIn > todayUtc(),
+      cancellable: isActiveBooking(stay.status) && stay.checkIn > todayUtc(),
     };
   }
 
@@ -134,9 +134,7 @@ async function loadView(token: string, locale: string): Promise<GuestBookingView
     whatsapp: session.business.whatsapp,
     depositInstructions: session.business.depositInstructions,
     guestName: session.guestName,
-    cancellable:
-      ["HELD", "AWAITING_PAYMENT", "CONFIRMED"].includes(session.status) &&
-      session.session.startsAt > new Date(),
+    cancellable: isActiveBooking(session.status) && session.session.startsAt > new Date(),
   };
 }
 

@@ -4,6 +4,7 @@
  * Everything is fictional. Deterministic (a seeded random), and skipped when the history is already there.
  */
 import type { BookingStatus, PaymentMethod } from "@prisma/client";
+import { isActiveBooking } from "../src/config/enums";
 import { prisma } from "../src/server/db/client";
 import { addDays, todayUtc } from "../src/lib/dates";
 import { secureToken } from "../src/lib/tokens";
@@ -79,8 +80,6 @@ function planStays(next: () => number, today: Date): Stay[] {
   return stays;
 }
 
-const ACTIVE: BookingStatus[] = ["HELD", "AWAITING_PAYMENT", "CONFIRMED"];
-
 export async function seedHistory(): Promise<number> {
   if ((await prisma.booking.count({ where: { reference: { startsWith: REFERENCE_PREFIX } } })) > 0) return 0;
   const today = todayUtc();
@@ -149,7 +148,7 @@ export async function seedHistory(): Promise<number> {
                 checkIn: stay.checkIn,
                 checkOut,
                 kind: "DIRECT",
-                active: ACTIVE.includes(stay.status),
+                active: isActiveBooking(stay.status),
               },
             },
           },

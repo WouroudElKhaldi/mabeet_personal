@@ -5,7 +5,7 @@ import { ArrowRight, CalendarDays, ShieldCheck } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { DateRangePicker, type StayRange } from "@/components/ui/date-range-picker";
 import { GuestCounter } from "@/components/ui/guest-counter";
 import { SheetDialog } from "@/components/ui/sheet-dialog";
@@ -153,13 +153,9 @@ export function BookingWidget({ slug, currency, rooms, initial, instant, payOnli
           <ArrowRight className="size-5 rtl:rotate-180" aria-hidden />
         </ButtonLink>
       ) : (
-        <button
-          type="button"
-          onClick={() => setPickingDates(true)}
-          className="mt-5 h-12 w-full rounded-lg bg-accent font-semibold text-accent-ink transition-colors hover:bg-accent-strong"
-        >
+        <Button size="lg" className="mt-5 w-full" onClick={() => setPickingDates(true)}>
           {t("pickDatesFirst")}
-        </button>
+        </Button>
       )}
 
       <p className="mt-4 flex items-start justify-center gap-2 text-center text-sm text-muted">

@@ -2,10 +2,18 @@
 
 import { clsx } from "clsx";
 import { useLocale, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { inputClass } from "@/components/ui/field";
-import { ACCESSIBILITY, ACTIVITY_LEVELS, LANGUAGES, SKILL_LEVELS, TAGS } from "@/config/listing";
+import { choiceChipClass, inputClass, LabeledControl } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
+import {
+  ACCESSIBILITY,
+  ACTIVITY_LEVELS,
+  LANGUAGES,
+  OFFERING_KINDS,
+  PRICE_UNITS,
+  SKILL_LEVELS,
+  TAGS,
+} from "@/config/listing";
 import { useAction } from "@/hooks/use-action";
 import { categoryName } from "@/config/appearance";
 import { api } from "@/lib/api-client";
@@ -112,13 +120,16 @@ export function OfferingEditor({
   return (
     <form onSubmit={submit} className="grid gap-5">
       <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-        <Labeled label={t("kind")}>
+        <LabeledControl label={t("kind")}>
           <select name="kind" defaultValue={offering?.kind ?? "EXPERIENCE"} className={inputClass}>
-            <option value="EXPERIENCE">{t("kinds.EXPERIENCE")}</option>
-            <option value="SERVICE">{t("kinds.SERVICE")}</option>
+            {OFFERING_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {t(`kinds.${kind}`)}
+              </option>
+            ))}
           </select>
-        </Labeled>
-        <Labeled label={t("titleLabel")}>
+        </LabeledControl>
+        <LabeledControl label={t("titleLabel")}>
           <input
             name="title"
             required
@@ -127,23 +138,23 @@ export function OfferingEditor({
             defaultValue={offering?.title}
             className={inputClass}
           />
-        </Labeled>
+        </LabeledControl>
       </div>
 
-      <Labeled label={t("description")}>
+      <LabeledControl label={t("description")}>
         <textarea
           name="description"
           maxLength={4000}
           defaultValue={offering?.description ?? ""}
           className={clsx(inputClass, "h-auto min-h-24 py-3")}
         />
-      </Labeled>
+      </LabeledControl>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Labeled label={t("category")}>
+        <LabeledControl label={t("category")}>
           <select name="categorySlug" defaultValue={offering?.categorySlug ?? ""} className={inputClass}>
             <option value="">{t("none")}</option>
-            {(["EXPERIENCE", "SERVICE"] as const).map((kind) => (
+            {OFFERING_KINDS.map((kind) => (
               <optgroup key={kind} label={t(`kinds.${kind}`)}>
                 {categories
                   .filter((category) => category.kind === kind)
@@ -155,22 +166,22 @@ export function OfferingEditor({
               </optgroup>
             ))}
           </select>
-        </Labeled>
-        <Labeled label={t("area")}>
+        </LabeledControl>
+        <LabeledControl label={t("area")}>
           <input name="area" maxLength={80} defaultValue={offering?.area ?? ""} className={inputClass} />
-        </Labeled>
-        <Labeled label={t("meetingPoint")}>
+        </LabeledControl>
+        <LabeledControl label={t("meetingPoint")}>
           <input
             name="meetingPoint"
             maxLength={200}
             defaultValue={offering?.meetingPoint ?? ""}
             className={inputClass}
           />
-        </Labeled>
+        </LabeledControl>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Labeled label={t("price")}>
+        <LabeledControl label={t("price")}>
           <input
             name="price"
             type="number"
@@ -180,14 +191,17 @@ export function OfferingEditor({
             defaultValue={offering ? offering.priceCents / 100 : undefined}
             className={inputClass}
           />
-        </Labeled>
-        <Labeled label={t("priceUnit")}>
+        </LabeledControl>
+        <LabeledControl label={t("priceUnit")}>
           <select name="priceUnit" defaultValue={offering?.priceUnit ?? "PER_PERSON"} className={inputClass}>
-            <option value="PER_PERSON">{tListing("priceUnit.PER_PERSON")}</option>
-            <option value="PER_GROUP">{tListing("priceUnit.PER_GROUP")}</option>
+            {PRICE_UNITS.map((unit) => (
+              <option key={unit} value={unit}>
+                {tListing(`priceUnit.${unit}`)}
+              </option>
+            ))}
           </select>
-        </Labeled>
-        <Labeled label={t("duration")}>
+        </LabeledControl>
+        <LabeledControl label={t("duration")}>
           <input
             name="durationMinutes"
             type="number"
@@ -198,8 +212,8 @@ export function OfferingEditor({
             defaultValue={offering?.durationMinutes ?? 120}
             className={inputClass}
           />
-        </Labeled>
-        <Labeled label={t("maxGuests")}>
+        </LabeledControl>
+        <LabeledControl label={t("maxGuests")}>
           <input
             name="maxGuests"
             type="number"
@@ -209,11 +223,11 @@ export function OfferingEditor({
             defaultValue={offering?.maxGuests ?? 10}
             className={inputClass}
           />
-        </Labeled>
+        </LabeledControl>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Labeled label={t("minAge")}>
+        <LabeledControl label={t("minAge")}>
           <input
             name="minAge"
             type="number"
@@ -222,8 +236,8 @@ export function OfferingEditor({
             defaultValue={offering?.minAge ?? ""}
             className={inputClass}
           />
-        </Labeled>
-        <Labeled label={t("activityLevel")}>
+        </LabeledControl>
+        <LabeledControl label={t("activityLevel")}>
           <select name="activityLevel" defaultValue={offering?.activityLevel ?? ""} className={inputClass}>
             <option value="">{t("notSet")}</option>
             {ACTIVITY_LEVELS.map((level) => (
@@ -232,8 +246,8 @@ export function OfferingEditor({
               </option>
             ))}
           </select>
-        </Labeled>
-        <Labeled label={t("skillLevel")}>
+        </LabeledControl>
+        <LabeledControl label={t("skillLevel")}>
           <select name="skillLevel" defaultValue={offering?.skillLevel ?? ""} className={inputClass}>
             <option value="">{t("notSet")}</option>
             {SKILL_LEVELS.map((level) => (
@@ -242,8 +256,8 @@ export function OfferingEditor({
               </option>
             ))}
           </select>
-        </Labeled>
-        <Labeled label={t("cancellationHours")}>
+        </LabeledControl>
+        <LabeledControl label={t("cancellationHours")}>
           <input
             name="cancellationHours"
             type="number"
@@ -253,24 +267,24 @@ export function OfferingEditor({
             defaultValue={offering?.cancellationHours ?? 24}
             className={inputClass}
           />
-        </Labeled>
+        </LabeledControl>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Labeled label={t("included")} hint={t("listHint")}>
+        <LabeledControl label={t("included")} hint={t("listHint")}>
           <textarea
             name="included"
             defaultValue={offering?.included.join("\n")}
             className={clsx(inputClass, "h-auto min-h-24 py-3")}
           />
-        </Labeled>
-        <Labeled label={t("notIncluded")} hint={t("listHint")}>
+        </LabeledControl>
+        <LabeledControl label={t("notIncluded")} hint={t("listHint")}>
           <textarea
             name="notIncluded"
             defaultValue={offering?.notIncluded.join("\n")}
             className={clsx(inputClass, "h-auto min-h-24 py-3")}
           />
-        </Labeled>
+        </LabeledControl>
       </div>
 
       <Chips
@@ -293,7 +307,7 @@ export function OfferingEditor({
       />
 
       <div className="grid grid-cols-2 gap-4">
-        <Labeled label={t("latitude")}>
+        <LabeledControl label={t("latitude")}>
           <input
             name="latitude"
             type="number"
@@ -303,8 +317,8 @@ export function OfferingEditor({
             defaultValue={offering?.latitude ?? ""}
             className={inputClass}
           />
-        </Labeled>
-        <Labeled label={t("longitude")}>
+        </LabeledControl>
+        <LabeledControl label={t("longitude")}>
           <input
             name="longitude"
             type="number"
@@ -314,7 +328,7 @@ export function OfferingEditor({
             defaultValue={offering?.longitude ?? ""}
             className={inputClass}
           />
-        </Labeled>
+        </LabeledControl>
       </div>
 
       {offering && (
@@ -323,7 +337,7 @@ export function OfferingEditor({
             type="checkbox"
             name="active"
             defaultChecked={offering.active}
-            className="size-4 accent-(--accent)"
+            className="size-4 accent-accent"
           />
           {t("active")}
         </label>
@@ -333,23 +347,9 @@ export function OfferingEditor({
         <Button type="submit" size="sm" disabled={pending}>
           {offering ? t("save") : t("create")}
         </Button>
-        {error && (
-          <p role="alert" className="text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} />
       </div>
     </form>
-  );
-}
-
-function Labeled({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <label className="grid gap-1 text-sm font-semibold">
-      {label}
-      {children}
-      {hint && <span className="text-xs font-normal text-muted">{hint}</span>}
-    </label>
   );
 }
 
@@ -369,10 +369,7 @@ function Chips({
       <legend className="mb-2 text-sm font-semibold">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map(([value, label]) => (
-          <label
-            key={value}
-            className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm ring-1 ring-line has-checked:bg-accent-soft has-checked:font-semibold has-checked:ring-accent"
-          >
+          <label key={value} className={choiceChipClass}>
             <input
               type="checkbox"
               name={name}

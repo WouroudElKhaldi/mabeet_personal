@@ -69,7 +69,10 @@ Instagram and WhatsApp. Hosts who juggle several calendars sometimes sell the sa
 - **F14. Use AI safely.** An assistant in the dashboard, and personal keys or an OAuth sign-in to connect Claude,
   ChatGPT or any MCP app. One key reaches every place the person works in; they name the place they mean. In
   each place the AI sees exactly what that person's role there allows, nothing more, and a read-only key stays
-  read-only everywhere. Chats are saved for later, or kept temporary and never stored.
+  read-only everywhere. The AI can also carry out orders ("cancel booking SN-7KX3P9", "close the Arched room from
+  12 to 15 November"), but never on its own: in the dashboard the person confirms a card showing the exact action,
+  and in Claude, ChatGPT, Cursor or Codex the app asks before any change. Chats are saved for later, or kept
+  unsaved and never stored.
 - **F14a. Notifications.** A bell shows the latest five things that happened (requests, payments, cancellations,
   reviews, team changes); "View all" opens the full, paged list.
 - **F15. Choose a plan.** Free, Pro or Business, each with its limits (rooms, experiences, team members, AI).

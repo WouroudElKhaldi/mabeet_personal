@@ -4,7 +4,8 @@ import { clsx } from "clsx";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { inputClass } from "@/components/ui/field";
+import { inputClass, labelledControlClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { AMENITIES } from "@/config/amenities";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
@@ -104,7 +105,7 @@ export function RoomEditor({
         </label>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {NUMBER_FIELDS.map((field) => (
-            <label key={field} className="grid gap-1 text-xs font-semibold text-muted">
+            <label key={field} className={labelledControlClass}>
               {t(field)}
               <input
                 name={field}
@@ -156,7 +157,7 @@ export function RoomEditor({
             type="checkbox"
             name="active"
             defaultChecked={room?.active ?? true}
-            className="mt-0.5 size-4 accent-(--accent)"
+            className="mt-0.5 size-4 accent-accent"
           />
           <span>
             {unit ? t("unitActive") : wholePlace ? t("showOnly") : t("active")}
@@ -171,11 +172,7 @@ export function RoomEditor({
           <Button type="submit" size="sm" disabled={pending}>
             {room ? t("save") : t("create")}
           </Button>
-          {error && (
-            <p role="alert" className="text-sm font-semibold text-danger">
-              {error}
-            </p>
-          )}
+          <FormError message={error} />
         </div>
       )}
     </form>

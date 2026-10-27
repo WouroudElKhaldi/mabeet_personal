@@ -1,4 +1,5 @@
 import { SkHeader, SkPanel, SkRows, SkTiles } from "@/components/shell/skeletons";
+import { panelClass } from "@/components/ui/field";
 
 /** Today: tiles, savings, requests and charts. */
 export default function Loading() {
@@ -6,7 +7,7 @@ export default function Loading() {
     <div className="grid gap-10">
       <SkHeader />
       <SkTiles />
-      <div className="rounded-xl bg-surface p-5 ring-1 ring-line">
+      <div className={panelClass}>
         <SkTiles />
       </div>
       <SkRows count={3} />

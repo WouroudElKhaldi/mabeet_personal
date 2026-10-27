@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
-import { ApiError } from "@/lib/api-client";
+import { errorMessage } from "@/lib/api-client";
 
 /** Runs an API call, then refreshes the server-rendered page; keeps the error message for display. */
 export function useAction() {
@@ -23,7 +23,7 @@ export function useAction() {
           router.refresh();
         });
       } catch (caught) {
-        startTransition(() => setError(caught instanceof ApiError ? caught.message : t("error")));
+        startTransition(() => setError(errorMessage(caught, t("error"))));
       }
     });
 

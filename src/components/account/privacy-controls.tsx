@@ -1,18 +1,17 @@
 "use client";
 
 import { Download, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
-import { authClient } from "@/lib/auth-client";
+import { signOutAndLeave } from "@/lib/auth-client";
 
 /** Download everything we hold about you, or delete the account after typing your email. */
 export function PrivacyControls({ email }: { email: string }) {
   const t = useTranslations("account.privacy");
-  const router = useRouter();
   const { run, pending, error } = useAction();
   const [ask, confirmDialog] = useConfirm();
 
@@ -28,7 +27,7 @@ export function PrivacyControls({ email }: { email: string }) {
     run(
       () => api.post("/api/me/delete", { email: answer.reason }),
       () => {
-        void authClient.signOut().finally(() => router.replace("/"));
+        void signOutAndLeave();
       },
     );
   };
@@ -56,11 +55,7 @@ export function PrivacyControls({ email }: { email: string }) {
           <Trash2 className="size-4" aria-hidden />
           {t("delete")}
         </button>
-        {error && (
-          <p role="alert" className="mt-3 text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} className="mt-3" />
       </section>
     </div>
   );

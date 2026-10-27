@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
-// Only the repository layer imports this module (enforced by ESLint).
+// Services pick the client or a transaction and hand it to repositories, which are the only code that queries it.
+// Routes and pages never import this module (enforced by ESLint).
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -8,10 +9,12 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-/** Either the root client or an interactive transaction; every repository function accepts one. */
-export type Db = PrismaClient | Prisma.TransactionClient;
+export type Tx = Prisma.TransactionClient;
 
-export function runInTransaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+/** Either the root client or an interactive transaction; every repository function accepts one. */
+export type Db = PrismaClient | Tx;
+
+export function runInTransaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
   // Requests for the same room queue on its row lock, so allow time to get a connection and the lock.
   return prisma.$transaction(work, { maxWait: 10_000, timeout: 15_000 });
 }

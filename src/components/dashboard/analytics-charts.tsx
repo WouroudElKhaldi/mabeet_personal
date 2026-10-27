@@ -1,9 +1,8 @@
 import { BarChart, ShareBar } from "./bar-chart";
+import { channelColor } from "./channel-colors";
 
 // Charts drawn from the database's numbers, used both on the Analytics page and inside AI reports, so a report
 // can never show a figure the database doesn't have.
-
-const CHANNEL_COLORS = ["bg-accent", "bg-glow", "bg-ink/70", "bg-success", "bg-warning", "bg-danger"];
 
 export interface ChartLabels {
   month: (iso: string) => string;
@@ -61,10 +60,10 @@ export function ChannelsChart({
   if (rows.length === 0) return null;
   return (
     <ShareBar
-      shares={rows.map((row, index) => ({
+      shares={rows.map((row) => ({
         label: `${labels.channel(row.channel)} · ${labels.nights(row.nights)}`,
         value: row.nights,
-        className: CHANNEL_COLORS[index % CHANNEL_COLORS.length]!,
+        className: channelColor(row.channel),
       }))}
     />
   );

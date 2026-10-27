@@ -3,13 +3,14 @@ import type { z } from "zod";
 import type { Palette } from "@/config/appearance";
 import { CATEGORY_ICONS } from "@/config/category-icons";
 import { addDays } from "@/lib/dates";
-import { isUniqueViolation, prisma } from "@/server/db/client";
+import { prisma } from "@/server/db/client";
 import { conflict, forbidden, invalid, notFound } from "@/server/errors";
 import * as admin from "@/server/repositories/admin-repository";
 import { logActivity } from "@/server/repositories/activity-repository";
 import { saveSitePalette } from "@/server/repositories/site-repository";
 import type { categoryInput, categoryUpdate } from "@/server/validation/schemas";
 import { getMonthlyAiUsage } from "./ai-usage-service";
+import { duplicateAsConflict } from "./constraint-errors";
 
 export interface PlatformActor {
   id: string;
@@ -69,12 +70,9 @@ function assertKnownIcon(icon: string | undefined) {
 export async function createCategory(actor: PlatformActor, input: z.infer<typeof categoryInput>) {
   requireSuperAdmin(actor);
   assertKnownIcon(input.icon);
-  try {
-    await admin.createCategory(prisma, input);
-  } catch (error) {
-    if (isUniqueViolation(error)) throw conflict("A category with this slug already exists");
-    throw error;
-  }
+  await duplicateAsConflict("A category with this slug already exists", () =>
+    admin.createCategory(prisma, input),
+  );
   await logPlatform(actor, "platform.category_created", input.slug);
 }
 

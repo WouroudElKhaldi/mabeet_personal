@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { inputClass } from "@/components/ui/field";
+import { inputClass, labelledControlClass } from "@/components/ui/field";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { addDays, parseIsoDate, toIsoDate, todayUtc } from "@/lib/dates";
@@ -94,7 +94,7 @@ export function SessionScheduler({
       <form onSubmit={schedule} className="grid gap-4 rounded-xl bg-surface-2 p-4">
         <p className="font-semibold">{t("schedule")}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("from")}
             <input
               name="from"
@@ -105,7 +105,7 @@ export function SessionScheduler({
               className={`${inputClass} h-11`}
             />
           </label>
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("to")}
             <input
               name="to"
@@ -116,11 +116,11 @@ export function SessionScheduler({
               className={`${inputClass} h-11`}
             />
           </label>
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("time")}
             <input name="time" type="time" required defaultValue="10:00" className={`${inputClass} h-11`} />
           </label>
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("capacity")}
             <input
               name="capacity"

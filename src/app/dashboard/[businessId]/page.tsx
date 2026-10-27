@@ -1,27 +1,20 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { BarChart, ShareBar } from "@/components/dashboard/bar-chart";
 import { BookingRow } from "@/components/dashboard/booking-row";
+import { channelColor } from "@/components/dashboard/channel-colors";
 import { SessionBookingRow } from "@/components/dashboard/session-booking-row";
 import { StatTile } from "@/components/dashboard/stat-tile";
+import { panelClass } from "@/components/ui/field";
 import { addDays, todayUtc } from "@/lib/dates";
 import { stagger } from "@/lib/motion";
 import { can } from "@/server/auth/tenant-context";
 import { requirePageTenant } from "@/server/http/session";
-import { type Channel, getBusinessReport, getSavings } from "@/server/services/analytics-service";
+import { getBusinessReport, getSavings } from "@/server/services/analytics-service";
 import { listBookings } from "@/server/services/booking-service";
 import { listSessionBookings } from "@/server/services/session-booking-service";
 import { getTimezone } from "@/server/services/settings-service";
 
 type PageProps = { params: Promise<{ businessId: string }> };
-
-const CHANNEL_STYLE: Record<Channel, string> = {
-  DIRECT: "bg-accent",
-  AIRBNB: "bg-[#e0565b]",
-  BOOKING: "bg-[#2f6fd6]",
-  KAZDERNI: "bg-glow",
-  OTHER: "bg-faint",
-  MANUAL: "bg-line-strong",
-};
 
 export default async function OverviewPage({ params }: PageProps) {
   const ctx = await requirePageTenant((await params).businessId);
@@ -75,7 +68,7 @@ export default async function OverviewPage({ params }: PageProps) {
       )}
 
       {savings.map((row) => (
-        <section key={row.currency} className="rounded-xl bg-surface p-5 ring-1 ring-line">
+        <section key={row.currency} className={panelClass}>
           <h2 className="text-2xl font-semibold">{t("savings.title")}</h2>
           <p className="mt-1 text-sm text-muted">{t("savings.intro")}</p>
           <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -156,7 +149,7 @@ export default async function OverviewPage({ params }: PageProps) {
                   shares={report.channels.map((channel) => ({
                     label: t(`channel.${channel.channel}`),
                     value: channel.nights,
-                    className: CHANNEL_STYLE[channel.channel],
+                    className: channelColor(channel.channel),
                   }))}
                 />
               )}

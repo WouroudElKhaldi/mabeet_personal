@@ -7,11 +7,12 @@ import {
   toPermissions,
 } from "@/server/auth/permissions";
 import { type Channel, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isUniqueViolation, prisma, runInTransaction } from "@/server/db/client";
+import { prisma, runInTransaction } from "@/server/db/client";
 import { conflict, forbidden, invalid, notFound } from "@/server/errors";
 import * as team from "@/server/repositories/team-repository";
 import { recordAction } from "./audit";
 import { assertPlanAllowsAnother } from "./billing-service";
+import { duplicateAsConflict } from "./constraint-errors";
 
 type MembershipWithRole = Membership & { role: Role };
 
@@ -145,14 +146,11 @@ export function listRoles(ctx: TenantContext) {
 export async function createRole(ctx: TenantContext, input: RoleInput) {
   requirePermission(ctx, "roles.manage");
   assertCanGrant(ctx, input.permissions);
-  try {
-    const role = await team.createRole(prisma, { ...input, businessId: ctx.businessId });
-    await recordAction(ctx, "role.created", "role", role.id);
-    return role;
-  } catch (error) {
-    if (isUniqueViolation(error)) throw conflict("A role with this name already exists");
-    throw error;
-  }
+  const role = await duplicateAsConflict("A role with this name already exists", () =>
+    team.createRole(prisma, { ...input, businessId: ctx.businessId }),
+  );
+  await recordAction(ctx, "role.created", "role", role.id);
+  return role;
 }
 
 export async function updateRole(ctx: TenantContext, roleId: string, input: Partial<RoleInput>) {

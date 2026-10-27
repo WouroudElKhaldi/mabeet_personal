@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { BRAND } from "@/config/brand";
-import { runTool, type ToolOutcome } from "./run-tool";
+import { createToolRunner, type ToolCallListener, toolPayload } from "./run-tool";
 import type { AiTool } from "./tool";
 
 interface McpOptions {
@@ -9,7 +9,7 @@ interface McpOptions {
   instructions: string;
   tools: readonly AiTool[];
   context: unknown;
-  onCall?: (tool: string, outcome: ToolOutcome, latencyMs: number) => Promise<unknown>;
+  onCall?: ToolCallListener;
 }
 
 /**
@@ -21,6 +21,7 @@ export async function handleMcpRequest(request: Request, options: McpOptions): P
     { name: `${BRAND.name.toLowerCase()}-${options.name}`, version: "1.0.0" },
     { instructions: options.instructions },
   );
+  const runTool = createToolRunner(options.tools, options.context, options.onCall);
 
   for (const tool of options.tools) {
     server.registerTool(
@@ -31,13 +32,10 @@ export async function handleMcpRequest(request: Request, options: McpOptions): P
         annotations: { readOnlyHint: !tool.mutates, destructiveHint: tool.mutates, openWorldHint: false },
       },
       async (args: unknown) => {
-        const started = Date.now();
-        const outcome = await runTool(tool, args, options.context);
-        await options.onCall?.(tool.name, outcome, Date.now() - started);
-        const payload = outcome.ok ? outcome.result : { error: outcome.error };
+        const outcome = await runTool(tool.name, args);
         return {
           isError: !outcome.ok,
-          content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+          content: [{ type: "text" as const, text: JSON.stringify(toolPayload(outcome)) }],
         };
       },
     );

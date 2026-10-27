@@ -3,7 +3,7 @@ import { addDays, type DateRange, eachNight, toIsoDate, todayUtc } from "@/lib/d
 import { secureToken } from "@/lib/tokens";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma, runInTransaction } from "@/server/db/client";
-import { notFound } from "@/server/errors";
+import { invalid, notFound } from "@/server/errors";
 import * as rooms from "@/server/repositories/room-repository";
 import type { roomInput, roomUpdate } from "@/server/validation/schemas";
 import { recordAction } from "./audit";
@@ -12,6 +12,23 @@ import { assertPlanAllowsAnother } from "./billing-service";
 export function listRooms(ctx: TenantContext) {
   requirePermission(ctx, "rooms.read");
   return rooms.listRooms(prisma, ctx.businessId);
+}
+
+/**
+ * A room named the way a person or an AI says it: its id, its exact name, or a part of its name that fits only
+ * one room. A name that fits several rooms is refused rather than guessed. Callers check their own permission
+ * (closing dates needs blocks.manage, not rooms.read).
+ */
+export async function findRoomByNameOrId(ctx: TenantContext, nameOrId: string) {
+  const all = await rooms.listRooms(prisma, ctx.businessId);
+  const wanted = nameOrId.trim().toLowerCase();
+  const exact = all.filter((room) => room.id === nameOrId.trim() || room.name.toLowerCase() === wanted);
+  const matches = exact.length > 0 ? exact : all.filter((room) => room.name.toLowerCase().includes(wanted));
+  if (matches.length === 0) throw notFound("Room");
+  if (matches.length > 1) {
+    throw invalid(`Several rooms match "${nameOrId}": ${matches.map((room) => room.name).join(", ")}`);
+  }
+  return matches[0]!;
 }
 
 export async function getRoom(ctx: TenantContext, roomId: string) {

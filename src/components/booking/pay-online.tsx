@@ -2,29 +2,26 @@
 
 import { CreditCard, LoaderCircle, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ApiError, api } from "@/lib/api-client";
+import { FormError } from "@/components/ui/form-error";
+import type { OnlineMethod } from "@/config/enums";
+import { useRedirectAction } from "@/hooks/use-redirect-action";
+import { api } from "@/lib/api-client";
 
 /** Sends the guest to Whish or Stripe to pay what the booking needs. Mabeet holds it for the host. */
-export function PayOnline({ token, methods }: { token: string; methods: Array<"WHISH" | "CARD"> }) {
+export function PayOnline({ token, methods }: { token: string; methods: OnlineMethod[] }) {
   const t = useTranslations("confirmation.pay");
   const tCommon = useTranslations("common");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [chosen, setChosen] = useState<string | null>(null);
+  const { go, pending, error } = useRedirectAction(tCommon("error"));
+  const [chosen, setChosen] = useState<OnlineMethod | null>(null);
 
-  const pay = (method: "WHISH" | "CARD") =>
-    startTransition(async () => {
-      setError(null);
-      setChosen(method);
-      try {
-        const { url } = await api.post<{ url: string }>(`/api/public/bookings/${token}/checkout`, { method });
-        window.location.assign(url);
-      } catch (caught) {
-        setError(caught instanceof ApiError ? caught.message : tCommon("error"));
-      }
-    });
+  const pay = (method: OnlineMethod) => {
+    setChosen(method);
+    go(
+      async () => (await api.post<{ url: string }>(`/api/public/bookings/${token}/checkout`, { method })).url,
+    );
+  };
 
   if (methods.length === 0) return <p className="mt-3 text-sm text-muted">{t("unavailable")}</p>;
   return (
@@ -49,11 +46,7 @@ export function PayOnline({ token, methods }: { token: string; methods: Array<"W
           </Button>
         ))}
       </div>
-      {error && (
-        <p role="alert" className="mt-3 text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="mt-3" />
     </div>
   );
 }

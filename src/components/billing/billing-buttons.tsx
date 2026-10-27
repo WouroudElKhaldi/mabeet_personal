@@ -1,35 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { ApiError, api } from "@/lib/api-client";
+import { FormError } from "@/components/ui/form-error";
+import type { PaidPlan } from "@/config/plans";
+import { useRedirectAction } from "@/hooks/use-redirect-action";
+import { api } from "@/lib/api-client";
 
 /** Asks the server for a payment page (Stripe Checkout, the billing portal or Whish) and goes there. */
-function useStripeRedirect() {
+function usePaymentRedirect() {
   const t = useTranslations("common");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const go = (path: string, body: unknown) =>
-    startTransition(async () => {
-      setError(null);
-      try {
-        const { url } = await api.post<{ url: string }>(path, body);
-        window.location.assign(url);
-      } catch (caught) {
-        setError(caught instanceof ApiError ? caught.message : t("error"));
-      }
-    });
-  return { go, pending, error };
-}
-
-function ErrorLine({ error }: { error: string | null }) {
-  if (!error) return null;
-  return (
-    <p role="alert" className="mt-2 text-sm font-semibold text-danger">
-      {error}
-    </p>
-  );
+  const { go, pending, error } = useRedirectAction(t("error"));
+  const goTo = (path: string, body: unknown) =>
+    go(async () => (await api.post<{ url: string }>(path, body)).url);
+  return { go: goTo, pending, error };
 }
 
 export function UpgradeButton({
@@ -38,11 +22,11 @@ export function UpgradeButton({
   disabled,
 }: {
   businessId: string;
-  plan: "PRO" | "BUSINESS";
+  plan: PaidPlan;
   disabled: boolean;
 }) {
   const t = useTranslations("plans");
-  const { go, pending, error } = useStripeRedirect();
+  const { go, pending, error } = usePaymentRedirect();
   return (
     <>
       <Button
@@ -52,14 +36,14 @@ export function UpgradeButton({
       >
         {t("choose", { plan: t(`names.${plan}`) })}
       </Button>
-      <ErrorLine error={error} />
+      <FormError message={error} className="mt-2" />
     </>
   );
 }
 
 export function ManageBillingButton({ businessId }: { businessId: string }) {
   const t = useTranslations("plans");
-  const { go, pending, error } = useStripeRedirect();
+  const { go, pending, error } = usePaymentRedirect();
   return (
     <div>
       <Button
@@ -69,15 +53,15 @@ export function ManageBillingButton({ businessId }: { businessId: string }) {
       >
         {t("manage")}
       </Button>
-      <ErrorLine error={error} />
+      <FormError message={error} className="mt-2" />
     </div>
   );
 }
 
 /** Pays one month of a plan with Whish, for hosts without a card. Each payment adds a month. */
-export function WhishPlanButton({ businessId, plan }: { businessId: string; plan: "PRO" | "BUSINESS" }) {
+export function WhishPlanButton({ businessId, plan }: { businessId: string; plan: PaidPlan }) {
   const t = useTranslations("plans");
-  const { go, pending, error } = useStripeRedirect();
+  const { go, pending, error } = usePaymentRedirect();
   return (
     <>
       <Button
@@ -88,7 +72,7 @@ export function WhishPlanButton({ businessId, plan }: { businessId: string; plan
       >
         {t("payWhish")}
       </Button>
-      <ErrorLine error={error} />
+      <FormError message={error} className="mt-2" />
     </>
   );
 }

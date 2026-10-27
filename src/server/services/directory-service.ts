@@ -25,24 +25,50 @@ interface RoomOffer {
   stayTotalCents: number | null;
 }
 
-async function overridesByRoom(roomIds: string[], range: DateRange) {
-  const rows = await directory.findRateOverridesForRooms(prisma, roomIds, range);
-  const byRoom = new Map<string, Map<string, number>>();
-  for (const row of rows) {
-    const rates = byRoom.get(row.roomId) ?? new Map<string, number>();
+const NO_RATING = { average: 0, count: 0 };
+
+/** Which rooms are taken over a stay and each room's special nightly rates, for any number of rooms at once. */
+interface Availability {
+  taken: Set<string>;
+  ratesByRoom: Map<string, Map<string, number>>;
+}
+
+/** Two queries however many rooms are asked about, so a search never does a round trip per place. */
+async function loadAvailability(roomIds: string[], range: DateRange): Promise<Availability> {
+  const [taken, rateRows] = await Promise.all([
+    directory.findTakenRoomIds(prisma, roomIds, range),
+    directory.findRateOverridesForRooms(prisma, roomIds, range),
+  ]);
+  const ratesByRoom = new Map<string, Map<string, number>>();
+  for (const row of rateRows) {
+    const rates = ratesByRoom.get(row.roomId) ?? new Map<string, number>();
     rates.set(toIsoDate(row.date), row.rateCents);
-    byRoom.set(row.roomId, rates);
+    ratesByRoom.set(row.roomId, rates);
   }
-  return byRoom;
+  return { taken, ratesByRoom };
+}
+
+function quoteRoomStay(
+  room: { id: string; baseRateCents: number },
+  range: DateRange,
+  availability: Availability,
+  depositPercent: number,
+) {
+  return quoteStay({
+    range,
+    baseRateCents: room.baseRateCents,
+    overrides: availability.ratesByRoom.get(room.id) ?? new Map(),
+    depositPercent,
+  });
 }
 
 /** Free rooms with their price for the stay; without dates every active room is an offer at its base rate. */
-async function offersFor(
+function offersFor(
   rooms: PublicRoom[],
-  range: DateRange | undefined,
   depositPercent: number,
-): Promise<RoomOffer[]> {
-  if (!range) {
+  stay?: { range: DateRange; availability: Availability },
+): RoomOffer[] {
+  if (!stay) {
     return rooms.map((room) => ({
       roomId: room.id,
       name: room.name,
@@ -51,20 +77,10 @@ async function offersFor(
       stayTotalCents: null,
     }));
   }
-  const roomIds = rooms.map((room) => room.id);
-  const [taken, overrides] = await Promise.all([
-    directory.findTakenRoomIds(prisma, roomIds, range),
-    overridesByRoom(roomIds, range),
-  ]);
   return rooms
-    .filter((room) => !taken.has(room.id))
+    .filter((room) => !stay.availability.taken.has(room.id))
     .map((room) => {
-      const quote = quoteStay({
-        range,
-        baseRateCents: room.baseRateCents,
-        overrides: overrides.get(room.id) ?? new Map(),
-        depositPercent,
-      });
+      const quote = quoteRoomStay(room, stay.range, stay.availability, depositPercent);
       return {
         roomId: room.id,
         name: room.name,
@@ -93,7 +109,7 @@ function toCard(
     currency: place.currency,
     photo: place.photos[0] ?? place.rooms.flatMap((room) => room.photos)[0] ?? null,
     categories: place.categories.map(({ category }) => category),
-    rating: rating ?? { average: 0, count: 0 },
+    rating: rating ?? NO_RATING,
     nightlyFromCents: cheapest(offers.map((offer) => offer.nightlyFromCents)),
     stayTotalFromCents: cheapest(offers.map((offer) => offer.stayTotalCents)),
     offers,
@@ -104,17 +120,27 @@ export type PlaceCard = ReturnType<typeof toCard>;
 
 export async function searchPlaces(query: SearchQuery): Promise<PlaceCard[]> {
   const places = await directory.findListedPlaces(prisma, query, query.limit * 3);
-  const ratings = await directory.findRatingSummaries(
-    prisma,
-    places.map((place) => place.id),
-  );
-  const cards = await Promise.all(
-    places.map(async (place) => {
-      const offers = await offersFor(place.rooms, query.range, place.depositPercent);
+  const range = query.range;
+  const [ratings, availability] = await Promise.all([
+    directory.findRatingSummaries(
+      prisma,
+      places.map((place) => place.id),
+    ),
+    range
+      ? loadAvailability(
+          places.flatMap((place) => place.rooms.map((room) => room.id)),
+          range,
+        )
+      : null,
+  ]);
+  const stay = range && availability ? { range, availability } : undefined;
+  return places
+    .map((place) => {
+      const offers = offersFor(place.rooms, place.depositPercent, stay);
       return offers.length > 0 ? toCard(place, offers, ratings.get(place.id)) : null;
-    }),
-  );
-  return cards.filter((card): card is PlaceCard => card !== null).slice(0, query.limit);
+    })
+    .filter((card): card is PlaceCard => card !== null)
+    .slice(0, query.limit);
 }
 
 /** Cached per request: the page and its metadata share one lookup. */
@@ -126,12 +152,16 @@ export const getPlace = cache(async (slug: string) => {
     // Booked as a whole: the rooms are still shown (beds, photos), just not booked one by one.
     place.bookingUnit === "WHOLE_PLACE" ? directory.findShowcaseRooms(prisma, place.id) : Promise.resolve([]),
   ]);
-  return { ...place, showcaseRooms, rating: ratings.get(place.id) ?? { average: 0, count: 0 } };
+  return { ...place, showcaseRooms, rating: ratings.get(place.id) ?? NO_RATING };
 });
 
 export async function checkAvailability(slug: string, range: DateRange) {
   const place = await getPlace(slug);
-  const offers = await offersFor(place.rooms, range, place.depositPercent);
+  const availability = await loadAvailability(
+    place.rooms.map((room) => room.id),
+    range,
+  );
+  const offers = offersFor(place.rooms, place.depositPercent, { range, availability });
   const free = new Set(offers.map((offer) => offer.roomId));
   return {
     place: { slug: place.slug, name: place.name, currency: place.currency },
@@ -151,17 +181,14 @@ export async function quoteRoom(slug: string, roomId: string, range: DateRange) 
   const place = await getPlace(slug);
   const room = place.rooms.find((candidate) => candidate.id === roomId);
   if (!room) throw notFound("Room");
-  const [taken, overrides] = await Promise.all([
-    directory.findTakenRoomIds(prisma, [room.id], range),
-    overridesByRoom([room.id], range),
-  ]);
-  const quote = quoteStay({
-    range,
-    baseRateCents: room.baseRateCents,
-    overrides: overrides.get(room.id) ?? new Map(),
-    depositPercent: place.depositPercent,
-  });
-  return { free: !taken.has(room.id), currency: place.currency, minNights: room.minNights, ...quote };
+  const availability = await loadAvailability([room.id], range);
+  const quote = quoteRoomStay(room, range, availability, place.depositPercent);
+  return {
+    free: !availability.taken.has(room.id),
+    currency: place.currency,
+    minNights: room.minNights,
+    ...quote,
+  };
 }
 
 /** Taken nights for a room's public calendar. */
@@ -179,10 +206,8 @@ export function listCategories() {
 export async function getPlacesByIds(businessIds: string[]) {
   const places = await directory.findPlacesByIds(prisma, businessIds);
   const ratings = await directory.findRatingSummaries(prisma, businessIds);
-  return Promise.all(
-    places.map(async (place) =>
-      toCard(place, await offersFor(place.rooms, undefined, place.depositPercent), ratings.get(place.id)),
-    ),
+  return places.map((place) =>
+    toCard(place, offersFor(place.rooms, place.depositPercent), ratings.get(place.id)),
   );
 }
 
@@ -194,8 +219,6 @@ export interface OfferingQuery extends Omit<offeringsRepo.OfferingFilters, "from
 }
 
 type ListedOffering = Awaited<ReturnType<typeof offeringsRepo.findListedOfferings>>[number];
-
-const NO_RATING = { average: 0, count: 0 };
 
 function toOfferingCard(offering: ListedOffering, rating = NO_RATING) {
   return {

@@ -1,18 +1,15 @@
 import { z } from "zod";
+import type { AnalyticsScope, ReportTopic } from "@/config/enums";
 import { completeJson } from "@/server/ai/deepseek";
-import type { TenantContext } from "@/server/auth/tenant-context";
-import { requirePermission } from "@/server/auth/tenant-context";
 import type { DateRange } from "@/lib/dates";
+import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { unavailable } from "@/server/errors";
 import { assertWithinBudget, recordAiUsage } from "./ai-usage-service";
-import { type AnalyticsScope, getAnalytics } from "./analytics-service";
+import { getAnalytics } from "./analytics-service";
 import { assertPlanAllowsAi } from "./billing-service";
 
 // The AI analytics report. The numbers come from the database (getAnalytics) and are shown by the app as charts
 // and tables; DeepSeek only reads them and writes the analysis. It is told to use no number it wasn't given.
-
-/** What a report can cover; the request schema lists the same values. */
-type ReportTopic = "occupancy" | "revenue" | "channels" | "requests" | "reviews" | "places";
 
 const LANGUAGES: Record<string, string> = {
   en: "English",
@@ -82,7 +79,7 @@ say plainly when there is too little data. Be concrete and practical. Return JSO
     ],
     2_000,
   );
-  await recordAiUsage("report", ctx.businessId, usage);
+  recordAiUsage("report", ctx.businessId, usage);
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);

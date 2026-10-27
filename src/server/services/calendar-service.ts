@@ -1,8 +1,8 @@
 import type { FeedSource } from "@prisma/client";
 import { addDays, type DateRange, todayUtc } from "@/lib/dates";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isOverlapError, prisma, runInTransaction } from "@/server/db/client";
-import { conflict, notFound } from "@/server/errors";
+import { prisma, runInTransaction } from "@/server/db/client";
+import { notFound } from "@/server/errors";
 import { buildExportFeed } from "@/server/ical/build-feed";
 import { parseFeed } from "@/server/ical/parse-feed";
 import { assertPublicHttpsUrl, fetchCalendarText } from "@/server/ical/safe-fetch";
@@ -14,10 +14,13 @@ import {
   lockActiveRoom,
 } from "@/server/repositories/room-repository";
 import { recordAction } from "./audit";
+import { overlapAsConflict } from "./constraint-errors";
 
 const IMPORT_HORIZON_DAYS = 540;
 const SYNC_INTERVAL_MS = 15 * 60_000;
 const SYNC_BATCH_SIZE = 20;
+
+const NIGHTS_TAKEN = "Those nights are already booked or blocked";
 
 async function requireRoom(ctx: TenantContext, roomId: string) {
   const room = await findRoom(prisma, ctx.businessId, roomId);
@@ -51,14 +54,11 @@ export interface BlockInput {
 export async function addBlock(ctx: TenantContext, input: BlockInput) {
   requirePermission(ctx, "blocks.manage");
   await requireRoom(ctx, input.roomId);
-  try {
-    const block = await calendar.createManualBlock(prisma, { ...input, businessId: ctx.businessId });
-    await recordAction(ctx, "block.added", "occupancy", block.id);
-    return block;
-  } catch (error) {
-    if (isOverlapError(error)) throw conflict("Those nights are already booked or blocked");
-    throw error;
-  }
+  const block = await overlapAsConflict(NIGHTS_TAKEN, () =>
+    calendar.createManualBlock(prisma, { ...input, businessId: ctx.businessId }),
+  );
+  await recordAction(ctx, "block.added", "occupancy", block.id);
+  return block;
 }
 
 /** Drag and drop on the calendar: a block moves to other nights or another room, if they are free. */
@@ -69,12 +69,10 @@ export async function moveBlock(
 ) {
   requirePermission(ctx, "blocks.manage");
   await requireRoom(ctx, move.roomId);
-  try {
-    if (!(await calendar.moveManualBlock(prisma, ctx.businessId, blockId, move))) throw notFound("Block");
-  } catch (error) {
-    if (isOverlapError(error)) throw conflict("Those nights are already booked or blocked");
-    throw error;
-  }
+  const moved = await overlapAsConflict(NIGHTS_TAKEN, () =>
+    calendar.moveManualBlock(prisma, ctx.businessId, blockId, move),
+  );
+  if (!moved) throw notFound("Block");
   await recordAction(ctx, "block.moved", "occupancy", blockId);
 }
 

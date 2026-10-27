@@ -1,11 +1,12 @@
 import type { BookingStatus } from "@prisma/client";
 import { bookingReference, secureToken } from "@/lib/tokens";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isOverlapError, prisma, runInTransaction } from "@/server/db/client";
+import { prisma, runInTransaction } from "@/server/db/client";
 import { conflict, invalid, notFound } from "@/server/errors";
 import { logActivity } from "@/server/repositories/activity-repository";
 import * as offerings from "@/server/repositories/offering-repository";
 import { recordAction } from "./audit";
+import { overlapAsConflict } from "./constraint-errors";
 import { presentForStaff } from "./booking-service";
 import { assertTransition } from "./booking-status";
 import {
@@ -21,13 +22,18 @@ import {
   notifyGuestCancelled,
   notifyHostsNewBooking,
 } from "./notification-service";
-import { refundForEndedBooking } from "./online-payment-service";
+import { type EndedBooking, refundForEndedBooking } from "./online-payment-service";
 
 // Seats in a dated session of an experience or service. Same lifecycle as a room booking: the seats are
 // taken at once (HELD on request, or straight to AWAITING_PAYMENT / CONFIRMED for an instant booking).
 
 const SEATS_TAKEN = "Those seats were just taken. Please pick another time.";
 const HOUR_MS = 3_600_000;
+
+const endedSession = (
+  booking: Pick<EndedBooking, "id" | "refundPolicy" | "onlineDueCents">,
+  startsAt: Date,
+): EndedBooking => ({ kind: "session", startsAt, ...booking });
 
 export interface SessionBookingRequest {
   offeringSlug: string;
@@ -61,19 +67,16 @@ export async function requestSessionBooking(request: SessionBookingRequest, now 
   if (request.seats > offering.maxGuests)
     throw invalid(`Up to ${offering.maxGuests} guests can book together`);
 
-  try {
-    const booking = await runInTransaction(async (tx) => {
+  const booking = await overlapAsConflict(SEATS_TAKEN, () =>
+    runInTransaction(async (tx) => {
       if (!(await offerings.lockOpenSession(tx, offering.id, request.sessionId))) throw notFound("Session");
-      const session = await tx.offeringSession.findUniqueOrThrow({
-        where: { id: request.sessionId },
-        include: { business: { select: { holdHours: true } } },
-      });
+      const session = await offerings.findSessionForBooking(tx, request.sessionId);
       const quote = quoteSession(offering, request.seats, offering.business.depositPercent);
       const status = initialStatus(offering.business);
       // The hold never outlasts the session itself.
       const hold = holdUntil(status, session.business.holdHours, now);
       const holdEnds = hold && new Date(Math.min(hold.getTime(), session.startsAt.getTime()));
-      const held = await offerings.createHeldSessionBooking(tx, {
+      const created = await offerings.createSessionBooking(tx, {
         businessId: offering.business.id,
         offeringId: offering.id,
         sessionId: session.id,
@@ -98,21 +101,18 @@ export async function requestSessionBooking(request: SessionBookingRequest, now 
         businessId: offering.business.id,
         action: "booking.requested",
         entity: "session_booking",
-        entityId: held.id,
+        entityId: created.id,
       });
-      return held;
-    });
-    if (booking.status === "HELD") {
-      notifyBookingRequested(booking.id, "session");
-    } else {
-      notifyBookingStatus(booking.id, "session");
-      notifyHostsNewBooking(booking.id, "session");
-    }
-    return booking;
-  } catch (error) {
-    if (isOverlapError(error)) throw conflict(SEATS_TAKEN);
-    throw error;
+      return created;
+    }),
+  );
+  if (booking.status === "HELD") {
+    notifyBookingRequested(booking.id, "session");
+  } else {
+    notifyBookingStatus(booking.id, "session");
+    notifyHostsNewBooking(booking.id, "session");
   }
+  return booking;
 }
 
 async function decide(
@@ -139,6 +139,7 @@ async function decide(
     const updated = await offerings.changeSessionBookingStatus(tx, ctx.businessId, bookingId, {
       status,
       decidedById: ctx.userId,
+      decidedAt: now,
       cancelReason: reason,
       ...(status === "AWAITING_PAYMENT" && { holdExpiresAt: payBy }),
     });
@@ -146,13 +147,8 @@ async function decide(
   });
   await recordAction(ctx, `booking.${status.toLowerCase()}`, "session_booking", bookingId);
   notifyBookingStatus(bookingId, "session");
-  if ((status === "DECLINED" || status === "CANCELLED") && booking.onlineDueCents !== null) {
-    await refundForEndedBooking(
-      { kind: "session", id: booking.id, refundPolicy: booking.refundPolicy, startsAt },
-      "host",
-      "Cancelled by the host",
-      now,
-    );
+  if (status === "DECLINED" || status === "CANCELLED") {
+    await refundForEndedBooking(endedSession(booking, startsAt), "host", now);
   }
   return booking;
 }
@@ -202,14 +198,7 @@ export async function cancelSessionAsGuest(publicToken: string, reason: string |
   if (result && booking) {
     notifyBookingStatus(booking.id, "session");
     notifyGuestCancelled(booking.id, "session");
-    if (booking.onlineDueCents !== null) {
-      await refundForEndedBooking(
-        { kind: "session", id: booking.id, refundPolicy: booking.refundPolicy, startsAt: result.startsAt },
-        "guest",
-        "Cancelled by the guest",
-        now,
-      );
-    }
+    await refundForEndedBooking(endedSession(booking, result.startsAt), "guest", now);
   }
   return booking;
 }

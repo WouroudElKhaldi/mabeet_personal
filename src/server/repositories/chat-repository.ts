@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 
 // Saved assistant conversations. Every query filters by the person and the surface (and business for the team
 // assistant), so a chat is only ever reachable by the person who had it, where they had it.
@@ -42,7 +42,7 @@ export function createChat(db: Db, scope: ChatScope, title: string) {
 
 /** Adds the question and its answer; also marks the chat as recently used. */
 export async function appendTurn(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   chatId: string,
   question: string,
   answer: { content: string; data: Prisma.InputJsonValue | null },

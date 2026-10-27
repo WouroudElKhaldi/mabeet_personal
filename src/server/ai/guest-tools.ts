@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OFFERING_KINDS } from "@/config/listing";
 import { toDateRange } from "@/lib/dates";
 import {
   checkAvailability,
@@ -124,7 +125,7 @@ export const GUEST_TOOLS = [
     description:
       "Find experiences (hikes, wine tastings, cooking classes, kayaking, workshops) or services (airport transfers, private chefs, local guides, photographers, massages) that still have spots on the given dates. Categories: hiking, food-wine, culture, water, workshops, transfers, private-chef, guides, photography, wellness.",
     input: z.object({
-      kind: z.enum(["EXPERIENCE", "SERVICE"]).optional().describe("Leave out to search both"),
+      kind: z.enum(OFFERING_KINDS).optional().describe("Leave out to search both"),
       from: isoDate.optional().describe("First day the guest is free"),
       to: isoDate.optional().describe("Day after the last day the guest is free"),
       guests: z.number().int().min(1).max(30).default(2),

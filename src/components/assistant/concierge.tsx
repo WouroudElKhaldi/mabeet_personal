@@ -6,23 +6,8 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { PlaceArt } from "@/components/place/place-art";
 import { formatMoney } from "@/lib/format";
+import type { ConciergeAnswer, SuggestionCard } from "@/server/services/assistant-service";
 import { ChatPanel } from "./chat-panel";
-
-interface SuggestionCard {
-  slug: string;
-  name: string;
-  area: string | null;
-  currency: string;
-  priceCents: number | null;
-  priceUnit: "stay" | "night" | "person" | "group";
-  photoUrl: string | null;
-  bookingLink: string;
-}
-
-interface ConciergeResponse {
-  reply: string;
-  places: SuggestionCard[];
-}
 
 /** Cards come straight from tool data, so the model can never put a made-up place or activity on screen. */
 function Suggestions({ cards, locale }: { cards: SuggestionCard[]; locale: string }) {
@@ -40,7 +25,7 @@ function Suggestions({ cards, locale }: { cards: SuggestionCard[]; locale: strin
                   alt={card.name}
                   fill
                   sizes="(min-width: 1280px) 240px, (min-width: 640px) 45vw, 90vw"
-                  className="object-cover transition-transform duration-500 ease-(--ease-out) group-hover:scale-[1.04]"
+                  className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
                 />
               ) : (
                 <PlaceArt seed={card.slug} className="size-full" />
@@ -80,7 +65,7 @@ export function Concierge({ signedIn }: { signedIn: boolean }) {
   const t = useTranslations("assistant.guest");
   const locale = useLocale();
   return (
-    <ChatPanel<ConciergeResponse>
+    <ChatPanel<ConciergeAnswer>
       endpoint="/api/assistant"
       history={signedIn ? { list: "/api/me/chats", item: (chatId) => `/api/me/chats/${chatId}` } : null}
       speaker={t("speaker")}

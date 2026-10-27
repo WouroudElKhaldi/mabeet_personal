@@ -1,4 +1,4 @@
-import type { PaymentMethod, Plan, PlanRequestStatus, Prisma } from "@prisma/client";
+import type { PaymentMethod, Plan, PlanRequestStatus } from "@prisma/client";
 import type { Db } from "@/server/db/client";
 
 // Paying Mabeet for a plan by hand: the ways to pay that the super admin publishes, and hosts' requests with
@@ -113,7 +113,7 @@ export function findReceipt(db: Db, id: string) {
 
 /** Moves a waiting request on, once: false when someone already decided or cancelled it. */
 export async function closeRequest(
-  db: Db | Prisma.TransactionClient,
+  db: Db,
   id: string,
   data: {
     status: Exclude<PlanRequestStatus, "PENDING">;

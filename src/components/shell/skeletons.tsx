@@ -214,7 +214,7 @@ export function SkTabs({ count = 4 }: { count?: number }) {
 }
 
 /** A grid of photo or option tiles. */
-export function SkTiles2({ count = 6, className }: { count?: number; className?: string }) {
+export function SkPhotoTiles({ count = 6, className }: { count?: number; className?: string }) {
   return (
     <div className={clsx("grid grid-cols-2 gap-3 sm:grid-cols-3", className)}>
       {Array.from({ length: count }, (_, index) => (

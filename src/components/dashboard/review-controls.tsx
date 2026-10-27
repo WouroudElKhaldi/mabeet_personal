@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
 
@@ -63,11 +64,7 @@ export function ReviewControls({ businessId, reviewId, reply, hidden }: ReviewCo
           {hidden ? t("show") : t("hide")}
         </Button>
       </form>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </div>
   );
 }

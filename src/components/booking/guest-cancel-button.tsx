@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 
@@ -38,11 +39,7 @@ export function GuestCancelButton({ token, confirmed }: { token: string; confirm
       >
         {t("cancelBooking")}
       </button>
-      {error && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="mt-2" />
     </div>
   );
 }

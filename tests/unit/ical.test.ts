@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseIsoDate, toIsoDate } from "@/lib/dates";
 import { buildExportFeed } from "@/server/ical/build-feed";
 import { parseFeed } from "@/server/ical/parse-feed";
-import { assertPublicHttpsUrl } from "@/server/ical/safe-fetch";
+import { assertPublicHttpsUrl, fetchCalendarText } from "@/server/ical/safe-fetch";
 
 const ics = (...events: string[]) =>
   ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Test//EN", ...events, "END:VCALENDAR"].join("\r\n");
@@ -95,5 +95,38 @@ describe("assertPublicHttpsUrl", () => {
 
   it("accepts a public https address", async () => {
     await expect(assertPublicHttpsUrl("https://8.8.8.8/feed.ics")).resolves.toBeInstanceOf(URL);
+  });
+});
+
+describe("fetchCalendarText", () => {
+  // A literal public address: the resolver answers without the network, and fetch itself is stubbed.
+  const FEED_URL = "https://8.8.8.8/feed.ics";
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const respondWith = (body: string, headers: Record<string, string> = {}) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(body, { headers })),
+    );
+
+  it("returns an iCal body", async () => {
+    respondWith("BEGIN:VCALENDAR\nEND:VCALENDAR");
+    await expect(fetchCalendarText(FEED_URL)).resolves.toContain("BEGIN:VCALENDAR");
+  });
+
+  it("refuses a body that is not iCal", async () => {
+    respondWith("<html>sign in</html>");
+    await expect(fetchCalendarText(FEED_URL)).rejects.toThrow(/not an iCal/);
+  });
+
+  it("refuses a feed whose declared size is over the cap without reading it", async () => {
+    respondWith("BEGIN:VCALENDAR", { "content-length": String(3_000_000) });
+    await expect(fetchCalendarText(FEED_URL)).rejects.toThrow(/too large/);
+  });
+
+  it("stops reading a feed that grows past the cap", async () => {
+    respondWith(`BEGIN:VCALENDAR\n${"x".repeat(2_100_000)}`);
+    await expect(fetchCalendarText(FEED_URL)).rejects.toThrow(/too large/);
   });
 });

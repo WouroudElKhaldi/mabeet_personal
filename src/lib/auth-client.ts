@@ -10,3 +10,15 @@ export const authClient = createAuthClient({
     oauthProviderClient(),
   ],
 });
+
+/**
+ * Ends the session and reloads the home page. A full load, not a client-side redirect, so nothing from the
+ * signed-in session (cached pages, open dialogs, the notification feed) survives into the next visit.
+ */
+export async function signOutAndLeave(): Promise<void> {
+  try {
+    await authClient.signOut();
+  } finally {
+    window.location.assign("/");
+  }
+}

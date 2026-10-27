@@ -1025,7 +1025,33 @@
         "month": "How much did direct bookings save us this month?",
         "requests": "Any requests waiting for me?"
       },
-      "speaker": "Your assistant"
+      "speaker": "Your assistant",
+      "actions": {
+        "title": "Waiting for you to confirm",
+        "hint": "Nothing changes until you confirm.",
+        "confirm": "Confirm",
+        "cancel": "Don't do it",
+        "done": "Done",
+        "dismissed": "Not done",
+        "tools": {
+          "confirm_booking": "Confirm booking",
+          "decline_booking": "Decline request",
+          "cancel_booking": "Cancel booking",
+          "close_dates": "Close dates",
+          "reopen_dates": "Reopen dates"
+        },
+        "fields": {
+          "reference": "Booking",
+          "reason": "Reason",
+          "room": "Room",
+          "checkIn": "From",
+          "checkOut": "Until (morning)",
+          "source": "Booked on",
+          "note": "Note",
+          "blockId": "Closed dates",
+          "place": "Place"
+        }
+      }
     },
     "keys": {
       "title": "Connect your AI",

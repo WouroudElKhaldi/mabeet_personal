@@ -3,7 +3,8 @@
 import { Tag, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { inputClass } from "@/components/ui/field";
+import { inputClass, labelledControlClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { addDays, parseIsoDate, toIsoDate } from "@/lib/dates";
@@ -99,15 +100,15 @@ export function SpecialPrices({
 
       {canEdit && (
         <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("firstNight")}
             <input name="firstNight" type="date" required className={`${inputClass} h-11`} />
           </label>
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("lastNight")}
             <input name="lastNight" type="date" required className={`${inputClass} h-11`} />
           </label>
-          <label className="grid gap-1 text-xs font-semibold text-muted">
+          <label className={labelledControlClass}>
             {t("price", { currency })}
             <input
               name="rate"
@@ -124,11 +125,7 @@ export function SpecialPrices({
           </Button>
         </form>
       )}
-      {error && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="mt-2" />
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 
 const membershipWithRole = { role: true } satisfies Prisma.MembershipInclude;
 
@@ -107,7 +107,7 @@ export async function updateRole(
  * Deletes a role. Removed memberships still point at it (the foreign key is Restrict), so they go first:
  * they grant nothing, and re-adding that person creates a fresh membership.
  */
-export async function deleteRole(tx: Prisma.TransactionClient, businessId: string, roleId: string) {
+export async function deleteRole(tx: Tx, businessId: string, roleId: string) {
   await tx.membership.deleteMany({ where: { roleId, businessId, status: "REMOVED" } });
   const { count } = await tx.role.deleteMany({ where: { id: roleId, businessId, isOwner: false } });
   return count > 0;

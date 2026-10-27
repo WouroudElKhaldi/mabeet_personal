@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { prisma } from "@/server/db/client";
-import { forbidden, notFound } from "@/server/errors";
-import type { TenantContext } from "@/server/auth/tenant-context";
+import { notFound } from "@/server/errors";
+import { requireOwner, type TenantContext } from "@/server/auth/tenant-context";
 import * as hosts from "@/server/repositories/host-repository";
 import type { hostProfileInput } from "@/server/validation/schemas";
 import { type PlatformActor, requireSuperAdmin } from "./admin-service";
@@ -10,17 +10,15 @@ import { recordAction } from "./audit";
 // A host's own profile. It belongs to the person, not to one business: a host with five places keeps one
 // profile. It is always kept; guests see it only when the host turns "show on my listings" on.
 
-function requireOwner(ctx: TenantContext): void {
-  if (!ctx.isOwner) throw forbidden("Only an owner has a host profile");
-}
+const OWNER_ONLY = "Only an owner has a host profile";
 
 export async function getMyHostProfile(ctx: TenantContext) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   return hosts.findHostProfile(prisma, ctx.userId);
 }
 
 export async function saveMyHostProfile(ctx: TenantContext, input: z.infer<typeof hostProfileInput>) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   const profile = await hosts.saveHostProfile(prisma, ctx.userId, {
     displayName: input.displayName ?? null,
     bio: input.bio ?? null,

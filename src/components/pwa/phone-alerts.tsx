@@ -4,6 +4,7 @@ import { Bell, BellOff, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { buttonClass } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { InstallButton } from "./install-button";
@@ -130,11 +131,7 @@ export function PhoneAlerts({ api: url, publicKey, title, body }: PhoneAlertsPro
               <p className="max-w-prose text-sm font-semibold">{t(state)}</p>
             )}
           </div>
-          {error && (
-            <p role="alert" className="mt-3 text-sm font-semibold text-danger">
-              {error}
-            </p>
-          )}
+          <FormError message={error} className="mt-3" />
         </div>
       )}
       <div className={publicKey ? "border-t border-line pt-6" : undefined}>

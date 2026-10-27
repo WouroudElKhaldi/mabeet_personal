@@ -4,7 +4,7 @@ import { parseIsoDate } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
 import { formatSessionTime } from "@/lib/zoned-time";
 import { prisma } from "@/server/db/client";
-import { inBackground } from "@/server/email/background";
+import { inBackground } from "@/server/background";
 import { sendEmail } from "@/server/email/send";
 import { isArabic } from "@/config/appearance";
 import { type Detail, type Message, render } from "@/server/email/templates";
@@ -80,20 +80,34 @@ const LABELS = {
   },
 } as const;
 
-async function stayNotice(bookingId: string): Promise<Notice | null> {
-  const booking = await findBookingForNotice(prisma, bookingId);
-  if (!booking) return null;
-  const when = (l: Lang) => formatStayDates(booking.checkIn, booking.checkOut, l);
+/** The columns stays and session bookings share, read the same way for both. */
+interface NoticeSource {
+  id: string;
+  status: BookingStatus;
+  reference: string;
+  publicToken: string;
+  locale: string | null;
+  guestName: string;
+  guestEmail: string | null;
+  guestUserId: string | null;
+  guestUser: { email: string } | null;
+  guestNote: string | null;
+  depositCents: number;
+  currency: string;
+  holdExpiresAt: Date | null;
+  cancelReason: string | null;
+  business: { id: string; name: string; depositInstructions: string | null };
+}
+
+function sharedNoticeFields(booking: NoticeSource) {
   return {
     id: booking.id,
-    kind: "stay",
     status: booking.status,
     reference: booking.reference,
     publicToken: booking.publicToken,
     businessId: booking.business.id,
     businessName: booking.business.name,
     locale: lang(booking.locale),
-    seats: booking.guestCount,
     guestName: booking.guestName,
     guestEmail: booking.guestEmail ?? booking.guestUser?.email ?? null,
     guestUserId: booking.guestUserId,
@@ -103,6 +117,17 @@ async function stayNotice(bookingId: string): Promise<Notice | null> {
     depositInstructions: booking.business.depositInstructions,
     holdExpiresAt: booking.holdExpiresAt,
     cancelReason: booking.cancelReason,
+  };
+}
+
+async function stayNotice(bookingId: string): Promise<Notice | null> {
+  const booking = await findBookingForNotice(prisma, bookingId);
+  if (!booking) return null;
+  const when = (l: Lang) => formatStayDates(booking.checkIn, booking.checkOut, l);
+  return {
+    ...sharedNoticeFields(booking),
+    kind: "stay",
+    seats: booking.guestCount,
     when,
     details: (l) => [
       { label: LABELS[l].place, value: booking.business.name },
@@ -120,24 +145,9 @@ async function sessionNotice(bookingId: string): Promise<Notice | null> {
   if (!booking) return null;
   const when = (l: Lang) => formatSessionTime(booking.session.startsAt, l, booking.business.timezone);
   return {
-    id: booking.id,
+    ...sharedNoticeFields(booking),
     kind: "session",
-    status: booking.status,
-    reference: booking.reference,
-    publicToken: booking.publicToken,
-    businessId: booking.business.id,
-    businessName: booking.business.name,
-    locale: lang(booking.locale),
     seats: booking.seats,
-    guestName: booking.guestName,
-    guestEmail: booking.guestEmail ?? booking.guestUser?.email ?? null,
-    guestUserId: booking.guestUserId,
-    guestNote: booking.guestNote,
-    depositCents: booking.depositCents,
-    currency: booking.currency,
-    depositInstructions: booking.business.depositInstructions,
-    holdExpiresAt: booking.holdExpiresAt,
-    cancelReason: booking.cancelReason,
     when,
     details: (l) => [
       { label: LABELS[l].experience, value: booking.offering.title },

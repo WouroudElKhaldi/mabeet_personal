@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 
@@ -33,11 +34,7 @@ export function PayoutDecision({ payoutId }: { payoutId: string }) {
       <Button size="sm" variant="ghost" disabled={pending} onClick={() => decide("rejected")}>
         {t("reject")}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </div>
   );
 }
@@ -68,11 +65,7 @@ export function RefundSent({ refundId }: { refundId: string }) {
       <Button type="submit" size="sm" disabled={pending}>
         {t("markSent")}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </form>
   );
 }

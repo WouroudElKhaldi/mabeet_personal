@@ -1,5 +1,5 @@
 import { type ChatMessage, complete, type TokenUsage } from "./deepseek";
-import { runTool, type ToolOutcome } from "./run-tool";
+import { createToolRunner, type ToolCallListener, type ToolOutcome, toolPayload } from "./run-tool";
 import type { AiTool } from "./tool";
 
 const MAX_TOOL_ROUNDS = 4;
@@ -9,9 +9,17 @@ interface ToolTrace {
   outcome: ToolOutcome;
 }
 
+/** A change the model asked for, with input that already passed the tool's schema. Run only once a person confirms. */
+export interface ProposedAction {
+  tool: string;
+  input: Record<string, unknown>;
+}
+
 export interface AssistantTurn {
   reply: string;
   trace: ToolTrace[];
+  /** Changes waiting for the person's confirmation; always empty without `proposeChanges`. */
+  proposals: ProposedAction[];
   /** Summed over every model call in this turn. */
   usage: TokenUsage;
 }
@@ -21,8 +29,19 @@ interface AssistantOptions {
   history: Array<{ role: "user" | "assistant"; content: string }>;
   tools: readonly AiTool[];
   context: unknown;
-  onCall?: (tool: string, outcome: ToolOutcome, latencyMs: number) => Promise<unknown>;
+  onCall?: ToolCallListener;
+  /**
+   * Tools that change data are never run here: their validated input is returned as a proposal for a person to
+   * confirm. Without it, only offer read-only tools. Either way, the calls of one round run in parallel, which is
+   * safe because nothing in a round writes.
+   */
+  proposeChanges?: boolean;
 }
+
+const AWAITING_CONFIRMATION = {
+  status: "awaiting_confirmation",
+  note: "Nothing has changed yet. Say exactly what will happen; the member confirms it with the button under your reply. Never say it is done.",
+};
 
 /** The tool-calling loop: the model asks for tools, we run them with the caller's context, until it answers. */
 export async function runAssistant({
@@ -31,39 +50,54 @@ export async function runAssistant({
   tools,
   context,
   onCall,
+  proposeChanges = false,
 }: AssistantOptions): Promise<AssistantTurn> {
   const messages: ChatMessage[] = [{ role: "system", content: system }, ...history];
   const trace: ToolTrace[] = [];
+  const proposals: ProposedAction[] = [];
   const usage: TokenUsage = { promptTokens: 0, completionTokens: 0 };
-  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  const runTool = createToolRunner(tools, context, onCall);
+  const writeTools = new Map(tools.filter((tool) => tool.mutates).map((tool) => [tool.name, tool]));
+
+  /** A write tool becomes a proposal (if its input is valid); anything else runs now. */
+  const handle = async (name: string, rawInput: unknown): Promise<ToolOutcome> => {
+    const writer = proposeChanges ? writeTools.get(name) : undefined;
+    if (!writer) return runTool(name, rawInput);
+    const parsed = writer.input.safeParse(rawInput ?? {});
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: `Invalid arguments: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`,
+      };
+    }
+    proposals.push({ tool: name, input: parsed.data as Record<string, unknown> });
+    return { ok: true, result: AWAITING_CONFIRMATION };
+  };
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+    // The last round offers no tools, so the model has to answer with what it has.
     const offered = round < MAX_TOOL_ROUNDS ? tools : [];
-    const { message, usage: call } = await complete(messages, offered);
-    usage.promptTokens += call.promptTokens;
-    usage.completionTokens += call.completionTokens;
-    if (!message.tool_calls?.length) return { reply: message.content?.trim() ?? "", trace, usage };
+    const { message, usage: roundUsage } = await complete(messages, offered);
+    usage.promptTokens += roundUsage.promptTokens;
+    usage.completionTokens += roundUsage.completionTokens;
+    const calls = message.tool_calls ?? [];
+    if (calls.length === 0) return { reply: message.content?.trim() ?? "", trace, proposals, usage };
 
-    messages.push({ role: "assistant", content: message.content, tool_calls: message.tool_calls });
-    for (const call of message.tool_calls) {
-      const tool = byName.get(call.function.name);
-      const started = Date.now();
-      const outcome: ToolOutcome = tool
-        ? await runTool(tool, safeJson(call.function.arguments), context)
-        : { ok: false, error: `Unknown tool ${call.function.name}` };
-      await onCall?.(call.function.name, outcome, Date.now() - started);
+    messages.push({ role: "assistant", content: message.content, tool_calls: calls });
+    const outcomes = await Promise.all(
+      calls.map((call) => handle(call.function.name, parseArguments(call.function.arguments))),
+    );
+    calls.forEach((call, index) => {
+      const outcome = outcomes[index]!;
       trace.push({ tool: call.function.name, outcome });
-      messages.push({
-        role: "tool",
-        tool_call_id: call.id,
-        content: JSON.stringify(outcome.ok ? outcome.result : { error: outcome.error }),
-      });
-    }
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(toolPayload(outcome)) });
+    });
   }
-  return { reply: "", trace, usage };
+  return { reply: "", trace, proposals, usage };
 }
 
-function safeJson(text: string): unknown {
+/** Models sometimes send broken JSON; an empty object then fails the tool's own validation with a clear message. */
+function parseArguments(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {

@@ -66,7 +66,7 @@ export function SheetDialog({
         dismiss();
       }}
       onClick={(event) => event.target === dialog.current && dismiss()}
-      className={`m-0 h-dvh max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-black/60 sm:m-auto sm:h-auto sm:max-h-[90dvh] sm:rounded-2xl sm:shadow-lift ${
+      className={`m-0 h-dvh max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-scrim sm:m-auto sm:h-auto sm:max-h-[90dvh] sm:rounded-2xl sm:shadow-lift ${
         wide ? "sm:w-[min(64rem,calc(100vw-3rem))]" : "sm:w-[min(36rem,calc(100vw-3rem))]"
       }`}
     >

@@ -7,6 +7,7 @@ import { SettingsForm } from "@/components/dashboard/settings-form";
 import { RoomEditor } from "@/components/dashboard/room-editor";
 import { SpecialPrices } from "@/components/dashboard/special-prices";
 import { PageHeader, Panel } from "@/components/shell/page-header";
+import { panelClass } from "@/components/ui/field";
 import { can } from "@/server/auth/tenant-context";
 import { requirePageAccess } from "@/server/http/session";
 import { listGallery } from "@/server/services/photo-service";
@@ -71,7 +72,7 @@ export default async function PlacePage({ params }: PageProps) {
           </Panel>
         )}
 
-        <div className="rounded-xl bg-surface p-5 ring-1 ring-line">
+        <div className={panelClass}>
           <PhotoManager businessId={businessId} photos={photos} />
         </div>
 

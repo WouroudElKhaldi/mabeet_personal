@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
+import { FormError } from "@/components/ui/form-error";
 import { useRef, useState } from "react";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
@@ -208,11 +209,7 @@ export function PhotoManager({
           ))}
         </ul>
       )}
-      {(error || failed) && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error ?? t("failed")}
-        </p>
-      )}
+      <FormError message={error ?? (failed ? t("failed") : null)} />
     </section>
   );
 }

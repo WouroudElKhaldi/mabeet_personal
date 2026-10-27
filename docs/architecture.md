@@ -40,6 +40,21 @@ never leaks internal errors. Bad input gets `400` with the failing field. Routes
 `/api/me/bookings`, `/api/me/export`) have no schema. The Better Auth, MCP and Stripe endpoints hand their input
 to code that checks it: Better Auth, each MCP tool's own Zod schema, and Stripe's signature check.
 
+**Conventions that keep the layers clean:**
+
+- **One definition per value list.** Statuses, payment methods, plans, report topics and analytics scopes live
+  in `src/config/` (`enums.ts`, `plans.ts`). The Zod schemas, the services, the AI tools and the screens all
+  import them, and `satisfies` checks each list against the Prisma enum, so a new status can't be missed.
+- **Services hand repositories their database handle.** A service passes `prisma` or a transaction (`Tx`, from
+  `src/server/db/client.ts`) to each repository call, so one transaction can span several repositories. Only
+  repositories run queries.
+- **Raw SQL is always Prisma's tagged `$queryRaw` template.** Values are bound parameters; shared
+  fragments are `Prisma.sql`. There is no string-built SQL.
+- **Database refusals become clear errors in one place.** `src/server/services/constraint-errors.ts` turns an
+  overlap (`23P01`) or a duplicate (`P2002`) into a `409` with a message people can act on.
+- **Side work runs after the response.** `inBackground` (`src/server/background.ts`) runs emails, push, AI tool
+  audit logs and AI usage records after the answer is sent, so they never slow down or break a request.
+
 ## Authentication, authorization and tenant isolation
 
 These are three separate questions, answered in this order:
@@ -147,7 +162,7 @@ BEGIN
   expire this room's stale holds              frees nights nobody answered for
   any IMPORTED night in the range?            yes ──▶ 409 "dates taken"
   price the stay
-  INSERT Booking (HELD) + Occupancy (DIRECT)  occupancy_no_overlap ──▶ 23P01 ──▶ 409
+  INSERT Booking (HELD) + Occupancy (DIRECT)  occupancy_no_overlap ──▶ 23P01 ──▶ 409 (overlapAsConflict)
   log the activity
 COMMIT ──▶ 201, then email + push in the background
 ```
@@ -179,7 +194,8 @@ refuses lowering capacity below seats sold. Test: 20 guests ask for the last 5 s
 CalendarFeed (room, URL, source)
   │  every 15 min (scheduled job) · on "Sync now" · right before a host confirms a booking on that room
   ▼
-fetch: https only, public addresses only, size and time limits      (src/server/ical/safe-fetch.ts)
+fetch: https only, public addresses only, no redirects, 10 s timeout,
+       2 MB cap enforced while streaming (a huge feed is cut off, never buffered)  (src/server/ical/safe-fetch.ts)
   ▼
 parse: all-day and timed events → [checkIn, checkOut) in the place's timezone;
        drop cancelled, past, > 540 days ahead and UID-less events  (src/server/ical/parse-feed.ts)
@@ -210,7 +226,8 @@ Room.exportToken (random, private) ──▶ GET /api/ical/{token}.ics ──▶
 ```
 
 The feed carries no guest names or contacts, and no imported events (echoing Airbnb's nights back to Airbnb
-would make loops). An unknown token answers `404`.
+would make loops). An unknown token answers `404`. Event UIDs (`{occupancyId}@se-next-stays`) never change,
+because the platforms track exported events by UID.
 
 ### What Mabeet can and cannot promise
 
@@ -324,12 +341,49 @@ person behind it, isolation included.
   write tools. `list_places` shows the person's places, and every place-specific tool takes an optional `place`,
   resolved as described in the isolation section. Tools cover bookings, calendar, rooms, sessions, reviews,
   booking setup, analytics, payouts (owners) and the notification feed. Every call is logged in `McpAuditLog`.
-- **Dashboard assistant**: same tools, same context, from the signed-in session. Chats are saved per person, or
-  kept temporary and never stored. Analytics reports are written by the same model from the numbers the Analytics
+- **Dashboard assistant**: same tools, same context, from the signed-in session. It can act on orders ("cancel
+  booking SN-7KX3P9", "close the Arched room from 12 to 15 November"), but never on its own: a tool that changes
+  data is not run during the chat. Its input is checked against the tool's schema and comes back as a proposal;
+  the member sees a card with the exact action and details (not the model's wording) and presses Confirm, which
+  runs the same tool, service and permission checks through `POST /api/workspaces/{businessId}/assistant/actions`.
+  In MCP clients (Claude, Cursor, Codex), write tools carry `destructiveHint`, so the client asks the person
+  first, and read-only keys never see them. Chats are saved per person, or kept unsaved and never stored. Analytics reports are written by the same model from the numbers the Analytics
   page shows.
 - **Guest concierge and guest MCP** (`/api/mcp/guest`): read-only search tools over public data. They never see
   guests' contact details.
 - **Cost**: a monthly budget in `AiUsage`. Admins are warned at 80%, and AI pauses at 100%.
+
+**One tool runner for every surface.** `createToolRunner` (`src/server/ai/run-tool.ts`) validates a tool's
+input, runs it with the caller's context, turns failures into safe messages and reports each call to a listener.
+The DeepSeek chat loop (`assistant.ts`) and the MCP server (`mcp-server.ts`) both use it, so they behave the same.
+
+**Kept light on purpose**, because every AI request pays for model latency already:
+
+| What                          | How                                                                                                                                |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Tool schemas                  | Each tool's JSON Schema is built once per process and cached, not on every model round                                             |
+| Several tools in a round      | Run in parallel. The chat only offers read-only tools, so order can't matter                                                       |
+| Audit log, usage, "last used" | Written after the response (`inBackground`), never on the request path                                                             |
+| MCP server                    | Stateless: one small server per request, registered with only the tools the caller may use                                         |
+| Chat screen                   | The composer owns the draft, so typing re-renders only the input box; the message list is memoised                                 |
+| Saving a chat turn            | One service call for both assistants (`answerChat` in `chat-service.ts`), which refuses a foreign chat before paying for an answer |
+
+## Design system
+
+Every colour, radius, shadow and easing is a token in `src/app/globals.css`, exposed to Tailwind through
+`@theme`. Components use token classes (`bg-surface`, `text-muted`, `ring-line`, `bg-danger text-danger-ink`,
+`backdrop:bg-scrim`), never raw colours, so light and dark mode and the five site palettes come for free.
+The only fixed colours are other companies' brands (`brand-whatsapp`, `brand-airbnb`, `brand-booking`…), used
+only for their logos and channel marks.
+
+Shared building blocks live in `src/components/ui/` (`Button`, `Field`, `LabeledControl`, `FormError`,
+`useConfirm`, dialogs, skeletons, and the `inputClass`, `panelClass` and `choiceChipClass` styles) and `src/hooks/` (`useAction` for calls that refresh the page, `useRedirectAction` for steps that end
+on Stripe, Whish or an AI app, `useStoredChoice` for per-browser preferences). Channel colours come from one map
+(`components/dashboard/channel-colors.ts`), so a channel looks the same on every chart.
+
+Large screens are split by job rather than grown in one file. The calendar, for example, is the board
+(`calendar-board.tsx`: views, selection, drag and drop), its side panel (`calendar-side-panel.tsx`), the
+close-dates form (`close-dates-form.tsx`) and the pure date helpers they share (`calendar-model.ts`).
 
 ## Languages
 

@@ -24,6 +24,7 @@ and sends push notifications for everything it would email.
 ## Run it on your computer
 
 You need Node 20 or newer and pnpm. You don't need to install Postgres: the project brings its own.
+If `pnpm` isn't found, install it once with `npm install -g pnpm` (or run `corepack enable pnpm` as administrator).
 
 ```bash
 pnpm install
@@ -124,6 +125,15 @@ The website, the AI chat and both AI connectors (MCP) call the same services. So
 written once and applies everywhere. The [architecture](docs/architecture.md) explains each layer, the booking
 race, tenant isolation and calendar sync in detail.
 
+**One design system.** Every colour, radius and shadow is a token in `src/app/globals.css`; components use token
+classes only, so dark mode and the five site palettes work everywhere. Shared pieces live in
+`src/components/ui/` and `src/hooks/`, and value lists (statuses, plans, payment methods) live once in
+`src/config/`.
+
+**AI stays light.** One tool runner serves the chat and both MCP servers. Tool schemas are built once, a round's
+tool calls run in parallel, and audit logs and usage records are written after the response, never while the
+person waits.
+
 **Tests come in layers.** Unit tests cover pricing, status changes, permissions and iCal parsing. Integration
 tests run against a real Postgres and include the database rules themselves, the race for the last room and the
 last seats, and business isolation over HTTP and MCP. Smoke and failure-case runs click through a live app. The
@@ -135,6 +145,9 @@ expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets 
 
 ## Key decisions
 
+- **The AI asks before it acts.** The owner's assistant and the MCP apps can confirm, decline or cancel bookings
+  and close dates, but a change only runs after the person confirms it, through the same checks as the dashboard
+  buttons.
 - **One table for every taken night.** Direct bookings, manual blocks and platform imports all go into
   `Occupancy`, where a database rule stops two stays from sharing a room night, even if the code has a bug.
 - **Requests hold the room right away.** Two guests never both wait for the same night. Unanswered requests

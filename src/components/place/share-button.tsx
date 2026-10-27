@@ -49,10 +49,9 @@ export function ShareButton({ title, summary, path }: { title: string; summary: 
       {label}
     </a>
   );
-  const brand = (letter: string, color: string) => (
+  const brand = (letter: string, backgroundClass: string) => (
     <span
-      className="grid size-6 place-items-center rounded-md text-xs font-bold text-white"
-      style={{ backgroundColor: color }}
+      className={`grid size-6 place-items-center rounded-md text-xs font-bold text-white ${backgroundClass}`}
       aria-hidden
     >
       {letter}
@@ -72,7 +71,7 @@ export function ShareButton({ title, summary, path }: { title: string; summary: 
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 grid place-items-end bg-ink/50 sm:place-items-center"
+            className="fixed inset-0 z-50 grid place-items-end bg-scrim sm:place-items-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -126,16 +125,20 @@ export function ShareButton({ title, summary, path }: { title: string; summary: 
                   <MessageCircle className="size-5" aria-hidden />,
                   t("messages"),
                 )}
-                {target(`https://wa.me/?text=${encoded.text}`, brand("W", "#25d366"), "WhatsApp")}
-                {target(`fb-messenger://share/?link=${encoded.url}`, brand("m", "#0084ff"), "Messenger")}
+                {target(`https://wa.me/?text=${encoded.text}`, brand("W", "bg-brand-whatsapp"), "WhatsApp")}
+                {target(
+                  `fb-messenger://share/?link=${encoded.url}`,
+                  brand("m", "bg-brand-messenger"),
+                  "Messenger",
+                )}
                 {target(
                   `https://www.facebook.com/sharer/sharer.php?u=${encoded.url}`,
-                  brand("f", "#1877f2"),
+                  brand("f", "bg-brand-facebook"),
                   "Facebook",
                 )}
                 {target(
                   `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encoded.url}`,
-                  brand("X", "#111111"),
+                  brand("X", "bg-brand-x"),
                   "X (Twitter)",
                 )}
                 <button

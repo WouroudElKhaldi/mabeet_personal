@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { ApiError, api } from "@/lib/api-client";
+import { api, errorMessage } from "@/lib/api-client";
 
 /** Phone and one-time code, like Whish's page. Sandbox values: 96170123456 and 111111. */
 export function WhishSimulatorForm({ code, cancelUrl }: { code: string; cancelUrl: string }) {
@@ -30,7 +30,7 @@ export function WhishSimulatorForm({ code, cancelUrl }: { code: string; cancelUr
           setMessage({ ok: false, text: t("wrongCode") });
         }
       } catch (caught) {
-        setMessage({ ok: false, text: caught instanceof ApiError ? caught.message : tCommon("error") });
+        setMessage({ ok: false, text: errorMessage(caught, tCommon("error")) });
       }
     });
   };

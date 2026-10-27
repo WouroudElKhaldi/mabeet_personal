@@ -6,14 +6,14 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { RichText } from "@/components/assistant/rich-text";
 import { Button } from "@/components/ui/button";
-import { inputClass } from "@/components/ui/field";
-import { ApiError, api } from "@/lib/api-client";
+import { choiceChipClass, inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
+import { api, errorMessage } from "@/lib/api-client";
 import { formatMoney } from "@/lib/format";
+import { type AnalyticsScope, REPORT_TOPICS, type ReportTopic } from "@/config/enums";
 import type { Analytics } from "@/server/services/analytics-service";
 import type { AiReport } from "@/server/services/report-service";
 import { ChannelsChart, NightsChart, RequestsChart, RevenueChart } from "./analytics-charts";
-
-const TOPICS = ["occupancy", "revenue", "channels", "requests", "reviews", "places"] as const;
 
 /**
  * "Generate a report": the host picks what to cover, the period and the places; DeepSeek writes the analysis
@@ -28,14 +28,14 @@ export function ReportGenerator({
   businessId: string;
   from: string;
   to: string;
-  scope: "place" | "all";
+  scope: AnalyticsScope;
 }) {
   const t = useTranslations("analytics");
   const tReport = useTranslations("analytics.report");
   const tChannel = useTranslations("dashboard.overview.channel");
   const tStatus = useTranslations("dashboard.bookings.status");
   const locale = useLocale();
-  const [topics, setTopics] = useState<string[]>(["occupancy", "revenue", "channels"]);
+  const [topics, setTopics] = useState<ReportTopic[]>(["occupancy", "revenue", "channels"]);
   const [period, setPeriod] = useState({ from, to, scope });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function ReportGenerator({
     try {
       setResult(await api.post(`/api/workspaces/${businessId}/analytics/report`, { ...period, topics }));
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("error"));
+      setError(errorMessage(caught, t("error")));
     } finally {
       setPending(false);
     }
@@ -83,11 +83,8 @@ export function ReportGenerator({
         <fieldset className="mt-5">
           <legend className="mb-2 text-sm font-semibold">{tReport("cover")}</legend>
           <div className="flex flex-wrap gap-2">
-            {TOPICS.map((topic) => (
-              <label
-                key={topic}
-                className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm ring-1 ring-line has-checked:bg-accent-soft has-checked:font-semibold has-checked:ring-accent"
-              >
+            {REPORT_TOPICS.map((topic) => (
+              <label key={topic} className={choiceChipClass}>
                 <input
                   type="checkbox"
                   className="sr-only"
@@ -127,7 +124,7 @@ export function ReportGenerator({
             {t("scope")}
             <select
               value={period.scope}
-              onChange={(event) => setPeriod({ ...period, scope: event.target.value as "place" | "all" })}
+              onChange={(event) => setPeriod({ ...period, scope: event.target.value as AnalyticsScope })}
               className={clsx(inputClass, "h-10")}
             >
               <option value="place">{t("scopes.place")}</option>
@@ -143,11 +140,7 @@ export function ReportGenerator({
             {pending ? tReport("writing") : tReport("generate")}
           </Button>
         </div>
-        {error && (
-          <p role="alert" className="mt-3 text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} className="mt-3" />
       </div>
 
       {result && (

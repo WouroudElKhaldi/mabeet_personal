@@ -1,4 +1,5 @@
 import type { BookingStatus, Payment, RefundPolicy } from "@prisma/client";
+import type { OnlineMethod } from "@/config/enums";
 import { env } from "@/server/env";
 import { conflict, invalid, notFound } from "@/server/errors";
 import {
@@ -28,9 +29,11 @@ import { notifyBookingStatus, notifyOnlinePayment, notifyRefund } from "./notifi
 // host (see payout-service). A callback or a returning guest only triggers a check; the provider's own answer
 // decides, so a forged callback can't confirm a booking.
 
-export type OnlineMethod = "WHISH" | "CARD";
-
 const appUrl = (path: string) => new URL(path, env.BETTER_AUTH_URL).toString();
+
+/** A payment still pending this long has probably lost its callback, so the scheduled check asks the provider. */
+const STALE_PAYMENT_AGE_MS = 2 * 60_000;
+const RECONCILE_BATCH_SIZE = 25;
 
 /** A stay or a session booking, reduced to what paying for it needs. */
 interface PayableBooking {
@@ -52,45 +55,55 @@ interface PayableBooking {
   payments: Payment[];
 }
 
+/** The columns stays and session bookings share, read the same way for both. */
+type PayableColumns = Pick<
+  PayableBooking,
+  | "id"
+  | "businessId"
+  | "reference"
+  | "publicToken"
+  | "status"
+  | "onlineDueCents"
+  | "currency"
+  | "holdExpiresAt"
+  | "guestEmail"
+  | "refundPolicy"
+  | "payments"
+>;
+
+const sharedColumns = (booking: PayableColumns): PayableColumns => ({
+  id: booking.id,
+  businessId: booking.businessId,
+  reference: booking.reference,
+  publicToken: booking.publicToken,
+  status: booking.status,
+  onlineDueCents: booking.onlineDueCents,
+  currency: booking.currency,
+  holdExpiresAt: booking.holdExpiresAt,
+  guestEmail: booking.guestEmail,
+  refundPolicy: booking.refundPolicy,
+  payments: booking.payments,
+});
+
 async function findPayableByToken(token: string): Promise<PayableBooking | null> {
   const stay = await bookings.findBookingByPublicToken(prisma, token);
   if (stay) {
     return {
+      ...sharedColumns(stay),
       payable: { kind: "stay", bookingId: stay.id },
-      id: stay.id,
       kind: "stay",
-      businessId: stay.businessId,
-      reference: stay.reference,
-      publicToken: stay.publicToken,
-      status: stay.status,
-      onlineDueCents: stay.onlineDueCents,
-      currency: stay.currency,
-      holdExpiresAt: stay.holdExpiresAt,
-      guestEmail: stay.guestEmail,
-      refundPolicy: stay.refundPolicy,
       startsAt: stay.checkIn,
       description: `${stay.business.name} · ${stay.room.name} · ${stay.reference}`,
-      payments: stay.payments,
     };
   }
   const session = await offerings.findSessionBookingByToken(prisma, token);
   if (!session) return null;
   return {
+    ...sharedColumns(session),
     payable: { kind: "session", sessionBookingId: session.id },
-    id: session.id,
     kind: "session",
-    businessId: session.businessId,
-    reference: session.reference,
-    publicToken: session.publicToken,
-    status: session.status,
-    onlineDueCents: session.onlineDueCents,
-    currency: session.currency,
-    holdExpiresAt: session.holdExpiresAt,
-    guestEmail: session.guestEmail,
-    refundPolicy: session.refundPolicy,
     startsAt: session.session.startsAt,
     description: `${session.business.name} · ${session.offering.title} · ${session.reference}`,
-    payments: session.payments,
   };
 }
 
@@ -258,7 +271,11 @@ export async function refreshGuestPayments(token: string): Promise<void> {
 
 /** Scheduled: re-checks payments still pending after a few minutes, in case a callback never arrived. */
 export async function reconcilePendingPayments(now = new Date()) {
-  const stale = await money.listStalePending(prisma, new Date(now.getTime() - 2 * 60_000), 25);
+  const stale = await money.listStalePending(
+    prisma,
+    new Date(now.getTime() - STALE_PAYMENT_AGE_MS),
+    RECONCILE_BATCH_SIZE,
+  );
   let paid = 0;
   for (const payment of stale) {
     const result = await settleOnlinePayment(payment.id, now).catch((error: unknown) => {
@@ -332,16 +349,33 @@ async function refundPayment(paymentId: string, reason: string) {
   }
 }
 
+/** A stay or seats that just ended, as much of it as refunds need. */
+export interface EndedBooking {
+  kind: "stay" | "session";
+  id: string;
+  refundPolicy: RefundPolicy;
+  startsAt: Date;
+  /** null when the guest pays the host directly: nothing was taken online, so there is nothing to refund. */
+  onlineDueCents: number | null;
+}
+
+const REFUND_REASON: Record<CancelledBy, string> = {
+  host: "Cancelled by the host",
+  guest: "Cancelled by the guest",
+  system: "Cancelled by Mabeet",
+};
+
 /**
  * After a booking ends (cancelled, declined), gives back what the guest paid online: everything when the host
  * or Mabeet ended it, the policy's share when the guest cancelled. Returns the amount refunded.
  */
 export async function refundForEndedBooking(
-  booking: { kind: "stay" | "session"; id: string; refundPolicy: RefundPolicy; startsAt: Date },
+  booking: EndedBooking,
   by: CancelledBy,
-  reason: string,
   now = new Date(),
 ): Promise<number> {
+  if (booking.onlineDueCents === null) return 0;
+  const reason = REFUND_REASON[by];
   const payable: Payable =
     booking.kind === "stay"
       ? { kind: "stay", bookingId: booking.id }
