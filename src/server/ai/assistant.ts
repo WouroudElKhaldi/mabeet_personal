@@ -1,4 +1,5 @@
 import { type ChatMessage, complete, type TokenUsage } from "./deepseek";
+import { REPLY_FORMAT, shapeReply } from "./output";
 import { createToolRunner, type ToolCallListener, type ToolOutcome, toolPayload } from "./run-tool";
 import type { AiTool } from "./tool";
 
@@ -16,6 +17,7 @@ export interface ProposedAction {
 }
 
 export interface AssistantTurn {
+  /** Already in REPLY_FORMAT; "" when the model gave nothing usable, so the screen shows its own fallback. */
   reply: string;
   trace: ToolTrace[];
   /** Changes waiting for the person's confirmation; always empty without `proposeChanges`. */
@@ -43,7 +45,10 @@ const AWAITING_CONFIRMATION = {
   note: "Nothing has changed yet. Say exactly what will happen; the member confirms it with the button under your reply. Never say it is done.",
 };
 
-/** The tool-calling loop: the model asks for tools, we run them with the caller's context, until it answers. */
+/**
+ * The tool-calling loop: the model asks for tools, we run them with the caller's context, until it answers. The
+ * reply format is added to every system prompt, and every reply is shaped to it before it leaves.
+ */
 export async function runAssistant({
   system,
   history,
@@ -52,7 +57,15 @@ export async function runAssistant({
   onCall,
   proposeChanges = false,
 }: AssistantOptions): Promise<AssistantTurn> {
-  const messages: ChatMessage[] = [{ role: "system", content: system }, ...history];
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content: `${system}
+
+${REPLY_FORMAT}`,
+    },
+    ...history,
+  ];
   const trace: ToolTrace[] = [];
   const proposals: ProposedAction[] = [];
   const usage: TokenUsage = { promptTokens: 0, completionTokens: 0 };
@@ -81,7 +94,7 @@ export async function runAssistant({
     usage.promptTokens += roundUsage.promptTokens;
     usage.completionTokens += roundUsage.completionTokens;
     const calls = message.tool_calls ?? [];
-    if (calls.length === 0) return { reply: message.content?.trim() ?? "", trace, proposals, usage };
+    if (calls.length === 0) return { reply: shapeReply(message.content), trace, proposals, usage };
 
     messages.push({ role: "assistant", content: message.content, tool_calls: calls });
     const outcomes = await Promise.all(

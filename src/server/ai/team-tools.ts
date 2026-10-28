@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ANALYTICS_SCOPES, BLOCK_SOURCES, BOOKING_STATUSES } from "@/config/enums";
 import { addDays, parseIsoDate, rangesOverlap, toDateRange, toIsoDate, todayUtc } from "@/lib/dates";
+import { formatMoney } from "@/lib/format";
 import { can, type TenantContext } from "@/server/auth/tenant-context";
 import { getAnalytics, getBusinessReport } from "@/server/services/analytics-service";
 import { getBusinessNotifications } from "@/server/services/notification-feed-service";
@@ -27,8 +28,13 @@ import { type AiTool, defineTool } from "./tool";
 const isoDate = z.iso.date().describe("YYYY-MM-DD");
 const reference = z
   .string()
-  .regex(/^SN-[A-Z2-9]{6}$/i)
+  .regex(/^[A-Z0-9-]{4,20}$/i)
   .describe("Booking reference, e.g. SN-7KX3P9");
+
+const inEachCurrency = (amounts: Record<string, number>) =>
+  Object.fromEntries(
+    Object.entries(amounts).map(([currency, cents]) => [currency, formatMoney(cents, currency, "en-US")]),
+  );
 
 /** Marks text written by strangers, so the model treats it as data and never as instructions. */
 const guestWritten = (text: string | null) => (text ? { guestWritten: text } : null);
@@ -40,7 +46,7 @@ const team = <Input extends z.ZodObject>(tool: AiTool<Input, TenantContext>) => 
 const SINGLE_PLACE_TOOLS = [
   team({
     name: "list_rooms",
-    description: "The business's rooms with capacity, nightly base rate (cents) and amenities.",
+    description: "The business's rooms with capacity, nightly base rate and amenities.",
     input: z.object({}),
     requires: "rooms.read",
     mutates: false,
@@ -49,6 +55,7 @@ const SINGLE_PLACE_TOOLS = [
         id: room.id,
         name: room.name,
         capacity: room.capacity,
+        currency: room.business.currency,
         baseRateCents: room.baseRateCents,
         amenities: room.amenities,
         /** ROOM, or the single unit used when the place is booked as a whole. */
@@ -68,15 +75,25 @@ const SINGLE_PLACE_TOOLS = [
   team({
     name: "get_analytics",
     description:
-      "Analytics for a period from the database: occupancy, nights sold, direct revenue and commission saved per currency, requests by outcome, response time, rating, nights and revenue by month, channels, and a per-place breakdown. scope 'all' covers every place the member can see (only in the dashboard assistant, not through an AI key). Money is in cents.",
+      "Analytics for a period from the database: occupancy, nights sold, direct revenue and commission saved per currency, requests by outcome, response time, rating, nights and revenue by month, channels, and a per-place breakdown. scope 'all' covers every place the member can see (only in the dashboard assistant, not through an AI key).",
     input: z.object({ from: isoDate, to: isoDate, scope: z.enum(ANALYTICS_SCOPES).default("place") }),
     requires: "analytics.read",
     mutates: false,
     run: async ({ from, to, scope }, ctx) => {
       const data = await getAnalytics(ctx, scope, toDateRange({ checkIn: from, checkOut: to }));
+      const { revenue, commissionSaved, revenueCurrency, revenueByMonth, ...totals } = data.totals;
       return {
         range: data.range,
-        totals: data.totals,
+        totals: {
+          ...totals,
+          // Keyed by currency, so the money is formatted here rather than by the `...Cents` rule.
+          revenue: inEachCurrency(revenue),
+          commissionSaved: inEachCurrency(commissionSaved),
+          revenueByMonth: revenueByMonth.map(({ month, cents }) => ({
+            month,
+            revenue: formatMoney(cents, revenueCurrency, "en-US"),
+          })),
+        },
         places: data.places.map((place) => ({
           name: place.name,
           currency: place.report.currency,
@@ -92,7 +109,7 @@ const SINGLE_PLACE_TOOLS = [
   team({
     name: "get_payouts",
     description:
-      "Money guests paid online through Mabeet for this business: available to pay out, upcoming (stays not started yet), already paid out and requested, plus recent payouts. Owners only. Mabeet takes no commission. Money is in cents.",
+      "Money guests paid online through Mabeet for this business: available to pay out, upcoming (stays not started yet), already paid out and requested, plus recent payouts. Owners only. Mabeet takes no commission.",
     input: z.object({}),
     requires: "analytics.read",
     mutates: false,
@@ -217,6 +234,7 @@ const SINGLE_PLACE_TOOLS = [
         guestPhone: booking.guestPhone,
         guestEmail: booking.guestEmail,
         guestNote: guestWritten(booking.guestNote),
+        currency: booking.currency,
         totalCents: booking.totalCents,
         depositCents: booking.depositCents,
         holdExpiresAt: booking.holdExpiresAt,
@@ -389,15 +407,16 @@ const placeArgument = z
 
 /**
  * Every team tool works in any of the member's places: it takes an optional `place`, and runs as the member in
- * that place, with their role there. Without it, the place of the key, token or dashboard.
+ * that place, with their role there. Without it, the place that holds the booking `reference` (if the tool takes
+ * one), else the place of the key, token or dashboard.
  */
 function inAnyPlace(tool: AiTool<z.ZodObject, TenantContext>): AiTool<z.ZodObject, TenantContext> {
   return {
     ...tool,
     input: tool.input.extend({ place: placeArgument }),
     run: async (input, ctx) => {
-      const { place, ...rest } = input as { place?: string };
-      return tool.run(rest, await resolvePlaceContext(ctx, place));
+      const { place, ...rest } = input as { place?: string; reference?: string };
+      return tool.run(rest, await resolvePlaceContext(ctx, place, rest.reference));
     },
   };
 }

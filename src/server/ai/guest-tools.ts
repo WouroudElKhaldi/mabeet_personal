@@ -92,6 +92,7 @@ export const GUEST_TOOLS = [
         name: place.name,
         area: place.area,
         description: place.description,
+        currency: place.currency,
         checkIn: place.checkInTime,
         checkOut: place.checkOutTime,
         rating: place.rating,

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-const REFERENCE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L
+export const REFERENCE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L
 
 /** Unguessable token for public URLs (confirmation pages, iCal exports). */
 export function secureToken(bytes = 32): string {

@@ -106,6 +106,14 @@ export function findBookingByReference(db: Db, businessId: string, reference: st
   return db.booking.findFirst({ where: { reference, businessId }, include: { room: true } });
 }
 
+/** Which of these businesses holds the booking with this reference, if any (references are unique site-wide). */
+export function findBookingBusiness(db: Db, reference: string, businessIds: string[]) {
+  return db.booking.findFirst({
+    where: { reference, businessId: { in: businessIds } },
+    select: { businessId: true },
+  });
+}
+
 export function findBookingByPublicToken(db: Db, publicToken: string) {
   return db.booking.findUnique({
     where: { publicToken },

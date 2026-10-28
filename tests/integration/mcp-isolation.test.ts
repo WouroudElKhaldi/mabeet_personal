@@ -102,6 +102,8 @@ describe("owner MCP: keys, permissions and tenant isolation", () => {
     expect(all.places).toHaveLength(2);
     const bravo = (await call("list_bookings", { place: "bravo" })) as Array<{ reference: string }>;
     expect(bravo.map((row) => row.reference)).toEqual([referenceB]);
+    // A booking reference finds its own place, even when the key belongs to another one.
+    expect(await call("get_booking", { reference: referenceB })).toMatchObject({ reference: referenceB });
     expect(await call("get_booking_setup", {})).toMatchObject({
       bookingUnit: "ROOMS",
       bookingMode: "REQUEST",

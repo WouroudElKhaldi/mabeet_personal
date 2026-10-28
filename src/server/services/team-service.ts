@@ -9,6 +9,7 @@ import {
 import { type Channel, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma, runInTransaction } from "@/server/db/client";
 import { conflict, forbidden, invalid, notFound } from "@/server/errors";
+import * as bookings from "@/server/repositories/booking-repository";
 import * as team from "@/server/repositories/team-repository";
 import { recordAction } from "./audit";
 import { assertPlanAllowsAnother } from "./billing-service";
@@ -52,13 +53,16 @@ export async function listMyPlaces(ctx: TenantContext) {
 /**
  * An AI working for a person across their places: the place they named (an id, a name or part of one), with
  * their own role's permissions there. Only places they belong to; a read-only key stays read-only; a name that
- * fits several places is refused rather than guessed. No place named: the one the key or chat belongs to.
+ * fits several places is refused rather than guessed. No place named: the place that holds `bookingReference`
+ * when one is given (so "cancel SN-7KX3P9" works from any of their places), else the one the key or chat belongs to.
  */
 export async function resolvePlaceContext(
   ctx: TenantContext,
   place: string | undefined,
+  bookingReference?: string,
 ): Promise<TenantContext> {
-  if (!place?.trim() || ctx.platformAdmin) return ctx;
+  if (ctx.platformAdmin) return ctx;
+  if (!place?.trim()) return bookingReference ? placeOfBooking(ctx, bookingReference) : ctx;
   const memberships = await team.listActiveMemberships(prisma, ctx.userId);
   const wanted = normalize(place);
   const exact = memberships.filter(
@@ -75,6 +79,18 @@ export async function resolvePlaceContext(
     );
   }
   return contextFrom(matches[0]!, ctx.channel, !ctx.readOnly);
+}
+
+async function placeOfBooking(ctx: TenantContext, reference: string): Promise<TenantContext> {
+  const memberships = await team.listActiveMemberships(prisma, ctx.userId);
+  const found = await bookings.findBookingBusiness(
+    prisma,
+    reference.toUpperCase(),
+    memberships.map((membership) => membership.businessId),
+  );
+  const holder = memberships.find((membership) => membership.businessId === found?.businessId);
+  if (!holder || holder.businessId === ctx.businessId) return ctx;
+  return contextFrom(holder, ctx.channel, !ctx.readOnly);
 }
 
 /**

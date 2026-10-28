@@ -114,7 +114,7 @@ export function ChatPanel<Response extends { reply: string }>({
       setMessages(
         chat.messages.map(({ role, content, data }) => ({
           role,
-          content,
+          content: content || (role === "assistant" ? t("noAnswer") : content),
           response:
             role === "assistant" && data ? ({ reply: content, ...(data as object) } as Response) : undefined,
         })),
@@ -440,9 +440,9 @@ function Note({ speaker, children }: { speaker: string; children: ReactNode }) {
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold tracking-[0.12em] text-muted uppercase">{speaker}</p>
         {/* plaintext bidi: a Latin or Arabizi reply keeps its punctuation in place on an Arabic page. */}
-        <p className="mt-1 max-w-[62ch] border-s-2 border-accent-line ps-4 text-[1.0625rem] leading-relaxed whitespace-pre-line [unicode-bidi:plaintext]">
+        <div className="mt-1 max-w-[62ch] border-s-2 border-accent-line ps-4 text-[1.0625rem] leading-relaxed whitespace-pre-line [unicode-bidi:plaintext]">
           {children}
-        </p>
+        </div>
       </div>
     </div>
   );

@@ -7,7 +7,11 @@ export function findRoom(db: Db, businessId: string, roomId: string) {
 }
 
 export function listRooms(db: Db, businessId: string) {
-  return db.room.findMany({ where: { businessId }, orderBy: { createdAt: "asc" } });
+  return db.room.findMany({
+    where: { businessId },
+    include: { business: { select: { currency: true } } },
+    orderBy: { createdAt: "asc" },
+  });
 }
 
 export function createRoom(db: Db, data: Prisma.RoomUncheckedCreateInput) {

@@ -356,6 +356,15 @@ person behind it, isolation included.
 **One tool runner for every surface.** `createToolRunner` (`src/server/ai/run-tool.ts`) validates a tool's
 input, runs it with the caller's context, turns failures into safe messages and reports each call to a listener.
 The DeepSeek chat loop (`assistant.ts`) and the MCP server (`mcp-server.ts`) both use it, so they behave the same.
+What the model sees (`toolPayload`) has every amount already formatted (`totalCents` + `currency` becomes
+`total: "$140"`), so the model copies money and never converts cents.
+
+**Every answer has a stated format, checked on the way back** (`src/server/ai/output.ts`). Chat prompts carry
+`REPLY_FORMAT` (a small markdown subset: bold, lists, tables; no HTML, headings, code or links), and `shapeReply`
+enforces it before a reply leaves the server; `RichText` renders exactly that subset and never HTML. Structured
+answers go through `askForJson`: the Zod schema is sent to the model as JSON Schema, the answer is parsed and
+validated, a miss is sent back once with the exact issues, and a second miss is refused (tokens are still counted).
+The analytics report uses it with a strict schema whose section topics must be the ones requested.
 
 **Kept light on purpose**, because every AI request pays for model latency already:
 
