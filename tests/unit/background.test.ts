@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { inBackground } from "@/server/background";
+import { inBackground, settleBackgroundWork } from "@/server/background";
 
 // Outside a request, Next's after() throws, so inBackground runs the work detached: the path tests and cron use.
 
@@ -29,5 +29,19 @@ describe("inBackground", () => {
     ).not.toThrow();
     await flush();
     expect(logged).toHaveBeenCalledWith("[background] booking email failed", expect.any(Error));
+  });
+
+  it("lets tests wait for detached work, including work that work started", async () => {
+    const done: string[] = [];
+    inBackground("email", async () => {
+      await flush();
+      inBackground("push", async () => {
+        await flush();
+        done.push("push");
+      });
+      done.push("email");
+    });
+    await settleBackgroundWork();
+    expect(done).toEqual(["email", "push"]);
   });
 });
