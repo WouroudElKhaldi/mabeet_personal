@@ -5,6 +5,7 @@ export const AMENITIES = [
   "ac",
   "heating",
   "fireplace",
+  "jacuzzi",
   "pool",
   "kitchen",
   "view",

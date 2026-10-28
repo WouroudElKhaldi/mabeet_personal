@@ -38,6 +38,14 @@ interface AssistantOptions {
    * safe because nothing in a round writes.
    */
   proposeChanges?: boolean;
+  /** Told what is happening while the turn runs: the tool in use, then the reply so far (raw, not yet shaped). */
+  onProgress?: (progress: TurnProgress) => void;
+}
+
+/** What a person can be shown before the answer is ready. `step` names the tool while tools run; `text` while it writes. */
+export interface TurnProgress {
+  step: string | null;
+  text: string;
 }
 
 const AWAITING_CONFIRMATION = {
@@ -56,6 +64,7 @@ export async function runAssistant({
   context,
   onCall,
   proposeChanges = false,
+  onProgress,
 }: AssistantOptions): Promise<AssistantTurn> {
   const messages: ChatMessage[] = [
     {
@@ -90,12 +99,15 @@ ${REPLY_FORMAT}`,
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
     // The last round offers no tools, so the model has to answer with what it has.
     const offered = round < MAX_TOOL_ROUNDS ? tools : [];
-    const { message, usage: roundUsage } = await complete(messages, offered);
+    const streamText = onProgress && ((text: string) => onProgress({ step: null, text }));
+    const { message, usage: roundUsage } = await complete(messages, offered, streamText);
     usage.promptTokens += roundUsage.promptTokens;
     usage.completionTokens += roundUsage.completionTokens;
     const calls = message.tool_calls ?? [];
     if (calls.length === 0) return { reply: shapeReply(message.content), trace, proposals, usage };
 
+    // Any words written before asking for tools are dropped from view: the real reply comes after the tools.
+    onProgress?.({ step: calls[0]!.function.name, text: "" });
     messages.push({ role: "assistant", content: message.content, tool_calls: calls });
     const outcomes = await Promise.all(
       calls.map((call) => handle(call.function.name, parseArguments(call.function.arguments))),

@@ -1,5 +1,5 @@
 import { toIsoDate } from "@/lib/dates";
-import { type ProposedAction, runAssistant } from "@/server/ai/assistant";
+import { type ProposedAction, runAssistant, type TurnProgress } from "@/server/ai/assistant";
 import { createToolRunner } from "@/server/ai/run-tool";
 import { GUEST_TOOLS } from "@/server/ai/guest-tools";
 import { teamToolsFor } from "@/server/ai/team-tools";
@@ -16,7 +16,7 @@ const today = () => toIsoDate(new Date());
 const guestSystemPrompt =
   () => `You are the trip concierge of a Lebanese direct-booking site. Today is ${today()}.
 Answer in the guest's language: English, Arabic, or Arabizi (Arabic in Latin letters).
-For somewhere to stay, use search_places. For things to do (hikes, tastings, classes, boat trips) use search_experiences with kind EXPERIENCE; for help like airport transfers, private chefs, guides or photographers use kind SERVICE. Suggest only what the tools return; never invent a place, an activity, a price or availability.
+For somewhere to stay, use search_places, turning each part of the wish into its filter: a town or region ("North Lebanon"), bedrooms, bathrooms, beds, amenities such as a jacuzzi, pool or fireplace. A home's total number of rooms is not recorded; match it with bedrooms and say so. For things to do (hikes, tastings, classes, boat trips) use search_experiences with kind EXPERIENCE; for help like airport transfers, private chefs, guides or photographers use kind SERVICE. Suggest only what the tools return; never invent a place, an activity, a price or availability.
 If nothing matches, say so plainly and suggest changing dates or budget. Prices from tools are already formatted; copy them exactly.
 Keep replies to three short sentences, with no table: cards for what you found are shown under your reply.`;
 
@@ -80,27 +80,47 @@ function toCards(tool: string, rows: unknown[]): SuggestionCard[] {
   return [];
 }
 
+/**
+ * What a route checks before it queues AI work, so a business without AI in its plan, or a spent budget, is
+ * refused at once instead of after a wait. The job checks both again when it runs.
+ */
+export async function assertAiAvailable(businessId: string | null): Promise<void> {
+  if (businessId) await assertPlanAllowsAi(businessId);
+  await assertWithinBudget();
+}
+
 /** Public concierge for guests. Read-only tools over listed places; no personal data is sent to the model. */
-export async function askConcierge(history: ChatHistory): Promise<ConciergeAnswer> {
+export async function askConcierge(
+  history: ChatHistory,
+  onProgress?: (progress: TurnProgress) => void,
+): Promise<ConciergeAnswer> {
   await assertWithinBudget();
   const turn = await runAssistant({
     system: guestSystemPrompt(),
     history,
     tools: GUEST_TOOLS,
     context: null,
+    onProgress,
   });
   recordAiUsage("concierge", null, turn.usage);
   const cards = turn.trace.flatMap((step) =>
     step.outcome.ok && Array.isArray(step.outcome.result) ? toCards(step.tool, step.outcome.result) : [],
   );
-  return { reply: turn.reply, places: cards };
+  // The model may search more than once (another area, other dates): a place found twice is shown once, where it
+  // first appeared, with the card from the latest search (its price matches the dates finally asked about).
+  const unique = [...new Map(cards.map((card) => [card.bookingLink, card])).values()];
+  return { reply: turn.reply, places: unique };
 }
 
 /**
  * The owner/staff assistant. It gets only the read tools this member's permissions allow,
  * so it can never see or touch more than the member could in the dashboard.
  */
-export async function askTeamAssistant(ctx: TenantContext, history: ChatHistory) {
+export async function askTeamAssistant(
+  ctx: TenantContext,
+  history: ChatHistory,
+  onProgress?: (progress: TurnProgress) => void,
+) {
   requirePermission(ctx, "ai.use");
   await assertPlanAllowsAi(ctx.businessId);
   await assertWithinBudget();
@@ -112,6 +132,7 @@ export async function askTeamAssistant(ctx: TenantContext, history: ChatHistory)
     context: chatCtx,
     onCall: chatRecorder(ctx),
     proposeChanges: true,
+    onProgress,
   });
   recordAiUsage("team", ctx.businessId, turn.usage);
   return { reply: turn.reply, toolsUsed: turn.trace.map((step) => step.tool), actions: turn.proposals };

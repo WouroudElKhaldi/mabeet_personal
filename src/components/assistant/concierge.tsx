@@ -15,8 +15,9 @@ function Suggestions({ cards, locale }: { cards: SuggestionCard[]; locale: strin
   if (cards.length === 0) return null;
   return (
     <ul className="grid gap-4 ps-11 sm:grid-cols-2 xl:grid-cols-3">
-      {cards.map((card) => (
-        <li key={card.slug}>
+      {/* Position in the key too: chats saved before cards were de-duplicated can hold a place twice. */}
+      {cards.map((card, index) => (
+        <li key={`${index}-${card.bookingLink}`}>
           <Link href={card.bookingLink} className="group block">
             <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-surface-2">
               {card.photoUrl ? (

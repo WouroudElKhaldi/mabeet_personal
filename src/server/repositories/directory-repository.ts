@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { DateRange } from "@/lib/dates";
+import { areasMatching } from "@/config/regions";
 import type { Db } from "@/server/db/client";
 import { overlapsRange } from "./filters";
 import { bookableRoom } from "./room-repository";
@@ -66,6 +67,10 @@ export interface DirectoryFilters {
   tags?: string[];
   /** The place has every one of these accessibility features. */
   accessibility?: string[];
+  /** A bookable room (or the whole place) has at least this many. */
+  minBedrooms?: number;
+  minBathrooms?: number;
+  minBeds?: number;
 }
 
 function listedPlaces(filters: DirectoryFilters): Prisma.BusinessWhereInput {
@@ -74,18 +79,29 @@ function listedPlaces(filters: DirectoryFilters): Prisma.BusinessWhereInput {
     status: "ACTIVE",
     tags: filters.tags?.length ? { hasSome: filters.tags } : undefined,
     accessibility: filters.accessibility?.length ? { hasEvery: filters.accessibility } : undefined,
-    area: filters.area ? { contains: filters.area, mode: "insensitive" } : undefined,
     categories: filters.categories?.length
       ? { some: { categorySlug: { in: filters.categories } } }
       : undefined,
-    OR: filters.text
-      ? [
-          { name: { contains: filters.text, mode: "insensitive" } },
-          { description: { contains: filters.text, mode: "insensitive" } },
-          { area: { contains: filters.text, mode: "insensitive" } },
-          { rooms: { some: { amenities: { has: filters.text.toLowerCase() } } } },
-        ]
-      : undefined,
+    AND: [
+      // A region ("North Lebanon") matches any of its towns; anything else matches the area as typed.
+      filters.area
+        ? {
+            OR: areasMatching(filters.area).map((area) => ({
+              area: { contains: area, mode: "insensitive" },
+            })),
+          }
+        : {},
+      filters.text
+        ? {
+            OR: [
+              { name: { contains: filters.text, mode: "insensitive" } },
+              { description: { contains: filters.text, mode: "insensitive" } },
+              { area: { contains: filters.text, mode: "insensitive" } },
+              { rooms: { some: { amenities: { has: filters.text.toLowerCase() } } } },
+            ],
+          }
+        : {},
+    ],
   };
 }
 
@@ -98,6 +114,9 @@ function matchingRooms(filters: DirectoryFilters): Prisma.RoomWhereInput {
         ? undefined
         : { gte: filters.minRateCents, lte: filters.maxRateCents },
     amenities: filters.amenities?.length ? { hasEvery: filters.amenities } : undefined,
+    bedrooms: filters.minBedrooms ? { gte: filters.minBedrooms } : undefined,
+    bathrooms: filters.minBathrooms ? { gte: filters.minBathrooms } : undefined,
+    beds: filters.minBeds ? { gte: filters.minBeds } : undefined,
   };
 }
 

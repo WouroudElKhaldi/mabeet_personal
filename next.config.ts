@@ -31,6 +31,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Loaded from node_modules, not bundled: its driver (pg) sits inside pnpm's nested folder, where only pg-boss
+  // itself can find it.
+  serverExternalPackages: ["pg-boss"],
   images: { remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }] },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

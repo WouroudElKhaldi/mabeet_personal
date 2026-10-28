@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { OFFERING_KINDS } from "@/config/listing";
+import { AMENITIES } from "@/config/amenities";
+import { ACCESSIBILITY, OFFERING_KINDS, TAGS } from "@/config/listing";
+import { REGIONS } from "@/config/regions";
 import { toDateRange } from "@/lib/dates";
 import {
   checkAvailability,
@@ -17,17 +19,23 @@ const isoDate = z.iso.date().describe("YYYY-MM-DD");
 const MAX_RESULTS = 5;
 
 const placeUrl = (slug: string) => `/p/${slug}`;
+const atLeast = (what: string) =>
+  z.number().int().min(1).max(20).optional().describe(`At least this many ${what}`);
 
 export const GUEST_TOOLS = [
   defineTool({
     name: "search_places",
     description:
-      "Find guesthouses in Lebanon that are free on the given dates. Turn the guest's wish into filters: area, categories (mountain, beach, countryside, old-town, guesthouse, cabin, camping, vineyard, ski), budget per night and free text.",
+      "Find guesthouses and homes in Lebanon that are free on the given dates. Turn every part of the guest's wish into a filter: area (a town, or a region such as North Lebanon), categories (mountain, beach, countryside, old-town, guesthouse, cabin, camping, vineyard, ski), bedrooms, bathrooms and beds, amenities (jacuzzi, pool, fireplace…), tags, accessibility and budget per night. Use free text only for what no filter covers. Each result lists its matching rooms with their layout and amenities.",
     input: z.object({
       checkIn: isoDate.optional(),
       checkOut: isoDate.optional(),
       guests: z.number().int().min(1).max(30).default(2),
-      area: z.string().max(60).optional(),
+      area: z
+        .string()
+        .max(60)
+        .optional()
+        .describe(`A town (Ehden, Batroun…) or a region: ${Object.keys(REGIONS).join(", ")}`),
       categories: z.array(z.string().max(40)).max(4).optional(),
       maxPricePerNight: z
         .number()
@@ -36,7 +44,17 @@ export const GUEST_TOOLS = [
         .max(10_000)
         .optional()
         .describe("In the place's currency, usually USD"),
-      text: z.string().max(120).optional().describe("Free words such as 'hiking' or 'fireplace'"),
+      minBedrooms: atLeast("bedrooms"),
+      minBathrooms: atLeast("bathrooms"),
+      minBeds: atLeast("beds"),
+      amenities: z
+        .array(z.enum(AMENITIES))
+        .max(6)
+        .optional()
+        .describe("The room or home must have every one"),
+      tags: z.array(z.enum(TAGS)).max(4).optional().describe("The place has at least one"),
+      accessibility: z.array(z.enum(ACCESSIBILITY)).max(4).optional().describe("The place has every one"),
+      text: z.string().max(120).optional().describe("Free words no filter covers, such as 'hiking'"),
     }),
     mutates: false,
     run: async (input) => {
@@ -50,6 +68,12 @@ export const GUEST_TOOLS = [
         categories: input.categories,
         maxRateCents: input.maxPricePerNight && input.maxPricePerNight * 100,
         text: input.text,
+        minBedrooms: input.minBedrooms,
+        minBathrooms: input.minBathrooms,
+        minBeds: input.minBeds,
+        amenities: input.amenities,
+        tags: input.tags,
+        accessibility: input.accessibility,
         range,
         limit: MAX_RESULTS,
       });
@@ -64,6 +88,14 @@ export const GUEST_TOOLS = [
         stayTotalCents: place.stayTotalFromCents,
         photoUrl: place.photo?.url ?? null,
         bookingLink: placeUrl(place.slug),
+        rooms: place.offers.map((offer) => ({
+          name: offer.name,
+          sleeps: offer.capacity,
+          bedrooms: offer.bedrooms,
+          bathrooms: offer.bathrooms,
+          beds: offer.beds,
+          amenities: offer.amenities,
+        })),
       }));
     },
   }),

@@ -147,7 +147,8 @@ const OPERATIONS: Operation[] = [
   {
     method: "post",
     path: "/api/assistant",
-    summary: "Trip concierge chat (DeepSeek, read-only tools)",
+    summary:
+      "Trip concierge chat (DeepSeek, read-only tools). 200 with the answer, or 202 { jobId } when queued: follow GET /api/jobs/{jobId}",
     tag: "AI",
     auth: "public",
     body: s.chatInput,
@@ -503,7 +504,8 @@ const OPERATIONS: Operation[] = [
   {
     method: "post",
     path: "/api/workspaces/{businessId}/assistant",
-    summary: "Team assistant chat, limited to the member's permissions",
+    summary:
+      "Team assistant chat, limited to the member's permissions. 200 with the answer, or 202 { jobId } when queued",
     tag: "AI",
     auth: "member",
     body: s.chatInput,
@@ -765,10 +767,19 @@ const OPERATIONS: Operation[] = [
   {
     method: "post",
     path: "/api/workspaces/{businessId}/analytics/report",
-    summary: "AI report of the database's numbers for a period, for this place or all the person's places",
+    summary:
+      "AI report of the database's numbers for a period, for this place or all the person's places. 202 { jobId } when queued",
     tag: "AI",
     auth: "member",
     body: s.reportInput,
+  },
+  {
+    method: "get",
+    path: "/api/jobs/{jobId}",
+    summary:
+      "A queued AI answer or report: queued, running, done (with the result) or failed. Only the person who asked can read it",
+    tag: "AI",
+    auth: "public",
   },
   // Online payments, refunds and payouts. Mabeet takes no commission on bookings.
   {

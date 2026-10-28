@@ -5,10 +5,12 @@ import { defineTool } from "@/server/ai/tool";
 // The model is scripted: each test queues the replies DeepSeek would send, round by round.
 const script = vi.hoisted(() => ({ replies: [] as unknown[] }));
 vi.mock("@/server/ai/deepseek", () => ({
-  complete: vi.fn(async () => ({
-    message: script.replies.shift(),
-    usage: { promptTokens: 10, completionTokens: 5 },
-  })),
+  // Streams like the real client: a listener is told the reply's text before the round ends.
+  complete: vi.fn(async (_messages: unknown, _tools: unknown, onText?: (text: string) => void) => {
+    const message = script.replies.shift() as { content: string | null };
+    if (onText && message.content) onText(message.content);
+    return { message, usage: { promptTokens: 10, completionTokens: 5 } };
+  }),
 }));
 
 const { runAssistant } = await import("@/server/ai/assistant");
@@ -75,5 +77,19 @@ describe("assistant changes wait for a person", () => {
     );
     await runAssistant({ system: "s", history: [], tools, context: null });
     expect(closeDates.run).toHaveBeenCalledOnce();
+  });
+});
+
+describe("progress while the answer is written", () => {
+  it("names the tool being used, then passes on the reply as it is written", async () => {
+    script.replies = [toolCall("list_rooms", {}), answer("You have the **Arched room**.")];
+    const seen: unknown[] = [];
+
+    await runAssistant({ system: "s", history: [], tools, context: {}, onProgress: (p) => seen.push(p) });
+
+    expect(seen).toEqual([
+      { step: "list_rooms", text: "" },
+      { step: null, text: "You have the **Arched room**." },
+    ]);
   });
 });
