@@ -2270,7 +2270,7 @@
                   },
                   "amenities": {
                     "default": [],
-                    "maxItems": 12,
+                    "maxItems": 13,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -2281,6 +2281,7 @@
                         "ac",
                         "heating",
                         "fireplace",
+                        "jacuzzi",
                         "pool",
                         "kitchen",
                         "view",
@@ -2508,7 +2509,7 @@
                   },
                   "amenities": {
                     "default": [],
-                    "maxItems": 12,
+                    "maxItems": 13,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -2519,6 +2520,7 @@
                         "ac",
                         "heating",
                         "fireplace",
+                        "jacuzzi",
                         "pool",
                         "kitchen",
                         "view",
