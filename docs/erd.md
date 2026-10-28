@@ -1,12 +1,17 @@
 # Database diagram
 
-Generated from `prisma/schema.prisma` by `pnpm docs:erd`. Do not edit by hand.
+Generated from `prisma/schema.prisma` by `pnpm docs:erd`. Do not edit by hand. Easier to read, in two parts:
+[the booking platform](erd-platform.md) and [AI and MCP](erd-ai-mcp.md).
 
 Guarantees that Prisma cannot express live in hand-written SQL migrations:
 
 - `occupancy_no_overlap`: an EXCLUDE constraint, so no two active stays share a room night.
 - `session_seats_guard`: a trigger, so a session never sells more seats than it has.
 - CHECK constraints on date ranges, guest counts, ratings, seats and payments.
+
+Not drawn here: the job queues. pg-boss keeps them in its own `pgboss` schema in the same database (jobs, queues,
+schedules), creates and upgrades it itself, and nothing reads it through Prisma. See
+[Queues and workers](architecture.md#queues-and-workers).
 
 ```mermaid
 erDiagram
@@ -505,6 +510,12 @@ erDiagram
     String key PK
     Int count
     DateTime resetAt
+  }
+  JobProgress {
+    String jobId PK
+    String step
+    String text
+    DateTime updatedAt
   }
   AiUsage {
     String id PK

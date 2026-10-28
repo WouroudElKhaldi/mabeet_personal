@@ -130,22 +130,36 @@ for booking payments are only `WHISH` and `STRIPE`. The other methods (`CASH`, `
 No table change. `ActivityLog` already records `payment.online_confirmed`, refunds and expiries, and the bell reads
 from it.
 
+### 2.8 Job queues: a `pgboss` schema beside ours
+
+No Prisma change. The worker's queues (`ai`, `notify`, `cron`) live in the same database, in a `pgboss` schema that
+pg-boss creates and upgrades itself when it starts. Never add it to `schema.prisma` or write to it with Prisma; use
+`src/server/jobs/queue.ts`. Job data holds only ids and plain values. Finished AI jobs are deleted after an hour,
+others after a day.
+
+### 2.9 `JobProgress`: the answer while it is written
+
+New table (migration `20261028000100_job_progress`): `jobId` (pg-boss's id, the key), `step` (the tool in use, or
+null), `text` (the reply so far), `updatedAt` (indexed, for cleanup). Written by the worker at most every 300 ms,
+read by `GET /api/jobs/{jobId}`, deleted when the job ends.
+
 ---
 
 ## 3. What I checked is not missing
 
-| Feature                                | Covered by                                                            |
-| -------------------------------------- | --------------------------------------------------------------------- |
-| The 10-minute payment window           | `Booking.holdExpiresAt` and the hold-expiry job                       |
-| Webhooks applied only once             | `WebhookEvent` (unique event id)                                      |
-| A failed automatic refund sent by hand | `Refund.automatic` and `RefundStatus` (`PENDING` → `DONE`)            |
-| Payouts to owners                      | `Payout` (`REQUESTED` → `PAID` or `REJECTED`)                         |
-| Commission saved                       | `Business.commissionRateBps` and the confirmed bookings' `totalCents` |
-| Email verification                     | `Verification` (Better Auth)                                          |
-| Each person's language                 | `User.locale`, `Booking.locale`                                       |
-| Contact host choice                    | `HostProfile.contactBy`                                               |
-| The bell's "seen" state                | `User.notificationsSeenAt`                                            |
-| Experiences, plans, AI, push (bonus)   | Their tables are kept, so they can be built any time                  |
+| Feature                                 | Covered by                                                            |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| The 10-minute payment window            | `Booking.holdExpiresAt` and the housekeeping job (every 5 minutes)    |
+| Slow AI work, retried emails, schedules | The `pgboss` schema (pg-boss), not Prisma                             |
+| Webhooks applied only once              | `WebhookEvent` (unique event id)                                      |
+| A failed automatic refund sent by hand  | `Refund.automatic` and `RefundStatus` (`PENDING` → `DONE`)            |
+| Payouts to owners                       | `Payout` (`REQUESTED` → `PAID` or `REJECTED`)                         |
+| Commission saved                        | `Business.commissionRateBps` and the confirmed bookings' `totalCents` |
+| Email verification                      | `Verification` (Better Auth)                                          |
+| Each person's language                  | `User.locale`, `Booking.locale`                                       |
+| Contact host choice                     | `HostProfile.contactBy`                                               |
+| The bell's "seen" state                 | `User.notificationsSeenAt`                                            |
+| Experiences, plans, AI, push (bonus)    | Their tables are kept, so they can be built any time                  |
 
 ---
 
@@ -159,3 +173,5 @@ from it.
 4. `Payment`: remove `recordedById` and `online`.
 5. `FeedSource`: remove `KAZDERNI`. `Occupancy`: remove `source`.
 6. Keep everything else, including the EXCLUDE rule against overlapping nights.
+7. Nothing to migrate for the queues: pg-boss creates its `pgboss` schema when the worker first starts.
+8. Add `JobProgress` (live text of queued AI answers).

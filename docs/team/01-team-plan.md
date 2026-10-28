@@ -102,8 +102,9 @@ Each of these has one owner. Other people use them by calling their functions.
 
 Each one is built from start to end, with its own screens:
 
-- GitHub, the checks on every pull request, and hosting on DigitalOcean with Docker
+- GitHub, the checks on every pull request, and hosting on DigitalOcean with Docker (the website and the job worker)
 - The database schema and migrations
+- Queues and the worker: slow AI work, emails and scheduled jobs run outside the web request
 - Tenancy and permissions
 - The booking engine with the three modes
 - Online payments and full automatic refunds (Whish and Stripe, confirmed by webhook)
@@ -285,11 +286,12 @@ Create the repository with the same setup as the reference project:
 - `scripts/local-db.ts` (a local database), `.env.example`, and `CLAUDE.md`.
 - The CI file (the checks that run on every pull request) and protection on the `main` branch.
 - The hosting on DigitalOcean with Docker: a `Dockerfile`, the database, the deploy step in GitHub Actions (only after
-  every check passes), and the build that runs the database migrations.
+  every check passes), and the build that runs the database migrations. The same image runs twice: the website
+  (`pnpm start`) and the worker (`pnpm worker`), both with `JOBS_MODE=queue` (see `docker-compose.yml`).
 
 - **Uses:** nothing.
-- **Done when:** a fresh copy runs with `pnpm install`, `pnpm db:start` and `pnpm dev`; the checks pass on GitHub;
-  and a merge to `main` shows up on the public website.
+- **Done when:** a fresh copy runs with `pnpm install`, `pnpm db:start` and `pnpm dev` (website and worker); the checks pass on GitHub;
+  a merge to `main` shows up on the public website; and the worker container is running beside it.
 
 #### W2. The database, permissions and demo data (due Thursday 29 October)
 
@@ -344,15 +346,20 @@ Create the repository with the same setup as the reference project:
   booking is cancelled after 10 minutes and its nights are free; every cancellation of a paid booking is refunded in
   full.
 
-#### W6. Live data and scheduled jobs (due Monday 2 November)
+#### W6. Live data, queues and scheduled jobs (due Monday 2 November)
 
 - Add the demo data to the live database, with a private `SEED_PASSWORD`.
-- Add the scheduled jobs: calendar sync, and the expiry of unpaid and unanswered bookings (every few minutes, because
-  of the 10-minute payment window).
+- The queue core: `src/server/jobs/queue.ts` (`defineJob`, `runOrQueue`, `findJob`, the three queues `ai`, `notify`
+  and `cron`), `registry.ts`, the worker `worker.ts`, and `GET /api/jobs/[jobId]`. pg-boss keeps the queues in our
+  own PostgreSQL, in a `pgboss` schema.
+- The scheduled jobs in `src/server/jobs/cron-jobs.ts`: calendar sync every 15 minutes, and housekeeping (expiry of
+  unpaid and unanswered bookings) every 5 minutes, because of the 10-minute payment window. The worker runs them;
+  `/api/cron/*` stay for a manual run.
 - Try the main flow on two phones on the public website before Checkpoint 1.
 
 - **Uses:** W1, W2.
-- **Done when:** the public website shows the demo guesthouses, and the scheduled jobs run.
+- **Done when:** the public website shows the demo guesthouses, the worker log shows the scheduled jobs running, and
+  `jobs.test.ts` passes.
 
 #### W7. Calendar sync with Airbnb and Booking.com (due Thursday 5 November)
 
@@ -387,10 +394,14 @@ Create the repository with the same setup as the reference project:
 - **The guest's assistant:** `askConcierge` with place cards, `/api/assistant`, `/api/me/chats`, and `concierge.tsx`.
 - **Connecting Claude, Cursor or Codex:** `mcp-server.ts`, `/api/mcp` and `/api/mcp/guest`, `mcp-token.ts`,
   `api-key-service.ts` and its routes, and the keys screen (`key-manager.tsx`).
+- **Answer now, or queue:** `src/server/jobs/ai-jobs.ts` (the concierge, team assistant and report jobs, and the
+  time estimates from the input size). The three AI routes call `runOrQueue`; the chat panel and the report page use
+  `api.run`, which follows a queued job until it is done.
 
 - **Uses:** other people's services, which are all merged by then.
 - **Done when:** `assistant.test.ts`, `mcp-server.test.ts`, `ai-usage.test.ts`, `mcp-isolation.test.ts`,
-  `assistant-actions.test.ts` and `chats.test.ts` pass.
+  `assistant-actions.test.ts`, `chats.test.ts` and `jobs.test.ts` pass, and a long question is answered through the
+  worker.
 
 #### W10. Host plans and billing (due Tuesday 10 November, bonus)
 
@@ -545,7 +556,8 @@ chooses new colours, fonts or styles.
 #### F6. Emails, guest cancelling, and the notification bell (due Saturday 7 November)
 
 - The guest's emails in `notification-service.ts` and `src/server/email/templates.ts`: booking received, paid,
-  confirmed, declined, expired and cancelled, in the guest's language, sent with `inBackground`.
+  confirmed, declined, expired and cancelled, in the guest's language, each one a job on the `notify` queue
+  (`defineJob`, from Wouroud's W6).
 - The "Cancel my booking" button on the booking page and its route (`cancelStayAsGuest`, with a full refund when
   paid online).
 - The notification bell (`notification-feed-service.ts`, `notification-bell.tsx`) and the full notifications page.

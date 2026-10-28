@@ -1354,7 +1354,7 @@
     "/api/assistant": {
       "post": {
         "tags": ["AI"],
-        "summary": "Trip concierge chat (DeepSeek, read-only tools)",
+        "summary": "Trip concierge chat (DeepSeek, read-only tools). 200 with the answer, or 202 { jobId } when queued: follow GET /api/jobs/{jobId}",
         "description": "No sign-in.",
         "security": [],
         "parameters": [],
@@ -6090,7 +6090,7 @@
     "/api/workspaces/{businessId}/assistant": {
       "post": {
         "tags": ["AI"],
-        "summary": "Team assistant chat, limited to the member's permissions",
+        "summary": "Team assistant chat, limited to the member's permissions. 200 with the answer, or 202 { jobId } when queued",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
           {
@@ -8611,7 +8611,7 @@
     "/api/workspaces/{businessId}/analytics/report": {
       "post": {
         "tags": ["AI"],
-        "summary": "AI report of the database's numbers for a period, for this place or all the person's places",
+        "summary": "AI report of the database's numbers for a period, for this place or all the person's places. 202 { jobId } when queued",
         "description": "Signed-in member of the workspace; each call checks the member's permissions. Non-members get 404.",
         "security": [
           {
@@ -8665,6 +8665,69 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      },
+                      "required": ["code", "message"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in or key required"
+          },
+          "403": {
+            "description": "Missing permission"
+          },
+          "404": {
+            "description": "Not found, or not yours"
+          },
+          "409": {
+            "description": "Conflict, e.g. dates or seats just taken"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/api/jobs/{jobId}": {
+      "get": {
+        "tags": ["AI"],
+        "summary": "A queued AI answer or report: queued, running, done (with the result) or failed. Only the person who asked can read it",
+        "description": "No sign-in.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success"

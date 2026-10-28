@@ -70,7 +70,7 @@ Then read the existing file that is closest to what you are building. Copy its s
   `request.json()` yourself.
 - Services (`src/server/services/<area>-service.ts`) hold every rule. Order: `requirePermission(ctx, "...")` first,
   then business checks, then repository calls. Use `runInTransaction` for changes that go together, `recordAction`
-  for the audit log, and `inBackground` for notifications. Services are plain exported functions. When they work in a
+  for the audit log, and a job (`defineJob` in `src/server/jobs/queue.ts`) for notifications. Services are plain exported functions. When they work in a
   business, `ctx: TenantContext` is the first argument.
 - Repositories (`src/server/repositories/<area>-repository.ts`) are the only code that queries the database. The
   first argument is `db: Db` (or `tx: Tx` inside a transaction). Every business query filters by `businessId`. No
@@ -91,8 +91,11 @@ Then read the existing file that is closest to what you are building. Copy its s
   Never build SQL by joining strings.
 - Money is whole cents (`...Cents`). Nights are ISO dates, or `DateRange { checkIn, checkOut }` from
   `src/lib/dates.ts`. The check-out night is free.
-- Side work (email, push, logs, usage) goes in `inBackground(label, work)` from `src/server/background.ts`. Never on
-  the request path.
+- Small side writes (logs, usage, "last used") go in `inBackground(label, work)` from `src/server/background.ts`.
+  Slow or must-happen work (AI answers, emails, push, scheduled jobs) is a job: `defineJob(queue, kind, handler)`,
+  with its module listed in `src/server/jobs/registry.ts`. Job data holds ids and plain values only, never a
+  `TenantContext`. An AI route calls `runOrQueue(job, data, estimateSeconds)` and answers with `jobResponse`; the
+  screen calls `api.run`. Never await slow work on the request path.
 - Functions that depend on the time take `now = new Date()` as the last argument, so tests can set the time.
 - No repeated code. Before you write a helper, search for one in `src/lib`, `src/hooks`, `src/components/ui` and
   `src/config`. If two places need the same logic, put it in one shared place.

@@ -114,7 +114,8 @@ submission (Friday 13 November).
 - **F5. Keep an account.** Trips, favourites, an activity history, and one review per stay, written only after
   check-out by the guest who actually stayed.
 - **F6. Ask the concierge (big bonus).** Describe a trip in English, Arabic or Arabizi, and get places that are
-  really free on those dates.
+  really free on those dates. The search takes a town or a region (`src/config/regions.ts`), bedrooms, bathrooms,
+  beds, amenities (a jacuzzi included), tags and accessibility, and shows each matching room's layout.
 - **F6a. Book through the AI (last bonus).** The guest's AI (on the website or through the guest MCP in Claude or
   ChatGPT) can make the booking after the guest says yes. It never pays: it gives the booking's private link, and
   the guest pays there, so the 10-minute payment window and every booking rule stay the same.
@@ -130,6 +131,11 @@ submission (Friday 13 November).
   stays read-only everywhere. The AI can also carry out orders ("cancel booking SN-7KX3P9", "close the Arched room
   from 12 to 15 November"), but never on its own: in the dashboard the person confirms a card that shows the exact
   action, and in the AI apps the app asks before any change. Chats are saved, or kept unsaved and never stored.
+- **F14b. Never stuck waiting on the AI (bonus, with F6 and F14).** A short question is answered straight away. A
+  long one, a long conversation, an AI report, or any question while others are being answered goes in line for
+  the worker: the screen says what it is doing ("Searching what's free…"), then shows the answer word by word. The website and other
+  people's requests are never held up by it. Built with queues (pg-boss) and a worker process; see
+  `02-architecture-and-features.md`, "B. Queues and the worker".
 - **F15. Choose a plan (bonus).** Free, Pro or Business, each with its limits (rooms, experiences, team members,
   AI). Paid by card through Stripe (a subscription, turned on as soon as Stripe confirms it), with Whish, or by hand
   (bank transfer, Whish, OMT, crypto or cash, then upload the receipt). A plan paid by hand starts when a platform

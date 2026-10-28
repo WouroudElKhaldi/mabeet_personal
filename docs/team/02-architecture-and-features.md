@@ -77,8 +77,11 @@ Our product gives the host one booking page, one calendar, and a database that r
 - **Tailwind CSS 4:** styling, using design tokens only.
 - **DeepSeek:** the AI model. Changing to another AI provider means changing one file.
 - **Vitest:** unit tests (no database) and integration tests (real database).
-- **DigitalOcean with Docker:** hosting for the website and the PostgreSQL database. Real emails are sent with
-  Resend from our own domain.
+- **DigitalOcean with Docker:** hosting for the website and the PostgreSQL database. One Docker image runs twice: as
+  the website (`pnpm start`) and as the job worker (`pnpm worker`). Real emails are sent with Resend from our own
+  domain.
+- **pg-boss:** job queues kept in our own PostgreSQL (in a `pgboss` schema), so slow AI work, emails and scheduled
+  jobs run in the worker, not in the web request. No Redis needed.
 - **GitHub Actions:** runs the checks on every pull request, and deploys every merge to `main` that passes.
 
 ### The checks CI runs
@@ -385,6 +388,14 @@ Its one `Occupancy` row takes the nights.
 - `McpAuditLog`: every AI tool call (tool, result, time taken, channel).
 - `AiUsage`: tokens and cost of each AI answer, for the monthly budget.
 - `AiChat` and `AiChatMessage`: saved AI chats, per person.
+- `JobProgress`: what a queued AI answer has written so far, shown live; deleted when the job ends.
+
+### Job queues (not in Prisma)
+
+pg-boss keeps the queues in its own `pgboss` schema in the same database: jobs, queues and schedules. It creates and
+upgrades that schema itself when the worker starts. We never write to it with Prisma; we use `defineJob`,
+`runOrQueue` and `findJob` in `src/server/jobs/queue.ts`. Finished AI jobs are deleted after an hour, others after
+a day.
 
 ### Rules for the schema
 
@@ -522,9 +533,11 @@ it.** Code: `src/server/ai/output.ts`.
 - **Cost:** a monthly budget (`AI_MONTHLY_BUDGET_USD`, $50 by default).
   - `assertWithinBudget` checks it before each question.
   - `recordAiUsage` saves the cost after the answer, in the background.
+  - The route checks the budget and the plan **before** queueing, so a refusal is immediate; the job checks again.
   - Admins get one alert at 80 percent and one at 100 percent.
 - **Speed:** limits per route, a 45-second time limit for the model, tools in the same round run together, and logs
-  are written after the answer.
+  are written after the answer. A long question, a long chat, a report, or any question while others wait goes to
+  the `ai` queue and the worker answers it (see "B. Queues and the worker").
 - **Fallback:** if the model is slow or fails, the person sees a clear message, and the rest of the app still works.
 
 ### A. AI report
@@ -532,7 +545,8 @@ it.** Code: `src/server/ai/output.ts`.
 On the analytics page, "Generate a report" sends the database's numbers for a period to the model with
 `askForJson`. The schema (`reportShape(topics)`) is strict: every field is required, and each section's topic must
 be one of the topics the person chose. The charts next to each section use the same numbers.
-Only for Pro and Business plans. Code: `report-service.ts`, `report-generator.tsx`.
+Only for Pro and Business plans. A report always goes to the `ai` queue (it writes up to 2,000 tokens, 20 seconds
+or more); the page waits on the job. Code: `report-service.ts`, `jobs/ai-jobs.ts`, `report-generator.tsx`.
 
 ### A. Analytics and money saved on commission
 
@@ -548,9 +562,45 @@ in `analytics-repository.ts`. Code: `analytics-service.ts`, `dashboard/[business
 
 ### B. Background work
 
-`inBackground(label, work)` in `src/server/background.ts` runs side work **after** the answer is sent. Emails, push
-notifications, AI logs, AI costs and "last used" times use it. If the work fails, it is logged. It never breaks the
-request.
+Two kinds, by how much they matter:
+
+- **Small writes** (AI tool logs, AI costs, "last used" times): `inBackground(label, work)` in
+  `src/server/background.ts` runs them **after** the answer is sent. If one fails, it is logged. It never breaks
+  the request.
+- **Work that must happen, or that is slow** (AI answers and reports, emails and push, scheduled jobs): a **job** on
+  a queue, run by the worker. See the next section.
+
+### B. Queues and the worker
+
+```
+ website ──send job──▶ PostgreSQL (pgboss schema) ◀──takes jobs── worker (pnpm worker)
+```
+
+- **Three queues** (`QUEUES` in `src/server/jobs/queue.ts`):
+  - `ai`: concierge answers, team assistant answers, reports. 4 at once per worker. Retried once.
+  - `notify`: every booking, payment, refund and Contact host notice. 8 at once. Retried 4 times, waiting longer
+    each time.
+  - `cron`: calendar sync every 15 minutes and housekeeping every 5 minutes, on the worker's own schedule.
+- **Declaring a job:** `defineJob(queue, kind, handler)`. Add the file to `src/server/jobs/registry.ts` so the worker
+  knows it. Job data holds only ids and plain values (never a `TenantContext`): the worker loads the rest fresh.
+- **Answer now, or queue** (`runOrQueue`): the route estimates how long the work will take from the size of the
+  input (`chatSeconds`, `reportSeconds` in `jobs/ai-jobs.ts`). It answers inside the request (200) only when the
+  estimate is at most `JOBS_SYNC_LIMIT_SECONDS` (5 by default, so every AI answer is queued today; `0` queues
+  everything), nothing is waiting on that queue, and this web process is running fewer than 4
+  such answers. Otherwise it queues the job and answers 202 with `{ status: "queued", jobId }`.
+- **The browser** uses `api.run(url, body, onProgress)` (`src/lib/api-client.ts`). It handles both answers and,
+  for 202, asks `GET /api/jobs/{jobId}` every 0.5–1 seconds until the job is `done` or `failed`.
+- **Live answers:** the worker streams DeepSeek's reply. While the job runs, `GET /api/jobs/{jobId}` returns its
+  progress (the tool in use, then the reply so far), saved in the `JobProgress` table at most every 300 ms
+  (`jobs/progress.ts`). The chat shows "Searching what's free…", then the words as they come: about 2–3 seconds to
+  the first ones.
+- **Safety:** the route checks rate limit, permission, plan and budget before queueing. The worker looks the member
+  up again before running. Only the person who asked can read a job; anyone else gets 404. Stored errors are never
+  shown: the client sees the safe message of an `AppError`, or a generic "busy, try again".
+- **Modes:** `JOBS_MODE=queue` in production (the Docker image sets it) and with `pnpm dev`, which starts the
+  website and the worker together (`scripts/dev.ts`). `inline` runs everything in the web process with no worker:
+  the tests always use it, and so does `pnpm dev:web` (the website alone, for a computer short of memory).
+- **Deploys:** on `SIGTERM` the worker finishes the jobs in hand (up to 60 seconds). More workers share the load.
 
 ### B. Plans and billing
 
@@ -602,7 +652,7 @@ handles it:
    - save the booking and its `DIRECT` occupancy,
    - log the action.
 4. If the database refuses the overlap, answer 409 "Those dates were just taken" (`overlapAsConflict`).
-5. After saving, send the notifications in the background.
+5. After saving, queue the notifications (`notify` queue).
 
 ### B. Bookings: the host decides
 
@@ -648,7 +698,7 @@ taken by phone.
 
 ```
 CalendarFeed (room, link, source)
-  │  every 15 minutes · when the host presses "Sync now" · just before a host confirms
+  │  every 15 minutes (worker) · when the host presses "Sync now" · just before a host confirms
   ▼
 download: https only, public addresses only, no redirects, 10-second limit, 2 MB limit   (ical/safe-fetch.ts)
   ▼
@@ -787,7 +837,8 @@ they choose. Code: `host-service.ts`.
 - Hosts and staff who can decide bookings hear about new requests and guest cancellations.
 - Guests hear about every status change.
 - Each notification is an email and a push notification to every device the person turned on.
-- Everything is sent in the background after saving, and never throws an error.
+- Everything is queued on the `notify` queue after saving, and never throws an error. The worker sends it and
+  retries a failed delivery up to 4 times; emails carry an idempotency key, so a retry never sends one twice.
 
 Code: `notification-service.ts`, `push-service.ts`.
 
@@ -901,13 +952,14 @@ bottom.
 
 ## Part 9. Scheduled jobs
 
-| Job           | Route                         | What it does                                                                                          | If it never runs                                                                              |
-| ------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Calendar sync | `POST /api/cron/sync-feeds`   | Reads up to 20 calendar links not read in 15 minutes                                                  | Calendars still update on "Sync now" and before each confirmation                             |
-| Housekeeping  | `POST /api/cron/expire-holds` | Checks pending online payments, expires unanswered and unpaid bookings, ends unpaid Whish plan months | Each new request expires its room's old holds; a returning guest's payment is checked at once |
+| Job           | Worker schedule | Route (manual run)            | What it does                                                                                          | If it never runs                                                                              |
+| ------------- | --------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Calendar sync | every 15 min    | `POST /api/cron/sync-feeds`   | Reads up to 20 calendar links not read in 15 minutes                                                  | Calendars still update on "Sync now" and before each confirmation                             |
+| Housekeeping  | every 5 min     | `POST /api/cron/expire-holds` | Checks pending online payments, expires unanswered and unpaid bookings, ends unpaid Whish plan months | Each new request expires its room's old holds; a returning guest's payment is checked at once |
 
-Both need `Authorization: Bearer $CRON_SECRET`. `.github/workflows/scheduled-jobs.yml` calls them every 15 minutes,
-once `APP_URL` and `CRON_SECRET` are set as GitHub secrets.
+The worker runs both on its own schedule (`src/server/jobs/cron-jobs.ts`), kept in the database so each run happens
+once even with several workers. The routes need `Authorization: Bearer $CRON_SECRET`.
+`.github/workflows/scheduled-jobs.yml` still calls them every 15 minutes while the site is on Vercel (no worker there); once the worker runs on DigitalOcean, its `schedule:` lines are deleted and it stays as a manual fallback.
 
 ---
 
@@ -935,6 +987,8 @@ once `APP_URL` and `CRON_SECRET` are set as GitHub secrets.
 - `BETTER_AUTH_SECRET` (at least 32 characters)
 - `BETTER_AUTH_URL`
 - `CRON_SECRET` (at least 24 characters)
+
+**For production:** `JOBS_MODE=queue` (the Docker image sets it), with a worker running.
 
 **For tests:** `TEST_DATABASE_URL`.
 
@@ -969,7 +1023,7 @@ once `APP_URL` and `CRON_SECRET` are set as GitHub secrets.
 3. Is every input checked by a schema in `schemas.ts`?
 4. Do lists of values come from `src/config/`, not typed by hand?
 5. Are database refusals handled with `overlapAsConflict` or `duplicateAsConflict`?
-6. Is side work (email, push, logs) inside `inBackground`?
+6. Are small side writes (logs, usage) inside `inBackground`, and slow or must-happen work (AI, email, push) a job?
 7. Does the screen use tokens and `components/ui/`, with loading, empty and error states, at phone width?
 8. Is every new text in all language files?
 9. Are the tests from `04-test-plan.md` written and passing?

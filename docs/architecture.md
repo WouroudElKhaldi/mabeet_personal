@@ -9,6 +9,9 @@ How Mabeet is put together, and why. What it does is in the
 One Next.js 15 app in TypeScript. PostgreSQL through Prisma. Better Auth for sign-in. Zod for every input.
 
 Next.js serves the pages, the JSON API, the iCal feeds and the MCP endpoints from one codebase and one deploy.
+Slow and retryable work (AI answers and reports, emails and push, scheduled housekeeping) runs in a **worker**
+process from the same codebase, fed by queues kept in the same Postgres (pg-boss). See
+[Queues and workers](#queues-and-workers).
 Prisma gives typed queries and versioned migrations. Postgres does what Prisma can't: an `EXCLUDE`
 constraint and triggers, written as hand-made SQL migrations.
 
@@ -19,7 +22,8 @@ Five ways in, one set of services:
  JSON API ──────┤
  AI chat ───────┼──▶ services ──▶ repositories ──▶ PostgreSQL
  owner MCP ─────┤    (rules)      (queries)        (last word on
- guest MCP ─────┘                                   overlaps & seats)
+ guest MCP ─────┤                                   overlaps & seats)
+ worker ────────┘                                  + pgboss schema (queues)
 ```
 
 ## Layers
@@ -237,23 +241,97 @@ because the platforms track exported events by UID.
   their own schedule, often every few hours. Until then a platform booking can land on the same night. The next
   sync flags it for the host.
 
-## Background jobs
+## Queues and workers
 
-| Job           | Endpoint                      | What it does                                                                                                                         | If it never runs                                                                                           |
-| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Calendar sync | `POST /api/cron/sync-feeds`   | Re-reads up to 20 feeds not synced in the last 15 minutes                                                                            | Feeds still refresh on "Sync now" and before every confirmation                                            |
-| Housekeeping  | `POST /api/cron/expire-holds` | Re-checks online payments still pending after 2 minutes; expires unanswered and unpaid bookings; ends Whish plan months that ran out | Each new request on a room expires that room's stale holds; a returning guest's payment is checked at once |
+Two processes run from one Docker image: the **website** (`pnpm start`) and the **worker** (`pnpm worker`,
+`src/server/jobs/worker.ts`). They share one Postgres. The queues live there too, in pg-boss's own `pgboss`
+schema, so there is no Redis or other service to run. A worker takes a job with `SELECT … FOR UPDATE SKIP LOCKED`,
+so with several workers each job still runs exactly once.
 
-Both need `Authorization: Bearer $CRON_SECRET` (compared in constant time). The repo calls them every 15
-minutes from `.github/workflows/scheduled-jobs.yml`, once `APP_URL` and `CRON_SECRET` are set as repository
-secrets. GitHub may run scheduled workflows late under load. That's acceptable here because of the fallbacks in
-the last column.
+```
+ browser ── POST /api/assistant ──▶ website ── quick? ──yes──▶ answer now (200)
+                                       │
+                                       no: send job ──▶ pgboss.job ◀── worker (4 AI jobs at once)
+                                       │                                 │ DeepSeek, saves the chat
+ browser ◀── 202 { jobId } ────────────┘                                 ▼
+ browser ── GET /api/jobs/{jobId} (every 0.5–1 s) ──▶ queued · running (tool in use, reply so far)
+                                                     · done (result) · failed (safe message)
+```
+
+| Queue    | Jobs                                                      | At once per worker | Retries                       | Kept after finishing |
+| -------- | --------------------------------------------------------- | ------------------ | ----------------------------- | -------------------- |
+| `ai`     | Concierge answer, team assistant answer, analytics report | 4                  | 1, after 5 s                  | 1 hour               |
+| `notify` | Every booking, payment, refund and Contact host notice    | 8                  | 4, backing off from 30 s      | 1 day                |
+| `cron`   | Calendar sync (every 15 min), housekeeping (every 5 min)  | 1                  | none: the next run comes soon | 1 day                |
+
+**Answer now, or queue.** AI routes call `runOrQueue` (`src/server/jobs/queue.ts`) with an estimate, in seconds,
+worked out from the input before the model is called (`src/server/jobs/ai-jobs.ts`):
+
+- Concierge: 15 s (two or three DeepSeek calls: search, maybe search again, then reply; 6–20 s measured), plus
+  1 s for every 1,500 characters of the conversation sent.
+- Team assistant: 20 s (it often needs a round more), plus the same per character.
+- Report: 25 s + 4 s per topic + 1 s per 90 days. It writes up to 2,000 tokens whatever the input.
+
+Work runs inside the request only when **all three** hold: the estimate is at most `JOBS_SYNC_LIMIT_SECONDS`
+(5 s by default, so today every AI answer is queued; `0` queues everything), no job is waiting on that
+queue (a new question must not jump the line), and this web process is running fewer than 4 such answers already.
+Otherwise it is queued and the route answers `202 { status: "queued", jobId }`. Each decision is logged, e.g.
+`[jobs] ai.concierge: queued (est. 15.2s, limit 10s, 0 waiting, 0 running here)`. Queueing frees the website, but
+does not make an answer arrive sooner: the person still waits for the model. The browser's `api.run`
+(`src/lib/api-client.ts`) handles both answers the same way, so screens don't care which path was taken. A first
+model answering faster than 5 s, or a larger limit, would be answered in the request; everything else goes to the
+worker, and the web process is never tied up for 30–90 seconds.
+
+**Watching the answer arrive.** Queueing frees the website but can't make the model faster, so a queued answer
+is shown as it is written:
+
+1. The worker streams each DeepSeek call (`stream: true`, `complete(…, onText)` in `src/server/ai/deepseek.ts`).
+2. The chat loop reports progress (`onProgress` in `assistant.ts`): the tool in use (`step`), then the reply so
+   far (`text`).
+3. The job saves it to `JobProgress` at most every 300 ms (`src/server/jobs/progress.ts`) and deletes the row
+   when the job ends; housekeeping removes rows a crashed worker left behind.
+4. `GET /api/jobs/{jobId}` returns it while the job runs; `api.run(url, body, onProgress)` polls every 0.5 s and
+   the chat panel shows "Searching what's free…", then the reply growing word by word.
+
+Measured on a real concierge question: first words at 2.3 s, search status at 2.9 s, full answer at 6.2 s. A
+report shows "Writing the report…" (it is one JSON answer, nothing to show word by word).
+
+**Safety.** A route checks the rate limit, the permission, the plan and the AI budget **before** queueing, so a
+refusal is immediate. The job carries who asked (user and business ids), never a permission set: the worker looks
+the member up again, so someone removed from a team while their question waited gets no answer. Only the person
+who asked can read a job (`GET /api/jobs/{jobId}`); for anyone else it is "not found". A visitor's anonymous
+concierge job is reachable only through its random UUID. Errors the user caused (no permission, over budget) are
+stored as safe messages and not retried. Any other failure is retried, and the client then sees only a generic
+"busy, try again" message, never the stored stack trace.
+
+**Modes.** `JOBS_MODE=queue` in production (set in the `Dockerfile` and `docker-compose.yml`) and in development:
+`pnpm dev` (`scripts/dev.ts`) starts the website and the worker together, and stops both if either stops.
+`inline` (the code's default, always used by the tests) runs everything in the web process with no worker: AI in
+the request, notices after the response. It is for `pnpm dev:web`, the website alone on a computer short of
+memory.
+
+**Deploys.** On `SIGTERM` the worker stops taking jobs and finishes the ones in hand (up to 60 s) before exiting.
+Run more workers (`docker compose up --scale worker=2`) to share the load. A job abandoned by a crashed worker
+expires and is retried.
+
+### Scheduled jobs
+
+| Job           | Schedule (worker)  | Also callable at              | What it does                                                                                                                         | If it never runs                                                                                           |
+| ------------- | ------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Calendar sync | every 15 min (UTC) | `POST /api/cron/sync-feeds`   | Re-reads up to 20 feeds not synced in the last 15 minutes                                                                            | Feeds still refresh on "Sync now" and before every confirmation                                            |
+| Housekeeping  | every 5 min (UTC)  | `POST /api/cron/expire-holds` | Re-checks online payments still pending after 2 minutes; expires unanswered and unpaid bookings; ends Whish plan months that ran out | Each new request on a room expires that room's stale holds; a returning guest's payment is checked at once |
+
+The worker keeps the schedule in the database, so with several workers each run happens once. The HTTP endpoints
+stay for a manual run: both need `Authorization: Bearer $CRON_SECRET` (compared in constant time), and
+`.github/workflows/scheduled-jobs.yml` still calls them every 15 minutes while the site is on Vercel (no worker there); once the worker runs on DigitalOcean, its `schedule:` lines are deleted and it stays as a manual fallback.
 
 ## Notifications
 
-Emails (Resend) and push notifications (Web Push with VAPID keys) are sent **after** the transaction commits, in
-the background, and never throw (`src/server/services/notification-service.ts`). A mail or push outage can't
-undo or slow a booking. A device that has unsubscribed is forgotten the next time a push to it fails.
+Emails (Resend) and push notifications (Web Push with VAPID keys) are sent **after** the transaction commits, as
+jobs on the `notify` queue, and never throw (`src/server/services/notification-service.ts`). A mail or push
+outage can't undo or slow a booking, and a failed delivery is retried up to 4 times. A job carries only ids and
+amounts; the worker loads the booking fresh, so the notice reflects what is true when it is sent. Emails carry
+idempotency keys, so a retry never sends one twice. A device that has unsubscribed is forgotten the next time a push to it fails.
 
 Whoever gets an email about a booking also gets a push on every device they turned notifications on for:
 
@@ -330,6 +408,7 @@ guest ──POST /api/public/bookings/{token}/checkout──▶ Payment (PENDING
 | Stripe (test mode)             | Plans; guests paying by card  | Card payment is hidden. Webhooks are signature-checked and idempotent |
 | Whish Pay (simulator for now)  | Guests paying; plans by Whish | Whish is hidden. Pending payments are re-checked by the scheduled job |
 | DeepSeek                       | AI chat and assistant         | AI shows a friendly error. Everything else works                      |
+| PostgreSQL (`pgboss` schema)   | Job queues for the worker     | Same database as everything else: if it is down, so is the site       |
 
 ## AI and MCP
 
@@ -373,6 +452,7 @@ The analytics report uses it with a strict schema whose section topics must be t
 | Tool schemas                  | Each tool's JSON Schema is built once per process and cached, not on every model round                                             |
 | Several tools in a round      | Run in parallel. The chat only offers read-only tools, so order can't matter                                                       |
 | Audit log, usage, "last used" | Written after the response (`inBackground`), never on the request path                                                             |
+| Long answers and reports      | Queued for the worker when the input is long or others are waiting (`runOrQueue`); the browser follows the job                     |
 | MCP server                    | Stateless: one small server per request, registered with only the tools the caller may use                                         |
 | Chat screen                   | The composer owns the draft, so typing re-renders only the input box; the message list is memoised                                 |
 | Saving a chat turn            | One service call for both assistants (`answerChat` in `chat-service.ts`), which refuses a foreign chat before paying for an answer |
@@ -402,15 +482,15 @@ translated too. Emails to Lebanese readers use standard Arabic.
 
 ## Tests
 
-| Kind           | Command                 | What it covers                                                                                       |
-| -------------- | ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| Unit           | `pnpm test`             | Pricing, booking status changes, dates, permissions, iCal parse/build, privacy masking, translations |
-| Integration    | `pnpm test:integration` | Services and repositories against a real Postgres: booking flow, calendar sync, roles                |
-| Database rules | (in integration)        | The constraint and triggers themselves, written to directly                                          |
-| Concurrency    | (in integration)        | 20 guests for the last room, 20 guests for the last 5 seats, the shared rate limit                   |
-| Isolation      | (in integration)        | Business A against business B, over real HTTP routes and over MCP                                    |
-| Smoke          | `pnpm smoke`            | Against a running app: guest, host, admin and outsider flows, iCal export over HTTP                  |
-| Failure cases  | `pnpm edge-cases`       | Against a running app: bad input, wrong roles, foreign ids, bad tokens, for every user type          |
+| Kind           | Command                 | What it covers                                                                                                                                            |
+| -------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit           | `pnpm test`             | Pricing, booking status changes, dates, permissions, iCal parse/build, privacy masking, translations, answer-now-or-queue and job states (`jobs.test.ts`) |
+| Integration    | `pnpm test:integration` | Services and repositories against a real Postgres: booking flow, calendar sync, roles                                                                     |
+| Database rules | (in integration)        | The constraint and triggers themselves, written to directly                                                                                               |
+| Concurrency    | (in integration)        | 20 guests for the last room, 20 guests for the last 5 seats, the shared rate limit                                                                        |
+| Isolation      | (in integration)        | Business A against business B, over real HTTP routes and over MCP                                                                                         |
+| Smoke          | `pnpm smoke`            | Against a running app: guest, host, admin and outsider flows, iCal export over HTTP                                                                       |
+| Failure cases  | `pnpm edge-cases`       | Against a running app: bad input, wrong roles, foreign ids, bad tokens, for every user type                                                               |
 
 CI (`.github/workflows/ci.yml`) runs types, lint (including the layer rules), formatting, unused-code checks,
 unit tests, a check that the generated ERD and OpenAPI files are current, and the integration tests against

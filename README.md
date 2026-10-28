@@ -23,7 +23,7 @@ and sends push notifications for everything it would email.
 
 ## Run it on your computer
 
-You need Node 20 or newer and pnpm. You don't need to install Postgres: the project brings its own.
+You need Node 22.12 or newer and pnpm. You don't need to install Postgres: the project brings its own.
 If `pnpm` isn't found, install it once with `npm install -g pnpm` (or run `corepack enable pnpm` as administrator).
 
 ```bash
@@ -32,8 +32,14 @@ cp .env.example .env    # then fill in the values (see "Settings" below)
 pnpm db:start           # starts the project's own database; leave this terminal open
 pnpm db:deploy          # creates the tables
 pnpm db:seed            # adds demo places, experiences and accounts
-pnpm dev                # open http://localhost:3000
+pnpm dev                # the website and the job worker; open http://localhost:3000
 ```
+
+**The job worker runs with it.** `pnpm dev` starts the website and the worker together, as in production, with
+each line marked `[web]` or `[worker]`. AI answers, reports, emails and the scheduled jobs go through the queues
+in Postgres. Ctrl+C stops both, and if one stops the other does too. On a computer short of memory,
+`pnpm dev:web` starts the website alone; set `JOBS_MODE="inline"` in `.env` then, or nothing answers the queue.
+The whole production shape (website, worker, Postgres) also runs with `docker compose up --build`.
 
 **Demo accounts.** All use the password `demo-password-123` (or your `SEED_PASSWORD`, if you set one):
 
@@ -53,17 +59,19 @@ references start with `DEMO`.
 
 ## Settings (`.env`)
 
-| Setting                                 | What it's for                                                                                                                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`, `TEST_DATABASE_URL`     | The main database and a test one (tests wipe the test one)                                                                                                                        |
-| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Sign-in. The URL is also used in emails and AI connection links                                                                                                                   |
-| `CRON_SECRET`                           | Protects the scheduled jobs (calendar sync, expiring holds)                                                                                                                       |
-| `DEEPSEEK_API_KEY`                      | Turns on the AI concierge and assistant. Optional                                                                                                                                 |
-| `RESEND_API_KEY`, `EMAIL_FROM`          | Sends emails. Without a key they are only logged. Email verification turns on once `EMAIL_FROM` is on your own verified domain (Resend's test sender only reaches your own inbox) |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Turns on push notifications. Make a pair with `pnpm push:keys`. Optional                                                                                                          |
-| `AI_MONTHLY_BUDGET_USD`                 | Monthly AI spending cap ($50 by default). Admins are warned at 80%                                                                                                                |
-| `STRIPE_*`                              | Card payments (host plans and guests paying online), in Stripe test mode. See "Testing card payments" below                                                                       |
-| `WHISH_MODE`, `WHISH_*`                 | Whish payments. `simulator` (the default) runs a stand-in Whish page inside the app: phone `96170123456`, code `111111`. Set `sandbox` once Whish issues keys                     |
+| Setting                                 | What it's for                                                                                                                                                                                                |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`, `TEST_DATABASE_URL`     | The main database and a test one (tests wipe the test one)                                                                                                                                                   |
+| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Sign-in. The URL is also used in emails and AI connection links                                                                                                                                              |
+| `JOBS_SYNC_LIMIT_SECONDS`               | In `queue` mode, AI work expected to take longer than this goes to the worker (default 5; `0` queues everything)                                                                                             |
+| `JOBS_MODE`                             | `queue` (in `.env.example`, `pnpm dev` and production: slow AI work, notices and schedules go to the worker) or `inline` (no worker: everything in the web process; for `pnpm dev:web`, and always in tests) |
+| `CRON_SECRET`                           | Protects the scheduled jobs (calendar sync, expiring holds)                                                                                                                                                  |
+| `DEEPSEEK_API_KEY`                      | Turns on the AI concierge and assistant. Optional                                                                                                                                                            |
+| `RESEND_API_KEY`, `EMAIL_FROM`          | Sends emails. Without a key they are only logged. Email verification turns on once `EMAIL_FROM` is on your own verified domain (Resend's test sender only reaches your own inbox)                            |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Turns on push notifications. Make a pair with `pnpm push:keys`. Optional                                                                                                                                     |
+| `AI_MONTHLY_BUDGET_USD`                 | Monthly AI spending cap ($50 by default). Admins are warned at 80%                                                                                                                                           |
+| `STRIPE_*`                              | Card payments (host plans and guests paying online), in Stripe test mode. See "Testing card payments" below                                                                                                  |
+| `WHISH_MODE`, `WHISH_*`                 | Whish payments. `simulator` (the default) runs a stand-in Whish page inside the app: phone `96170123456`, code `111111`. Set `sandbox` once Whish issues keys                                                |
 
 ### Testing card payments
 
@@ -86,15 +94,21 @@ the new version. Pull requests never deploy. Hosting: Vercel (app, Frankfurt reg
 
 GitHub repository secrets:
 
-| Secret                               | What it's for                                                |
-| ------------------------------------ | ------------------------------------------------------------ |
-| `VERCEL_TOKEN`                       | Lets CI deploy. Without it the deploy job skips itself       |
-| `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | Which Vercel project to deploy (from `.vercel/project.json`) |
-| `APP_URL`, `CRON_SECRET`             | Let the scheduled jobs call the live site every 15 minutes   |
+| Secret                               | What it's for                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| `VERCEL_TOKEN`                       | Lets CI deploy. Without it the deploy job skips itself                                  |
+| `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | Which Vercel project to deploy (from `.vercel/project.json`)                            |
+| `APP_URL`, `CRON_SECRET`             | Let the scheduled jobs call the live site every 15 minutes (until the worker runs them) |
 
 The app's own settings (database, secrets, keys) live in the Vercel project's production environment, never in
 the repository. Seed the live database once with a private `SEED_PASSWORD`, so the demo accounts don't use the
 public default.
+
+**Queues and the worker.** On Vercel there is no long-running process, so `JOBS_MODE` stays `inline` and the app
+works as before. On DigitalOcean (the planned host), the `Dockerfile` builds one image that runs twice: the website
+(`pnpm start`) and the worker (`pnpm worker`), both with `JOBS_MODE=queue`; `docker-compose.yml` shows the pair.
+The worker runs the calendar sync and housekeeping on its own schedule. See
+[Queues and workers](docs/architecture.md#queues-and-workers).
 
 ## Useful commands
 
@@ -140,14 +154,17 @@ last seats, and business isolation over HTTP and MCP. Smoke and failure-case run
 [requirements matrix](docs/requirements-matrix.md) maps each requirement to its code and its test.
 
 **CI** runs types, lint, formatting, unused code, unit tests, a check that the generated docs are current, and the
-integration tests on every pull request. `.github/workflows/scheduled-jobs.yml` calls the calendar sync and hold
-expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets are set.
+integration tests on every pull request. `.github/workflows/scheduled-jobs.yml` calls the calendar sync and hold expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets are set. Once the worker runs on DigitalOcean it runs them itself, and the workflow's schedule is removed.
 
 ## Key decisions
 
 - **The AI asks before it acts.** The owner's assistant and the MCP apps can confirm, decline or cancel bookings
   and close dates, but a change only runs after the person confirms it, through the same checks as the dashboard
   buttons.
+- **Slow work goes to a queue, sized by its input.** An AI answer is estimated from the length of what was asked.
+  A short one on a quiet server is answered in the request; a long one, a report, or anything during a burst is
+  queued in Postgres (pg-boss, no Redis) for the worker, and the browser follows the job. A 30-second answer never
+  holds up the website, and emails are retried instead of lost.
 - **One table for every taken night.** Direct bookings, manual blocks and platform imports all go into
   `Occupancy`, where a database rule stops two stays from sharing a room night, even if the code has a bug.
 - **Requests hold the room right away.** Two guests never both wait for the same night. Unanswered requests
@@ -172,6 +189,8 @@ expiry every 15 minutes once the `APP_URL` and `CRON_SECRET` repository secrets 
 - [Non-functional requirements](docs/non-functional-requirements.md): how well it must work, and how we make sure
 - [Data model](docs/data-model.md): the database in plain words, with a diagram
 - [Full database diagram](docs/erd.md): every table and column, generated from the code
+- Easier to read, in two parts: [the booking platform](docs/erd-platform.md) and [AI and MCP](docs/erd-ai-mcp.md),
+  showing keys, statuses and kinds, with every column one click away
 - [API contract](docs/openapi.json): OpenAPI 3.1, generated from the same checks the API uses
 
 ## Known limits
