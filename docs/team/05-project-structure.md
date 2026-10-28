@@ -71,7 +71,7 @@ Names:
 | `tests/unit/`                     | Fast tests with no database                                                                                |
 | `tests/integration/`              | Tests with a real database: services, database rules, races, business isolation                            |
 
-## All files (564)
+## All files (569)
 
 ```
 .env.example
@@ -98,6 +98,9 @@ docs/
     03-claude-prompt-guide.md
     04-test-plan.md
     05-project-structure.md
+    06-functional-requirements.md
+    07-data-model.md
+    08-design-system-and-pages.md
     README.md
 eslint.config.mjs
 knip.json
@@ -750,6 +753,7 @@ src/
       deepseek.ts
       guest-tools.ts
       mcp-server.ts
+      output.ts
       run-tool.ts
       team-tools.ts
       tool.ts
@@ -879,6 +883,7 @@ tests/
     tenant-isolation.test.ts
     whole-place.test.ts
   unit/
+    ai-output.test.ts
     ai-usage.test.ts
     assistant.test.ts
     background.test.ts

@@ -17,50 +17,34 @@ New words are explained in `README.md` (the glossary at the bottom).
 
 ### Team meeting: Tuesday 27 October
 
-We meet to talk about the project together. If we do not finish, we continue on Wednesday 28.
+We talked about the project together and changed the functional requirements (see
+`06-functional-requirements.md`).
 
-### Reading: Wednesday 28 October, during the day
+### Coding starts: Wednesday 28 October
 
-Omar and Fatima read all the files in this folder. Take notes. Write down your questions. Reading comes first:
-coding before understanding the structure costs more time than it saves.
-
-### Early coding: Wednesday 28 (evening) and Thursday 29 October
-
-We start coding early, but **only work that is the same whatever Sami decides** (we call it "scope-proof"). Every
-version of this project needs it. This gives Checkpoint 1 a safety margin.
-
-| Who     | Scope-proof work                                                                                                        | Why it is safe                                                        |
-| ------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Wouroud | GitHub and hosting setup (W1), the core tables and permissions (W2, part 1), tenancy (W3), then the booking engine (W4) | The brief requires many businesses, roles and the double-booking rule |
-| Omar    | Sign in, sign up and sign out (O1, part 1)                                                                              | Every version needs sign-in and two roles                             |
-| Fatima  | The design basics (F1, part 1)                                                                                          | The look is fixed: the same themes as the reference project           |
-
-Not before the call: tables for features that might be cut, the demo data, the AI, payments, analytics, or any
-change to the main flow.
+Everyone starts today. In the morning, read parts 1 to 4 of the reading order (section 3). Then start your first
+task. Finish the reading on Thursday.
 
 ### Call with Sami: Friday 30 October
 
-We agree with Sami on what we will build. This is called "locking the scope".
+We confirm with Sami what we build. This is called "locking the scope".
 
 - We send the filled scope form to our Discord channel at least 3 hours before the call.
 - After the call, adding a new feature needs Sami's approval.
-- We do not build anything that depends on the scope before this call, because the call can change it.
-- On Friday afternoon, we update this plan to match what we agreed.
-
-### Full coding: Saturday 31 October
-
-Everything else starts, following the scope we agreed with Sami.
+- If Sami asks for a change, we update this plan on Friday afternoon.
 
 ### Checkpoint 1: Tuesday 3 November
 
-The main flow works from start to end on the public website. It can still look plain.
+The main flow works from start to end on the public website, in English and Arabic. It can still look plain.
 
-The main flow is: a guest asks for dates, the room is held for them, the owner confirms, and the guest sees the
-confirmation page. If a second guest asks for the same night, they are refused.
+The main flow: a guest picks dates, pays the full amount online (or sends a request, in offline mode), the room is
+held, the owner confirms, and the guest sees the confirmation page. If a second guest asks for the same night, they
+are refused.
 
 ### Checkpoint 2: Tuesday 10 November
 
-All features are finished. This includes calendar sync, the deposit, the AI, realistic data and the tests.
+Every "must have" feature is finished, and as many bonus features as possible (see
+`06-functional-requirements.md`, Part A and Part B).
 
 ### Submission: Friday 13 November
 
@@ -118,13 +102,15 @@ Each of these has one owner. Other people use them by calling their functions.
 
 Each one is built from start to end, with its own screens:
 
-- GitHub, the checks on every pull request, and hosting
+- GitHub, the checks on every pull request, and hosting on DigitalOcean with Docker
 - The database schema and migrations
 - Tenancy and permissions
-- The booking engine
+- The booking engine with the three modes
+- Online payments and full automatic refunds (Whish and Stripe, confirmed by webhook)
 - Calendar sync with Airbnb and Booking.com (with the channels screen)
-- Online deposits and payouts (with the pay buttons and the payout screens)
+- Payouts to owners (with the payout screens)
 - The whole AI feature: the owner's assistant, the guest's assistant, and connecting Claude, Cursor or Codex
+- Host plans and billing (bonus)
 
 ### Omar: the owner's daily work
 
@@ -135,19 +121,24 @@ Each one is built from start to end:
 - The owner's bookings screens, with Confirm, Decline and Cancel
 - The calendar board and closed dates
 - Team and roles
+- The admin area (bonus)
+- Experiences and services (bonus)
 
 ### Fatima: the guest's journey and the numbers
 
 Each one is built from start to end:
 
-- The design system and the app frame (the same look and themes as the reference project)
-- English and Arabic
-- Everything the guest sees: the place page, the booking box, the request form and the confirmation page
+- The design system and the app frame (the same look and themes as the reference project), with Back buttons
+- English and Arabic, from the first day
+- Everything the guest sees: search, the place page, the booking box, payment and the confirmation page
+- Contact host and the host profile
+- The settings screen, including choosing the booking mode
 - What the guest receives: emails, and cancelling a booking
-- Analytics and the money saved on commission (the number we show on stage)
-- The settings screen
+- Analytics and the commission saved (the number we show on stage)
+- The notification bell
 - Realistic Lebanese demo data
 - The browser tests that prove the main flow always works
+- Reviews and favourites, push notifications and installing the app (bonus)
 
 ### What everyone does
 
@@ -171,46 +162,50 @@ It is not about personal taste.
 
 ## 3. Before we code: the meeting and the reading
 
-### The meeting (Tuesday 27, and Wednesday 28 morning if needed)
+### The meeting (Tuesday 27 October)
 
 Talk about these topics in this order. The goal: each of us can explain each topic in our own words. Write every
 decision and every open question in our Discord channel.
 
 1. **The scope draft** (`docs/internal/scope-lock.md`). Who is the user? What is the problem? What is the main flow?
    What must work on stage? What do we cut? What number do we show? Fill the `[FILL]` parts together.
-2. **What the app does** (`docs/functional-requirements.md`). Mark what is in our scope and what is cut.
+2. **What the app does** (`06-functional-requirements.md`). The three booking modes, what is a must have and what
+   is a bonus.
 3. **How well the app must work** (`docs/non-functional-requirements.md`). For example: no double bookings, one
    business never sees another's data, safe, fast on phones. Agree how we prove each one (a test, a database rule,
    or a review rule).
-4. **The database** (`docs/data-model.md`, `docs/erd.md`). Which tables do we keep? Which do we drop because the
-   feature is cut?
+4. **The database** (`docs/erd.md`, and the changes in `07-data-model.md`). We keep every table, also for the bonus
+   features.
 5. **The API** (`docs/openapi.json`, and Part 4 of `02-architecture-and-features.md`). Which routes does the main
    flow need? Who owns each one?
 6. **The architecture** (`docs/architecture.md`, `02-architecture-and-features.md`). The four layers, the booking
    race, calendar sync, and the AI.
 7. **How we work** (sections 4 to 6 of this file).
 
-### Reading order (Wednesday 28, during the day)
+### Reading order (Wednesday 28 and Thursday 29)
 
-Read fully, in this order, and take notes. Read parts 1 to 4 on Wednesday before you start coding in the evening.
+Read fully, in this order, and take notes. Read parts 1 to 4 on Wednesday morning, then start your first task.
 Finish the rest on Thursday.
 
-1. `docs/team/README.md` (5 minutes): what each file is for, and the glossary.
+1. `docs/team/README.md` (5 minutes): what each file is for, and the glossary. Then
+   `docs/team/06-functional-requirements.md` (30 minutes): what we build, and the three booking modes.
 2. `docs/team/01-team-plan.md` (45 minutes): your tasks, the dates, and how we use GitHub.
 3. `docs/team/02-architecture-and-features.md` (3 to 4 hours): the most important file. Read Parts 1 to 6 slowly.
    Then read the features you own in Part 7. Then read Part 13 (the checklist).
 4. `docs/team/05-project-structure.md` (30 minutes): where each file goes.
-5. `docs/team/04-test-plan.md` (1 hour): Part 2 (how to write tests) and the tests for your features.
-6. `docs/team/03-claude-prompt-guide.md` (1 hour): the rules for Claude and the prompt template. Try writing a
+5. `docs/team/08-design-system-and-pages.md` (1 hour): the design system, and the pages you own in Part 8.
+6. `docs/team/04-test-plan.md` (1 hour): Part 2 (how to write tests) and the tests for your features.
+7. `docs/team/03-claude-prompt-guide.md` (1 hour): the rules for Claude and the prompt template. Try writing a
    prompt for your first task.
-7. `docs/architecture.md`, `docs/data-model.md`, `docs/requirements-matrix.md` (1 to 2 hours).
+8. `docs/team/07-data-model.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/requirements-matrix.md` (1 to
+   2 hours).
 
 ### Questions to answer before the call with Sami
 
 - What is in our scope, and what is cut?
 - For each of your tasks: which files will you create? Which functions will you call? What does "done" mean?
 - What do you need from someone else, and on which day is it ready? (See section 4.)
-- What is not clear in the files? Ask now, not on Saturday.
+- What is not clear in the files? Ask now, in our Discord channel.
 
 ---
 
@@ -221,22 +216,22 @@ line merged into `main` is real, final code. We do not write "for now" versions 
 
 Four rules make this work.
 
-### Rule 1: the setup is ready before we start
+### Rule 1: the setup is ready first
 
-Wouroud sets up the repository and the checks on Wednesday (task W1), and the hosting by Thursday. So on Wednesday
-evening, everyone gets a working project, and by Thursday a live website.
+Wouroud sets up the repository and the checks today (task W1), and the hosting right after. So everyone starts from
+a working project, and a live website follows soon.
 
 ### Rule 2: the shared building blocks are built first, for real
 
 Some parts are used by many features. They are built first, and they are final from the first day:
 
-| Building block                                                                                                  | Ready               | Who          |
-| --------------------------------------------------------------------------------------------------------------- | ------------------- | ------------ |
-| The design basics (colours, `Button`, `Field`, `FormError`, `PageHeader`, `Panel`)                              | Thursday 29 October | Fatima (F1)  |
-| The core tables, and the list of permissions and roles                                                          | Thursday 29 October | Wouroud (W2) |
-| Tenancy: `TenantContext`, `tenantRoute` and the test helpers                                                    | Friday 30 October   | Wouroud (W3) |
-| The rest of the tables (after the call) and the demo data                                                       | Saturday 31 October | Wouroud (W2) |
-| The booking engine (`requestBooking`, `confirmBooking`, `declineBooking`, `cancelBooking`, `cancelStayAsGuest`) | Sunday 1 November   | Wouroud (W4) |
+| Building block                                                                                                                       | Ready               | Who          |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | ------------ |
+| The design basics (colours, `Button`, `Field`, `FormError`, `PageHeader`, `Panel`)                                                   | Thursday 29 October | Fatima (F1)  |
+| The whole database schema (every table, including the bonus features), the permissions list and the demo data                        | Thursday 29 October | Wouroud (W2) |
+| Tenancy: `TenantContext`, `tenantRoute` and the test helpers                                                                         | Friday 30 October   | Wouroud (W3) |
+| The booking engine (`requestBooking`, `confirmBooking`, `declineBooking`, `cancelBooking`, `cancelStayAsGuest`) with the three modes | Saturday 31 October | Wouroud (W4) |
+| Online payments and refunds (`startBookingCheckout`, the webhooks, `refundForEndedBooking`)                                          | Monday 2 November   | Wouroud (W5) |
 
 ### Rule 3: start with the parts that do not need anything else
 
@@ -252,9 +247,9 @@ Each task below has two lines:
 - **Uses:** which building blocks the task calls, and the day each one is ready.
 - **Order:** which parts to build first, and which part to connect when a building block is merged.
 
-For example, Fatima's "Send request" button and Omar's Confirm and Decline buttons call the booking engine. The
-engine is merged on Sunday 1 November, so they connect those buttons on Monday 2 November. That leaves Tuesday 3
-November (Checkpoint 1) as a safety day. Everything else in their tasks is built before that.
+For example, Fatima's "Book" button and Omar's Confirm and Decline buttons call the booking engine. The engine is
+merged on Saturday 31 October, so they connect those buttons on Sunday 1 November. The pay buttons connect to the
+online payments on Monday 2 November. That leaves Tuesday 3 November (Checkpoint 1) as a safety day.
 
 ### Contracts are written down, not coded
 
@@ -274,11 +269,12 @@ before they are merged. We never write fake or temporary versions of them.
 ## 5. The tasks, person by person
 
 "Due" means merged into `main`. Do the tasks in this order. Each task is one whole feature (or one shared building
-block), built by one person from the database to the screen.
+block), built by one person from the database to the screen. The rules for booking and payment are in
+`06-functional-requirements.md`, and the database changes are in `07-data-model.md`.
 
 ### Wouroud
 
-#### W1. GitHub and hosting setup (repository Wednesday 28 October, hosting Thursday 29 October)
+#### W1. GitHub and hosting (due Wednesday 28 October)
 
 Create the repository with the same setup as the reference project:
 
@@ -288,174 +284,179 @@ Create the repository with the same setup as the reference project:
 - The base files: `src/server/env.ts`, `src/server/errors.ts`, `src/server/db/client.ts`, `src/server/http/route.ts`.
 - `scripts/local-db.ts` (a local database), `.env.example`, and `CLAUDE.md`.
 - The CI file (the checks that run on every pull request) and protection on the `main` branch.
-- The hosting: Vercel (the website) and Neon (the database), the GitHub secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-  `VERCEL_PROJECT_ID`, `APP_URL`, `CRON_SECRET`), and the build that runs the database migrations.
+- The hosting on DigitalOcean with Docker: a `Dockerfile`, the database, the deploy step in GitHub Actions (only after
+  every check passes), and the build that runs the database migrations.
 
 - **Uses:** nothing.
 - **Done when:** a fresh copy runs with `pnpm install`, `pnpm db:start` and `pnpm dev`; the checks pass on GitHub;
   and a merge to `main` shows up on the public website.
 
-#### W2. The database, demo data, and permissions (core Thursday 29 October, the rest Saturday 31 October)
+#### W2. The database, permissions and demo data (due Thursday 29 October)
 
-- **Part 1, before the call (scope-proof):** the core tables every version needs: the sign-in tables, `Business`,
-  `Role`, `Membership`, `Room`, `RateOverride`, `Booking`, `Occupancy`, `ActivityLog`, `RateLimitWindow`. The
-  migration with the database rule that refuses overlapping nights (`occupancy_no_overlap`). And
-  `src/server/auth/permissions.ts`: the list of permissions and the default roles. Omar needs it to create a place.
-- **Part 2, after the call:** the tables for the features we keep (for example `CalendarFeed`, `Payment`, `Refund`,
-  `Payout`, `ApiKey`, `McpAuditLog`, `AiUsage`, `AiChat`, `AiChatMessage`), and the demo data: one guesthouse, an
-  owner, a staff member, three rooms, bookings in every status, one Airbnb stay and one closed date. Fatima makes it
-  realistic later (F6).
+- The whole `prisma/schema.prisma`, following `docs/erd.md` with the changes in `07-data-model.md`. Every table is
+  included from the start, also for the bonus features (experiences, plans, AI, push).
+- The migration with the database rule that refuses overlapping nights (`occupancy_no_overlap`).
+- `src/server/auth/permissions.ts`: the list of permissions and the default roles. Omar needs it to create a place.
+- The demo data: one guesthouse in each booking mode, an owner, a staff member, rooms, bookings in every status, one
+  Airbnb stay and one closed date. Fatima makes it realistic later (F7).
 
 - **Uses:** W1.
 - **Done when:** `pnpm db:migrate` and `pnpm db:seed` work on an empty database.
 
-#### W3. Tenancy (due Friday 30 October, before the call)
-
-This decides who can do what, and in which business.
+#### W3. Tenancy (due Friday 30 October)
 
 - `tenant-context.ts`: `TenantContext`, `can`, `requirePermission`, `requireOwner`.
 - `team-service.resolveContext` and `tenantRoute` (the wrapper for every business route).
 - `requirePageTenant` and `requirePageAccess` (the same check for pages).
 - The test helpers `tests/integration/helpers.ts` and `http.ts`, which everyone uses in their tests.
 
-- **Uses:** W2 part 1, and sign-in from Omar (O1, Thursday).
+- **Uses:** W2, and sign-in from Omar (O1, Thursday).
 - **Done when:** a business route answers 404 to a non-member and works for a member, and a first
   `tenant-isolation.test.ts` passes.
 
-#### W4. The booking engine (start Thursday 29 October, due Sunday 1 November)
+#### W4. The booking engine with the three modes (due Saturday 31 October)
 
-The safe way to save and change bookings, used by Fatima's and Omar's features:
-
-- `booking-policy.ts`, `booking-status.ts`, `pricing.ts`, `booking-repository.ts`, `constraint-errors.ts`.
-- In `booking-service.ts`:
-  - `requestBooking`: lock the room, expire old holds, refuse nights taken on Airbnb or Booking.com, save the booking
-    and its night range together, and turn the database's refusal into a clear 409 error.
-  - `confirmBooking`, `declineBooking`, `cancelBooking`, `cancelStayAsGuest`, `getBookingForGuest`, with the status
-    rules.
+- `booking-policy.ts`: where a booking starts in each mode (automatic and online with approval start as
+  `AWAITING_PAYMENT`; offline starts as `HELD`), the 10-minute payment window, and the owner's answer time.
+- `booking-status.ts`: the allowed status changes in `07-data-model.md` (section 2.4).
+- `pricing.ts`, `booking-repository.ts`, `constraint-errors.ts`.
+- `booking-service.ts`: `requestBooking` (lock the room, expire old holds, refuse nights taken on Airbnb or
+  Booking.com, save the booking and its nights together, turn the database's refusal into a 409), `confirmBooking`,
+  `declineBooking`, `cancelBooking`, `cancelStayAsGuest`, `getBookingForGuest`, and the expiry job.
 
 - **Uses:** W2, W3.
-- **Done when:** `booking-flow.test.ts`, `booking-race.test.ts` and `occupancy-constraint.test.ts` pass. Then Fatima
-  and Omar connect their buttons on Monday 2 November, one day before Checkpoint 1.
+- **Done when:** `booking-flow.test.ts`, `booking-race.test.ts` and `occupancy-constraint.test.ts` pass, for all
+  three modes.
 
-#### W5. Live data and scheduled jobs (due Monday 2 November)
+#### W5. Online payments and full automatic refunds (due Monday 2 November, Checkpoint 1)
+
+- The Whish client with its built-in simulator (a permanent mode that follows Whish's real API; switching to real
+  Whish needs only the keys) and the Stripe client in test mode.
+- `money-repository.ts` and `online-payment-service.ts`: `startBookingCheckout`, `settleOnlinePayment` (asks Whish or
+  Stripe what happened; mode 1 confirms the booking, mode 2 moves it to "waiting for the owner"),
+  `refundForEndedBooking` (always the full amount), and the job that cancels unpaid bookings after 10 minutes.
+- The routes: checkout, the Whish callback and the Stripe webhook (each event applied only once).
+- The **"Pay" buttons** on the guest's booking page (`pay-online.tsx`). Fatima owns that page; this pull request adds
+  the buttons to it.
+
+- **Uses:** W4.
+- **Done when:** `money.test.ts` passes: a payment confirms a booking once even with 10 callbacks at once; an unpaid
+  booking is cancelled after 10 minutes and its nights are free; every cancellation of a paid booking is refunded in
+  full.
+
+#### W6. Live data and scheduled jobs (due Monday 2 November)
 
 - Add the demo data to the live database, with a private `SEED_PASSWORD`.
-- Add `.github/workflows/scheduled-jobs.yml`. It calls the calendar sync and the hold expiry every 15 minutes.
+- Add the scheduled jobs: calendar sync, and the expiry of unpaid and unanswered bookings (every few minutes, because
+  of the 10-minute payment window).
 - Try the main flow on two phones on the public website before Checkpoint 1.
 
 - **Uses:** W1, W2.
-- **Done when:** the public website shows the demo guesthouse, and the scheduled jobs run.
+- **Done when:** the public website shows the demo guesthouses, and the scheduled jobs run.
 
-#### W6. Calendar sync with Airbnb and Booking.com, from start to end (due Thursday 5 November)
+#### W7. Calendar sync with Airbnb and Booking.com (due Thursday 5 November)
 
 - `ical/safe-fetch.ts`, `parse-feed.ts`, `build-feed.ts`.
 - The sync part of `calendar-repository.ts` and `calendar-service.ts`: `addFeed`, `removeFeed`, `syncFeed`,
   `syncFeedNow`, `getChannelSetup`, `refreshRoomFeeds`, `syncDueFeeds`, `buildRoomExport`.
 - The routes: the feeds routes, `/api/ical/[token]` and `/api/cron/sync-feeds`.
-- The **channels screen**: each room's export link with a copy button, a form to connect an Airbnb or Booking.com
-  link, the last sync time and error, and a "Sync now" button.
-- `confirmBooking` reads the room's calendars again before confirming.
+- The **channels screen**: each room's export link with a copy button, a form to connect an Airbnb, Booking.com or
+  other link, the last sync time and error, and a "Sync now" button.
+- Imported nights only block the calendar. They are not bookings.
 
-- **Uses:** W2 and W4 (both Wouroud's). Airbnb nights then show on Omar's calendar board by themselves.
+- **Uses:** W2 and W4. Airbnb nights then show on Omar's calendar board by themselves.
 - **Done when:** `ical.test.ts` and the sync part of `calendar.test.ts` pass, and an owner connects a calendar link
   from a phone.
 
-#### W7. Online deposits and payouts, from start to end (due Saturday 7 November)
+#### W8. Payouts to owners (due Saturday 7 November)
 
-- The Whish client with its built-in simulator, and the Stripe client in test mode.
-  - We do not have a Whish merchant account yet, so Whish runs on the simulator (`WHISH_MODE=simulator`). The
-    simulator is **not** temporary code: it is a permanent mode that follows Whish's real API (version 1.4.4).
-    When we get a Whish account, we set `WHISH_MODE=sandbox` and add the keys. No code changes.
-  - Cards are not simulated: they use Stripe's real test mode.
-- `money-repository.ts`, `online-payment-service.ts`, `payout-service.ts`.
-- The routes: checkout, the Whish callback and the Stripe webhook.
-- The screens:
-  - the **"Pay deposit" buttons** on the guest's confirmation page (`pay-online.tsx`). Fatima owns that page; this
-    pull request adds the buttons to it.
-  - the owner's **payouts page**: what money is held, and a form to ask for a payout to Whish or a bank account.
-  - the admin page that marks a payout as sent.
+- `payout-service.ts`: what is held for each owner (online payments − refunds − payouts), and payout requests to a
+  Whish number or a bank account (IBAN).
+- The owner's **payouts page**, and the admin page that marks a payout as sent with its transfer reference.
 
-- **Uses:** W4.
-- **Done when:** `money.test.ts` passes, a guest pays a deposit on a phone through the Whish simulator, and an owner
-  asks for a payout.
+- **Uses:** W5.
+- **Done when:** an owner asks for a payout and an admin marks it sent; two requests at once cannot spend the same
+  money.
 
-#### W8. The whole AI feature, from start to end (due Monday 9 November)
+#### W9. The whole AI feature (due Monday 9 November, bonus)
 
 - **The engine:** `src/server/ai/tool.ts`, `run-tool.ts`, `deepseek.ts`, `assistant.ts` (with the fallback when
   the model fails), `team-tools.ts`, `guest-tools.ts`, and `ai-usage-service.ts` (the monthly budget).
-- **The owner's assistant:** `assistant-service.ts` (`askTeamAssistant`, `runConfirmedAction`), `chat-service.ts`
-  (saved chats), the assistant routes, and the screens: `chat-panel.tsx`, `team-assistant.tsx`, `action-card.tsx`
-  (the card with Confirm and "Don't do it") and the assistant page.
-- **The guest's assistant:** `askConcierge` with place cards, `/api/assistant`, `/api/me/chats`, and the page with
-  `concierge.tsx`.
+- **The owner's assistant:** `assistant-service.ts`, `chat-service.ts`, the assistant routes, and the screens:
+  `chat-panel.tsx`, `team-assistant.tsx`, `action-card.tsx` and the assistant page.
+- **The guest's assistant:** `askConcierge` with place cards, `/api/assistant`, `/api/me/chats`, and `concierge.tsx`.
 - **Connecting Claude, Cursor or Codex:** `mcp-server.ts`, `/api/mcp` and `/api/mcp/guest`, `mcp-token.ts`,
   `api-key-service.ts` and its routes, and the keys screen (`key-manager.tsx`).
 
-- **Uses:** other people's services, which are all merged by then (analytics on Friday 6 November).
+- **Uses:** other people's services, which are all merged by then.
 - **Done when:** `assistant.test.ts`, `mcp-server.test.ts`, `ai-usage.test.ts`, `mcp-isolation.test.ts`,
-  `assistant-actions.test.ts` and `chats.test.ts` pass. An owner confirms an AI action on a phone. A guest gets
-  place cards. An owner connects Claude Code with a key and asks a question.
+  `assistant-actions.test.ts` and `chats.test.ts` pass.
 
-#### W9. Prove business isolation and roles (due Tuesday 10 November)
+#### W10. Host plans and billing (due Tuesday 10 November, bonus)
 
-- Finish `tenant-isolation.test.ts` for every area.
+Plans (Free, Pro, Business) with their limits; paying by Stripe subscription, by Whish, or by hand with a receipt
+that an admin approves; the pricing page. Code: `billing-service.ts`, `plan-request-service.ts`.
 
-#### W10. Release work (Wednesday 11 to Friday 13 November)
+- **Done when:** `billing.test.ts` and `plan-requests.test.ts` pass.
+
+#### W11. Prove business isolation and roles (due Tuesday 10 November)
+
+Finish `tenant-isolation.test.ts` for every area.
+
+#### W12. Release work (Wednesday 11 to Friday 13 November)
 
 Fix bugs, update the documents (`pnpm docs`), finish the README, and record the backup video with Fatima.
 
 ### Omar
 
-#### O1. Sign in, accounts and creating a place, from start to end (sign-in Thursday 29 October, all by Saturday 31 October)
+#### O1. Sign in, accounts and creating a place (due Thursday 29 October)
 
 - Better Auth: `src/server/auth/better-auth.ts`, the `/api/auth/[...all]` route, and `src/lib/auth-client.ts` with
   `signOutAndLeave`.
-- The pages: sign in, sign up and forgot password in `src/app/(auth)/`, with `auth-form.tsx`, and the `SignOutButton`.
+- The pages: sign in, sign up (with email verification) and forgot password in `src/app/(auth)/`, with
+  `auth-form.tsx`, and the `SignOutButton`.
 - `/home`: sends owners to their dashboard and guests to the home page.
 - Creating a place: `onboarding-service.createWorkspace` (the business, the owner role and the default roles, all
-  together), `POST /api/workspaces`, and the "Create your place" screen (`create-workspace-form.tsx`).
+  together), `POST /api/workspaces`, and the "Create your place" screen.
 
-- **Uses:** W1 (ready Wednesday evening), the permissions and roles list from W2 part 1 (ready Thursday).
-- **Order:** sign in, sign up and sign out on Wednesday evening and Thursday (scope-proof). Creating a place on
-  Friday and Saturday, with the real roles.
+- **Uses:** W1, and the permissions list from W2 (Thursday).
+- **Order:** sign in, sign up and sign out first. Creating a place once the permissions list is merged.
 - **Done when:** a person signs up, creates a place, becomes its owner, signs out and signs in again, on a phone, in
   English and Arabic.
 
-#### O2. Rooms and prices, from start to end (due Wednesday 4 November)
+#### O2. Rooms and prices (due Saturday 31 October)
 
-- `room-repository.ts`, `room-service.ts` (`listRooms`, `getRoom`, `createRoom`, `updateRoom`, `findRoomByNameOrId`,
-  special prices), the input checks and the routes.
+- `room-repository.ts`, `room-service.ts`, the input checks and the routes.
 - The rooms pages with `room-editor.tsx` and `special-prices.tsx`.
 
 - **Uses:** the database (W2, Thursday) and tenancy (W3, Friday).
 - **Order:** the repository, the service and their tests first. The routes and pages after.
 - **Done when:** `rooms.test.ts` passes, and an owner adds and edits rooms from a phone.
 
-#### O3. The owner's bookings and decisions, from start to end (due Tuesday 3 November)
+#### O3. The owner's bookings and decisions (due Monday 2 November, Checkpoint 1)
 
-- `listBookings`, `getBooking`, `getBookingByReference`. Use `presentForStaff` to hide guest phone and email from
-  staff who are not allowed to see them.
+- `listBookings`, `getBooking`, `getBookingByReference`, with `presentForStaff` hiding guest contacts from staff who
+  may not see them.
 - The routes, including `POST .../bookings/[bookingId]/[action]`.
-- The bookings list (waiting requests first), the booking details page with the countdown, and
-  `booking-actions.tsx` (Confirm, Decline and Cancel, each with an "are you sure?" step).
+- The bookings list (waiting bookings first), each row shows the details and the countdown, and `booking-actions.tsx`
+  (Confirm and Decline in modes 2 and 3, Cancel in every mode, each with an "are you sure?" step).
 - The buttons call the booking engine: `confirmBooking`, `declineBooking`, `cancelBooking`.
 
-- **Uses:** the demo bookings (W2, Saturday), tenancy (W3, Friday), and the booking engine (W4, Sunday).
-- **Order:** the list, the details page and their routes first (they read the demo bookings). Connect Confirm,
-  Decline and Cancel on Monday, after the engine is merged.
-- **Done when:** `booking-actions.test.ts` passes, and an owner confirms and declines from a phone.
+- **Uses:** the demo bookings (W2), tenancy (W3), and the booking engine (W4, Saturday).
+- **Order:** the list and its rows first. Connect the buttons on Sunday, after the engine is merged.
+- **Done when:** `booking-actions.test.ts` passes, and an owner confirms, declines and cancels from a phone.
 
-#### O4. The calendar board and closed dates, from start to end (due Friday 6 November)
+#### O4. The calendar board and closed dates (due Wednesday 4 November)
 
-- In `calendar-service.ts` and `calendar-repository.ts`: `getCalendarBoard`, `addBlock`, `moveBlock`, `removeBlock`.
-- The calendar and blocks routes.
-- The board: `calendar-board.tsx`, `calendar-side-panel.tsx`, `close-dates-form.tsx`, `calendar-model.ts`. Build
-  the month view first. Add the week and rooms views if there is time.
+- `getCalendarBoard`, `addBlock`, `removeBlock` in `calendar-service.ts` and `calendar-repository.ts`, and their
+  routes.
+- The board: `calendar-board.tsx`, `calendar-side-panel.tsx`, `close-dates-form.tsx`, `calendar-model.ts`. Month
+  view first, then week and rooms views. (No drag and drop.)
 
-- **Uses:** the `Occupancy` table. The demo data has an Airbnb stay, so imported nights show even before W6.
-- **Done when:** the blocks part of `calendar.test.ts` passes, and an owner closes and moves dates from a phone.
+- **Uses:** the `Occupancy` table. The demo data has an Airbnb stay, so imported nights show even before W7.
+- **Done when:** the blocks part of `calendar.test.ts` passes, and an owner closes and reopens dates from a phone.
 
-#### O5. Team and roles, from start to end (due Sunday 8 November)
+#### O5. Team and roles (due Friday 6 November)
 
 - Members and roles in `team-service.ts` and `team-repository.ts`, and their routes.
 - The team page with `member-controls.tsx` and `role-editor.tsx`, and the switcher between businesses.
@@ -463,7 +464,18 @@ Fix bugs, update the documents (`pnpm docs`), finish the README, and record the 
 - **Uses:** W3.
 - **Done when:** `roles.test.ts` passes.
 
-#### O6. Release work (Wednesday 11 to Friday 13 November)
+#### O6. The admin area (due Monday 9 November, bonus)
+
+Platform numbers, every host with their businesses, suspend or reactivate a business, open any business to help,
+categories, the site's colour palette, calendar sync health and AI spending. Code: `admin-service.ts`,
+`src/app/admin/**`. (Payouts and plan receipts in the admin area belong to W8 and W10.)
+
+#### O7. Experiences and services (due Tuesday 10 November, bonus)
+
+Experiences with sessions and seats, their page, and booking seats with the same three modes. Code:
+`offering-service.ts`, `session-booking-service.ts`. The tables exist from W2.
+
+#### O8. Release work (Wednesday 11 to Friday 13 November)
 
 Fix bugs in your features. No new features.
 
@@ -473,105 +485,96 @@ Fix bugs in your features. No new features.
 
 We do **not** design a new look. The new project looks and works exactly like the reference project: the same
 themes (five colour palettes, light and dark), the same colours, the same components and the same layouts. Nobody
-chooses new colours, fonts or styles. The job is to bring the existing design over exactly, and to make sure
-everyone uses it.
+chooses new colours, fonts or styles.
 
-- Wednesday evening and Thursday (everyone needs these, and they are scope-proof): `globals.css` with every
-  colour token, `Button` and `ButtonLink`, `Field`, `FormError`, `PageHeader` and `Panel`, `inputClass` and
-  `panelClass`.
+- By Thursday (everyone needs these): `globals.css` with every colour token, `Button` and `ButtonLink`, `Field`,
+  `FormError`, `PageHeader` and `Panel`, `inputClass` and `panelClass`.
 - By Saturday: `TextArea`, `LabeledControl`, `useConfirm`, `SheetDialog`, `Skeleton`, `LoadingStatus`,
-  `choiceChipClass`, the app frame (side menu, top bar, phone tab bar), English and Arabic with next-intl
-  (`messages/en.json` and `ar.json`), right-to-left for Arabic, and the light/dark switch.
+  `choiceChipClass`, the app frame (side menu, top bar, phone tab bar, Back buttons), English, Arabic and Lebanese
+  Arabic with next-intl, right-to-left for Arabic, and the light/dark switch.
 
-- **Uses:** W1 (ready Wednesday evening).
+- **Uses:** W1.
 - **Done when:** a sample page works in light, dark, English and Arabic on a 390-pixel-wide screen, uses colour
   tokens only, and looks the same as the reference project.
 
-#### F2. The guest's booking journey, from start to end (due Tuesday 3 November)
+#### F2. The guest's booking journey (due Monday 2 November, Checkpoint 1)
 
 - `directory-repository.ts` and `directory-service.ts` (`getPlace`, `quoteRoom`, `getTakenNights`,
   `checkAvailability`).
-- The public routes: the price quote, the taken nights, sending a request, and reading a booking by its secret link.
-- The place page, `booking-widget.tsx`, the request page with `guest-details-form.tsx`, and the confirmation page
-  `/b/[token]`.
-- The request route calls the booking engine's `requestBooking`.
+- The public routes: the price quote, the taken nights, booking, and reading a booking by its secret link.
+- A simple place page, `booking-widget.tsx`, the booking page with `guest-details-form.tsx`, and the booking page
+  `/b/[token]` that shows the status and what to pay. (The full place page comes in F4.)
+- The book route calls the booking engine's `requestBooking`.
 
-- **Uses:** the design basics (F1, Thursday), the demo data (W2, Saturday), and the booking engine (W4, Sunday).
-- **Order:** the place page, the booking box, the price quote and the taken nights first (they only read the
-  database). The confirmation page next (it reads the demo bookings). Connect "Send request" on Monday, after the
-  engine is merged.
+- **Uses:** the design basics (F1), the demo data (W2), the booking engine (W4, Saturday), and the pay buttons (W5,
+  Monday).
+- **Order:** the place page, the booking box, the price quote and the taken nights first. Connect "Book" on Sunday,
+  after the engine is merged.
 - **Done when:** a guest books from start to end on a phone, a taken night cannot be chosen, and wrong input shows a
   calm message next to the field.
 
-#### F3. Analytics and the money saved on commission, from start to end (due Friday 6 November)
+#### F3. Settings and choosing the booking mode (due Sunday 1 November)
 
-- `analytics-repository.ts`: nights sold by channel and by month, direct revenue, and the typical response time.
-  Use safe `$queryRaw` with `${value}` placeholders.
-- The real `analytics-service.ts`: `getBusinessReport`, `getAnalytics` (one place or all places), `getSavings`.
-- The analytics route and the analytics page, with period and place filters and charts (`analytics-charts.tsx`).
-- The dashboard overview (`stat-tile.tsx`, `bar-chart.tsx`, `channel-colors.ts`): arrivals and departures today,
-  waiting requests, direct bookings and the money saved.
-- Money saved = direct revenue × the business's commission rate (`commissionRateBps`). This is the number we show
-  on stage.
+- `settings-service.ts`, its route, and `settings-form.tsx`: contact, currency, commission rate, the owner's answer
+  time, and **the booking mode** (automatic, online with approval, or offline).
+- Choosing an online mode asks the owner to accept the payment policy ("online payments are always refunded in
+  full") and saves `onlineTermsAcceptedAt`.
 
-- **Uses:** the demo bookings.
-- **Done when:** `analytics.test.ts` passes, and the overview shows direct bookings and money saved on a phone.
+- **Uses:** W3.
+- **Done when:** changing the mode changes how the next booking works.
 
-#### F4. Settings and the list of places, from start to end (due Saturday 7 November)
+#### F4. Search, the full place page, contact host and host profile (due Wednesday 4 November)
 
-- The real `settings-service.ts`, its route, and `settings-form.tsx`: contact, currency, deposit percent, how long a
-  request is held, commission rate, request or instant booking, how guests pay, and the refund policy.
-- The home page that lists places, with `place-card.tsx`.
+- Search with its filters (`searchPlaces`), and the home page that lists places (`place-card.tsx`).
+- The full place page: photo tour, "Show all" popups, "Meet your host", reviews, map, sharing.
+- Contact host (`contact-service.ts`, its route and page) and the host profile (`host-service.ts`, its page).
 
-- **Uses:** W3 for `TenantContext`.
-- **Done when:** changing the deposit percent changes the deposit on the next booking.
+- **Done when:** a guest finds a place, reads its full page and contacts the host, on a phone, in English and
+  Arabic.
 
-#### F5. What the guest receives: emails and cancelling, from start to end (due Sunday 8 November)
+#### F5. Analytics and the commission saved (due Friday 6 November)
 
-- The guest's emails in `notification-service.ts` and `src/server/email/templates.ts`: request received, confirmed,
-  declined, expired and cancelled.
-  - They are in the guest's language (right-to-left in Arabic).
-  - Text written by guests is escaped (made safe).
-  - Each email has a plain-text version.
-  - Emails are sent with `inBackground`, so an email problem never breaks a booking.
-- The "Cancel my booking" button on the confirmation page, with an "are you sure?" step and a reason.
-- Its route `POST /api/public/bookings/[token]/cancel`, and the line that shows the refund.
-- The route calls the booking engine's `cancelStayAsGuest`.
+- `analytics-repository.ts` (safe `$queryRaw`): nights sold, direct revenue, response time.
+- `analytics-service.ts`: `getBusinessReport`, `getAnalytics` (one place or all places), `getSavings`.
+- The analytics page and the dashboard overview (`stat-tile.tsx`, `bar-chart.tsx`): occupancy, direct revenue,
+  response time, rating, and the **commission saved** (direct revenue × the owner's commission rate). Imported
+  Airbnb and Booking.com nights are not counted as bookings.
 
-- **Uses:** the booking engine (W4, merged Sunday 1 November).
-- **Order:** the emails and the cancel route can be built right away; the engine is merged long before.
-- Without an email key, emails are printed in the log, which is enough to check them.
-- **Done when:** `email.test.ts` and `guest-cancel.test.ts` pass, and a guest cancels from the confirmation page on a
-  phone.
+- **Done when:** `analytics.test.ts` passes, and the overview shows direct bookings and commission saved on a phone.
 
-#### F6. Realistic Lebanese demo data (due Monday 9 November)
+#### F6. Emails, guest cancelling, and the notification bell (due Saturday 7 November)
 
-Make the small demo data from W2 look real:
+- The guest's emails in `notification-service.ts` and `src/server/email/templates.ts`: booking received, paid,
+  confirmed, declined, expired and cancelled, in the guest's language, sent with `inBackground`.
+- The "Cancel my booking" button on the booking page and its route (`cancelStayAsGuest`, with a full refund when
+  paid online).
+- The notification bell (`notification-feed-service.ts`, `notification-bell.tsx`) and the full notifications page.
 
-- Lebanese guesthouse names and areas (Batroun, Deir el Qamar, Hamra, Jounieh, Ehden).
-- Rooms with prices in USD.
-- Guests with Lebanese names and `+961` phone numbers.
-- Some months of past and future bookings, one Airbnb stay, and one clash to show.
-- No "(demo)", no "test", no fake Latin text.
+- **Done when:** `email.test.ts` and `guest-cancel.test.ts` pass, and the bell shows new bookings and payments.
 
-- **Uses:** the database (W2) only.
-- **Done when:** `seed.test.ts` passes, and every screen in the main flow looks like a real business.
+#### F7. Realistic Lebanese demo data (due Sunday 8 November)
 
-#### F7. The demo works every time: browser tests and the phone check (due Tuesday 10 November)
+Lebanese guesthouse names and areas (Batroun, Deir el Qamar, Hamra, Jounieh, Ehden), rooms with USD prices, guests
+with Lebanese names and `+961` numbers, months of past and future bookings, one Airbnb stay. No "(demo)", no
+"test", no fake Latin text.
 
-- Set up Playwright: `@playwright/test`, `playwright.config.ts` with a 390-pixel phone screen, the `tests/e2e/`
-  folder, and `pnpm test:e2e`.
-- Write `core-flow.spec.ts` (a guest books, the owner confirms, the guest sees "confirmed") and
+- **Done when:** `seed.test.ts` passes, and every screen looks like a real business.
+
+#### F8. The demo works every time: browser tests and the phone check (due Tuesday 10 November)
+
+- Set up Playwright (`playwright.config.ts` with a 390-pixel phone screen, `tests/e2e/`, `pnpm test:e2e`).
+- Write `core-flow.spec.ts` (a guest books and pays, the owner confirms, the guest sees "confirmed") and
   `mobile-and-languages.spec.ts`.
-- Give every screen of your features a loading screen (`loading.tsx`), an empty state, and calm error messages.
-- Check every screen in the main flow at 390 pixels, in English and Arabic. If another person's screen has a
-  problem, tell its owner.
+- Loading screens, empty states and calm errors on every screen of your features.
 
-- **Uses:** the running app. The tests click through other people's screens without changing them.
-- **Done when:** `pnpm test:e2e` passes, none of your screens breaks on empty or wrong input, and nothing in the
-  main flow scrolls sideways on a phone.
+- **Done when:** `pnpm test:e2e` passes, and nothing in the main flow scrolls sideways on a phone.
 
-#### F8. Release work (Wednesday 11 to Friday 13 November)
+#### F9. Reviews, favourites, push notifications and installing the app (due Tuesday 10 November, bonus)
+
+Reviews after check-out and favourites (`review-service.ts`, `favorite-service.ts`); push notifications
+(`push-service.ts`) and installing the site as an app (manifest, icons, `public/sw.js`).
+
+#### F10. Release work (Wednesday 11 to Friday 13 November)
 
 Polish the demo screens, and record the backup video with Wouroud.
 
@@ -699,7 +702,7 @@ These files change often: `src/server/validation/schemas.ts`, `messages/*.json`,
 
 - No keys, passwords or tokens in code, commits, screenshots or Discord.
 - Your own secrets go in `.env` (git ignores it).
-- Live secrets go in Vercel and in GitHub secrets.
+- Live secrets go in the DigitalOcean server's settings and in GitHub secrets.
 - If a secret is pushed by mistake, tell Wouroud right away. It must be replaced, not just deleted.
 
 ---

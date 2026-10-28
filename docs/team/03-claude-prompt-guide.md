@@ -48,6 +48,11 @@ how to test it. They are the source of truth. If the code and a document disagre
 - `docs/team/03-claude-prompt-guide.md`: how tasks are written for you, and how to report.
 - `docs/team/04-test-plan.md`: which tests each feature needs, and how to write them.
 - `docs/team/05-project-structure.md`: all folders and files, and where new files go.
+- `docs/team/06-functional-requirements.md`: what the new project does (the three booking modes, must have and
+  bonus). It wins over `docs/functional-requirements.md` when they disagree.
+- `docs/team/07-data-model.md`: what changes in the database compared with `docs/erd.md`.
+- `docs/team/08-design-system-and-pages.md`: the colours, fonts, spacing, shared components, and every page with
+  its sections. Every screen follows it exactly.
 - `docs/architecture.md`, `docs/data-model.md`, `docs/functional-requirements.md`,
   `docs/non-functional-requirements.md`, `docs/requirements-matrix.md`: the requirements and the design.
 - `docs/erd.md` and `docs/openapi.json`: made from the code by `pnpm docs`. Read them for the exact tables and
@@ -107,6 +112,9 @@ Then read the existing file that is closest to what you are building. Copy its s
 
 ## Rules for screens
 
+- Before building or changing a screen, read its entry in `docs/team/08-design-system-and-pages.md` (Part 8) and
+  build its sections in that order, with the containers, text sizes and components that file names. Finish with
+  its checklist (Part 9).
 - The design is fixed. Use the same themes (five palettes, light and dark), tokens, components, layouts and
   interactions as the reference project. Never add new colours, fonts, spacing or component styles. Build new screens
   from the existing pieces, so they look like the screens around them.
@@ -300,11 +308,12 @@ F2 (part 2 of 3). The booking box on the place page
 
 ## Goal
 On a phone, a guest picks check-in and check-out (taken nights are greyed out), sets the number of guests, sees the
-price per night, the total and the deposit, and goes to the request form.
+price per night and the total, and goes to the booking form.
 
 ## Read first
 - docs/team/02-architecture-and-features.md, "P. Places and rooms (public)", "P. Pricing", "D. Design system",
   Part 8 (how to build screens)
+- docs/team/08-design-system-and-pages.md, Part 6 (components) and the `/p/[slug]` entry in Part 8
 - src/components/ui/button.tsx, src/components/ui/field.tsx, src/lib/api-client.ts, src/lib/format.ts
 
 ## What to build

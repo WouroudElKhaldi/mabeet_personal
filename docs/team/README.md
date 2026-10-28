@@ -12,6 +12,9 @@ Read them in this order before your first task:
 | [03-claude-prompt-guide.md](03-claude-prompt-guide.md)             | The rules for Claude, and how to ask Claude for work |
 | [04-test-plan.md](04-test-plan.md)                                 | Which tests to write, who writes them, and how       |
 | [05-project-structure.md](05-project-structure.md)                 | All folders and files, and where each new file goes  |
+| [06-functional-requirements.md](06-functional-requirements.md)     | What the new project does: must have and bonus       |
+| [07-data-model.md](07-data-model.md)                               | What changes in the database for the new project     |
+| [08-design-system-and-pages.md](08-design-system-and-pages.md)     | Colours, fonts, spacing, components, and every page  |
 
 These files describe a **reference project** called Mabeet. Its code already follows every rule written here. So
 when a file says "copy the style of `booking-service.ts`", that file is the example.

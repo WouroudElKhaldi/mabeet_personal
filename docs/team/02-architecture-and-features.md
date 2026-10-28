@@ -1,6 +1,8 @@
 # Architecture and features
 
-This file explains how the product works and how its code is built. It describes the reference project (Mabeet).
+This file explains how the product works and how its code is built. It describes the reference project (Mabeet),
+with the changes we decided for the new project: the three booking modes, full refunds and DigitalOcean hosting
+(`06-functional-requirements.md` and `07-data-model.md`). When this file and those two disagree, those two win.
 
 When you or Claude build a feature, build it the way this file says. If something is not here, ask Wouroud before
 you invent a new way.
@@ -18,8 +20,10 @@ New words are explained in `README.md` (the glossary).
 
 A website where Lebanese guesthouses take bookings directly.
 
-- Guests find a place, choose dates, and ask to book (or book at once).
-- Guests pay a deposit to the host, or online.
+- Guests find a place, choose dates and book.
+- Each business picks one of three modes: automatic (pay online, confirmed at once), online with approval (pay
+  online, the owner confirms), or offline (the guest and the owner arrange payment themselves, the owner confirms).
+- Online payments are always the full amount, and refunds are always full and automatic.
 - Hosts manage their rooms, one calendar, requests, payments and their team.
 - The calendar stays in sync with Airbnb and Booking.com.
 - Nobody pays a commission. The platform only earns money from host plans.
@@ -44,12 +48,14 @@ Our product gives the host one booking page, one calendar, and a database that r
 
 1. A guest opens a place's booking link and picks dates. Nights already taken on Airbnb or Booking.com are greyed
    out.
-2. The guest sends a request with their name and phone. The room is held for them right away.
+2. The guest enters their name and phone and pays the full amount with Whish or a card (mode 2, online with
+   approval). The room is held for them right away.
 3. A second guest asks for the same night. They are refused at once, because the database will not save two stays
    on one room night.
-4. The owner gets the request. The app reads the Airbnb and Booking.com calendars again. The owner confirms.
-5. The guest pays the deposit with Whish or a card. The money is held for the host. The night is now closed on
-   Airbnb and Booking.com too, through our calendar link.
+4. Whish or Stripe confirms the payment. The owner gets the request. The app reads the Airbnb and Booking.com
+   calendars again. The owner confirms.
+5. The guest's page shows "confirmed". The night is now closed on Airbnb and Booking.com too, through our calendar
+   link.
 6. The owner asks the AI assistant to change something, or for a number. The owner confirms any change on a card.
 
 ---
@@ -71,7 +77,8 @@ Our product gives the host one booking page, one calendar, and a database that r
 - **Tailwind CSS 4:** styling, using design tokens only.
 - **DeepSeek:** the AI model. Changing to another AI provider means changing one file.
 - **Vitest:** unit tests (no database) and integration tests (real database).
-- **Vercel and Neon:** hosting for the website (in Frankfurt) and for the database.
+- **DigitalOcean with Docker:** hosting for the website and the PostgreSQL database. Real emails are sent with
+  Resend from our own domain.
 - **GitHub Actions:** runs the checks on every pull request, and deploys every merge to `main` that passes.
 
 ### The checks CI runs
@@ -335,9 +342,8 @@ A booking has:
 - a secret `publicToken` (the guest's private link),
 - the guest's name, phone, email and note, and `guestCount`,
 - `checkIn` and `checkOut`,
-- `totalCents`, `depositCents`, `currency`,
-- `onlineDueCents` (empty when the guest pays the host directly),
-- `refundPolicy` (copied when the booking is made),
+- `totalCents` and `currency` (an online payment is always the full `totalCents`),
+- `bookingMode` (copied from the business when the booking is made),
 - `status` and `holdExpiresAt`,
 - who decided, and when.
 
@@ -348,11 +354,10 @@ Its one `Occupancy` row takes the nights.
 - name, `slug` (the public web address), area, phone numbers,
 - `timezone` (`Asia/Beirut`), `currency`,
 - `commissionRateBps`: the commission a direct booking saves (1500 means 15 percent),
-- `depositPercent`, `holdHours` (how long a request is held),
-- `bookingMode`: `REQUEST` or `INSTANT`,
-- `paymentCollection`: `AT_PLACE` (pay the host) or `ONLINE`,
-- `onlineAmount`: `DEPOSIT` or `FULL`,
-- `refundPolicy`, `bookingUnit` (`ROOMS` or `WHOLE_PLACE`), `listedPublicly`, `status`, `plan`.
+- `holdHours` (how long the owner has to answer),
+- `bookingMode`: `AUTOMATIC`, `ONLINE_APPROVAL` or `OFFLINE`,
+- `onlineTermsAcceptedAt` (when the owner accepted "online payments are always refunded in full"),
+- `bookingUnit` (`ROOMS` or `WHOLE_PLACE`), `listedPublicly`, `status`, `plan`.
 
 ### `Room`, `RateOverride`, `CalendarFeed`
 
@@ -431,12 +436,15 @@ The files:
 - `src/server/ai/tool.ts`: the `AiTool` type (`name`, `description`, `input`, `requires` permission, `mutates`,
   `run(input, context)`).
 - `run-tool.ts`: `createToolRunner(tools, context, onCall)` checks the input, runs the tool, turns errors into safe
-  messages, measures the time, and reports the call to the audit log. `toolPayload` is what the model sees.
+  messages, measures the time, and reports the call to the audit log. `toolPayload` is what the model sees: every
+  `somethingCents` next to a `currency` becomes `something: "$140"`, already formatted, so the model never converts
+  cents itself (it got it wrong when it had to).
 - `deepseek.ts`: `complete(messages, tools)` and `completeJson(messages, maxTokens)`, using one request function.
   Each tool's JSON description is built once and kept (cached).
 - `assistant.ts`: `runAssistant` is the tool loop. The model can call tools up to 4 rounds, then it must answer.
   Tools in the same round run at the same time. With `proposeChanges`, tools that change data are **not** run. Their
   checked input comes back as a **proposal** for the person to confirm.
+- `output.ts`: the format of every AI answer (see "A. AI: the format of every answer").
 - `mcp-server.ts`: `handleMcpRequest` answers one MCP request. It only offers the tools the caller may use. It marks
   tools as "read only" or "changes data".
 
@@ -480,6 +488,30 @@ experience. They only see public data. They give a link to the booking page. The
 The place cards under a reply are built from the tool results, not from the model's words. So the model cannot
 invent a place.
 
+### A. AI: the format of every answer
+
+Rule: **we always tell the model the exact format we expect, and we always check what comes back before anyone sees
+it.** Code: `src/server/ai/output.ts`.
+
+- **Chat replies** (owner assistant and guest concierge):
+  - `REPLY_FORMAT` is added to every system prompt by `runAssistant`: short sentences, `**bold**` for key figures,
+    `- ` lists, a markdown table for three or more rows of the same kind, and no headings, HTML, code or links.
+  - `shapeReply(text)` brings every reply into that format before it leaves the server: it drops code fences and
+    HTML, turns headings into bold lines, keeps only the text of links, turns `*` lists into `- `, and cuts an
+    over-long reply at a line break. An empty reply becomes `""`, and the screen shows the translated "I couldn't
+    find an answer" message.
+  - `RichText` (`src/components/assistant/rich-text.tsx`) renders exactly that format: paragraphs, bold, lists and
+    real tables (`overflow-x-auto` on phones). It never renders HTML.
+- **JSON answers** (the AI report, and any new structured answer):
+  - Write the answer's shape as a Zod schema. Call `askForJson({ system, input, schema, maxTokens, onUsage })`.
+  - It sends the schema itself to the model (as JSON Schema, from `z.toJSONSchema`), so the prompt and the check can
+    never disagree. Never describe the JSON shape by hand in the prompt.
+  - If the answer is not JSON or does not match, it is sent back once with the exact problems. A second miss is
+    refused with a calm "please try again". Nothing broken is ever shown.
+  - `onUsage` is called with the tokens of every attempt, also refused ones, so the AI budget is always right.
+- **Tool inputs** from the model are checked by each tool's Zod schema. Changes become proposals that a person
+  confirms (`ActionCard`).
+
 ### A. AI: checks, limits and fallbacks
 
 - **Input:** every tool input is checked by Zod before it runs. Wrong input returns a clear error to the model.
@@ -497,8 +529,9 @@ invent a place.
 
 ### A. AI report
 
-On the analytics page, "Generate a report" sends the database's numbers for a period to the model. The answer is
-checked against a schema (`reportShape`) before it is shown. The charts next to each section use the same numbers.
+On the analytics page, "Generate a report" sends the database's numbers for a period to the model with
+`askForJson`. The schema (`reportShape(topics)`) is strict: every field is required, and each section's topic must
+be one of the topics the person chose. The charts next to each section use the same numbers.
 Only for Pro and Business plans. Code: `report-service.ts`, `report-generator.tsx`.
 
 ### A. Analytics and money saved on commission
@@ -544,15 +577,14 @@ payments are the platform's only income. Code: `billing-service.ts`, `plan-reque
 
 `booking-policy.ts` has simple functions with no database:
 
-| Host's setting               | New booking starts as                          |
-| ---------------------------- | ---------------------------------------------- |
-| Request, guest pays the host | `HELD`                                         |
-| Request, guest pays online   | `HELD`, then `AWAITING_PAYMENT` when accepted  |
-| Instant, guest pays the host | `CONFIRMED`                                    |
-| Instant, guest pays online   | `AWAITING_PAYMENT`, then `CONFIRMED` when paid |
+| Business's mode          | New booking starts as | Then                                                      |
+| ------------------------ | --------------------- | --------------------------------------------------------- |
+| 1. Automatic             | `AWAITING_PAYMENT`    | `CONFIRMED` when paid                                     |
+| 2. Online, with approval | `AWAITING_PAYMENT`    | `HELD` when paid, then `CONFIRMED` or `DECLINED` by owner |
+| 3. Offline               | `HELD`                | `CONFIRMED` or `DECLINED` by the owner                    |
 
-`holdUntil` sets the deadline: the host's `holdHours` for a request, 30 minutes to pay an instant booking, and 24
-hours to pay after the host accepts.
+`holdUntil` sets the deadline: 10 minutes to pay, and the business's `holdHours` for the owner to answer. When a
+paid booking expires because the owner did not answer, the guest is refunded in full.
 
 ### B. Bookings: asking for a stay (safe against races)
 
@@ -574,8 +606,8 @@ handles it:
 
 ### B. Bookings: the host decides
 
-- `confirmBooking` first reads the room's Airbnb and Booking.com calendars again (`refreshRoomFeeds`). Then it
-  confirms (or moves to `AWAITING_PAYMENT` if the guest pays online).
+- `confirmBooking` (modes 2 and 3) first reads the room's Airbnb and Booking.com calendars again
+  (`refreshRoomFeeds`). Then it confirms.
 - `declineBooking` and `cancelBooking` refund everything the guest paid online.
 - All three lock the room, check the status change, keep the occupancy's `active` flag correct (`changeStatus`),
   save who decided and when, log the action and tell the guest.
@@ -583,12 +615,13 @@ handles it:
 ### B. Bookings: the guest cancels
 
 With their private link (`POST /api/public/bookings/{token}/cancel`), while the booking is held or confirmed, and
-before check-in. The refund follows the booking's refund policy (`refundCents`).
+before check-in. If the booking was paid online, the guest is refunded in full.
 
 ### B. Bookings: holds that run out
 
 - Each new request on a room expires that room's old holds.
-- The scheduled job `/api/cron/expire-holds` expires the rest every 15 minutes.
+- The scheduled job `/api/cron/expire-holds` expires the rest every few minutes (unpaid bookings after 10
+  minutes, unanswered ones after `holdHours`, with a full refund when paid).
 - It uses one database update that checks the status again, so a hold confirmed a moment earlier is never touched.
 
 ### C. The calendar board
@@ -601,16 +634,15 @@ Page: `/dashboard/{id}/calendar`. Views: month, week and rooms.
 - Click a day to see arrivals, departures, stays and free rooms.
 - Click a stay to see its details.
 - Double-click a day (or press "Close dates") to close nights.
-- Drag closed dates to move them.
 
-Code: `calendar-board.tsx` (views, selecting, drag and drop), `calendar-side-panel.tsx`, `close-dates-form.tsx`,
+Code: `calendar-board.tsx` (views, selecting), `calendar-side-panel.tsx`, `close-dates-form.tsx`,
 `calendar-model.ts` (types and date helpers).
 
 ### C. Closed dates (blocks)
 
-`addBlock`, `moveBlock`, `removeBlock` in `calendar-service.ts`. A block is a `MANUAL` occupancy, so the database
+`addBlock` and `removeBlock` in `calendar-service.ts` (no moving by drag and drop). A block is a `MANUAL` occupancy, so the database
 refuses it on taken nights (409 "Those nights are already booked or blocked"). Hosts also use blocks for bookings
-taken by phone or on Kazderni (which has no calendar link).
+taken by phone.
 
 ### C. Calendar sync: reading Airbnb and Booking.com
 
@@ -662,6 +694,9 @@ guest's email is the reply address. A host can turn it off and offer WhatsApp on
 days, and the money saved. An owner with several places also sees them all together.
 
 ### D. Design system
+
+The full design system (every colour of every palette, fonts, text sizes, spacing, containers, components) and
+every page with its sections are in `08-design-system-and-pages.md`. The short version:
 
 The product looks and works exactly like the reference project:
 
@@ -734,10 +769,9 @@ they choose. Code: `host-service.ts`.
 
 `refundForEndedBooking(endedBooking, by, now)`:
 
-- If the host or the platform ends the booking: full refund.
-- If the guest cancels: the share in the refund policy (`FLEXIBLE`, `MODERATE`, `STRICT`, `NON_REFUNDABLE`).
-- Card refunds go through Stripe for any amount.
-- Whish only refunds whole payments. Partial Whish refunds show on the admin page to send by hand.
+- Whoever ends the booking (guest, owner, platform, or the clock): full refund, automatically.
+- Card refunds go through Stripe. Whish refunds go through Whish.
+- If an automatic refund fails, it shows on the admin page to send by hand (`Refund.automatic`, `PENDING`).
 
 ### M. Money: payouts to hosts
 
@@ -781,8 +815,7 @@ The website search, the guest's AI and the guest MCP all use it, so they always 
 `quoteStay` in `pricing.ts`:
 
 - each night's price (the room's base price, or that night's special price),
-- the total,
-- the deposit (`depositPercent` of the total).
+- the total (always what is paid online).
 
 Money is always whole cents.
 
@@ -810,8 +843,9 @@ schema with `.catch`).
 
 ### S. Settings
 
-Business settings: contact, currency, deposit percent, hold hours, commission rate, request or instant booking, how
-guests pay, refund policy, and whether the place is listed. Needs `settings.manage`. Code: `settings-service.ts`,
+Business settings: contact, currency, hold hours, commission rate, the booking mode (automatic, online with
+approval, or offline; an online mode needs the owner to accept the payment policy first), and whether the place is
+listed. Needs `settings.manage`. Code: `settings-service.ts`,
 `settings-form.tsx`.
 
 ### T. Team and roles
@@ -887,7 +921,7 @@ once `APP_URL` and `CRON_SECRET` are set as GitHub secrets.
 - API keys are stored as hashes and shown only once. Read-only keys lose every write permission.
 - Raw SQL only with safe `$queryRaw` templates (values are never pasted into the SQL text).
 - Webhooks (calls from Stripe) are checked by signature and applied only once.
-- No secrets in the repository. Live secrets are in Vercel and GitHub.
+- No secrets in the repository. Live secrets are in the DigitalOcean server's settings and in GitHub secrets.
 
 ---
 
