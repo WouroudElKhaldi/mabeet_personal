@@ -24,7 +24,7 @@ export async function OfferingCard({ offering, index = 0 }: { offering: Offering
               alt={offering.photo.alt ?? offering.title}
               fill
               sizes="(min-width: 1536px) 16vw, (min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-              className="object-cover transition-transform duration-500 ease-(--ease-out) group-hover:scale-[1.04]"
+              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
             />
           ) : (
             <PlaceArt seed={offering.slug} className="size-full" />

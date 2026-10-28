@@ -1,6 +1,6 @@
 import type { FeedSource, Prisma } from "@prisma/client";
 import type { DateRange } from "@/lib/dates";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 import type { FeedEvent } from "@/server/ical/parse-feed";
 import { overlapsRange } from "./filters";
 
@@ -119,7 +119,7 @@ export function recordFeedResult(
  * (the guest cancelled on the platform). Caller must hold the room lock.
  */
 export async function replaceImportedEvents(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   feed: { id: string; businessId: string; roomId: string; source: FeedSource },
   events: readonly FeedEvent[],
 ) {
@@ -146,7 +146,7 @@ export async function replaceImportedEvents(
 }
 
 /** Flags imported nights that collide with our own active bookings or blocks, so the owner sees them. */
-export async function flagImportConflicts(tx: Prisma.TransactionClient, feedId: string, roomId: string) {
+export async function flagImportConflicts(tx: Tx, feedId: string, roomId: string) {
   await tx.$executeRaw`
     UPDATE "Occupancy" AS imported
     SET conflict = EXISTS (

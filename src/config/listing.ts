@@ -1,4 +1,13 @@
+import type { ListingKind } from "@prisma/client";
+
 // Fixed vocabularies for listings. Stored as keys; labels live in messages/*.json, so search filters stay clean.
+
+/** Everything a category can belong to: places to stay, and the two kinds of offering. */
+export const LISTING_KINDS = ["HOME", "EXPERIENCE", "SERVICE"] as const satisfies readonly ListingKind[];
+
+/** Offerings booked by the seat in a dated session (not a place to stay). */
+export const OFFERING_KINDS = ["EXPERIENCE", "SERVICE"] as const satisfies readonly ListingKind[];
+export type OfferingKind = (typeof OFFERING_KINDS)[number];
 
 /** What a guest can book. "all" is only a browsing tab, never stored. */
 export const LISTING_TABS = ["all", "homes", "experiences", "services"] as const;

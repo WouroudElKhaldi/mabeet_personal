@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { HOST_CONTACT_OPTIONS } from "@/config/enums";
 import { LANGUAGES } from "@/config/listing";
 import { useAction } from "@/hooks/use-action";
@@ -163,11 +164,7 @@ export function HostProfileForm({
             {t("saved")}
           </p>
         )}
-        {error && (
-          <p role="alert" className="text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} />
       </div>
     </form>
   );

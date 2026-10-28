@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 
 export function findActiveBusinessBySlug(db: Db, slug: string) {
   return db.business.findFirst({ where: { slug, status: "ACTIVE" } });
@@ -15,7 +15,7 @@ export interface NewBusinessWithOwner {
   starterRoles: ReadonlyArray<{ name: string; description: string; permissions: string[] }>;
 }
 
-export async function createBusinessWithOwner(tx: Prisma.TransactionClient, input: NewBusinessWithOwner) {
+export async function createBusinessWithOwner(tx: Tx, input: NewBusinessWithOwner) {
   const business = await tx.business.create({
     data: {
       ...input.business,

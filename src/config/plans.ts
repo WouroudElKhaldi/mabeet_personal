@@ -4,6 +4,10 @@
 export const PLANS = ["FREE", "PRO", "BUSINESS"] as const;
 export type PlanName = (typeof PLANS)[number];
 
+/** The plans a host can pay for. */
+export const PAID_PLANS = ["PRO", "BUSINESS"] as const satisfies readonly PlanName[];
+export type PaidPlan = (typeof PAID_PLANS)[number];
+
 export interface PlanLimits {
   monthlyUsd: number;
   rooms: number | null;

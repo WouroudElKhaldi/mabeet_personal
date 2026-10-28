@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 
 /** Reviews a stay (bookingId) or seats in an experience or service (sessionBookingId). */
@@ -63,11 +64,7 @@ export function ReviewForm(target: { bookingId: string } | { sessionBookingId: s
         <Button type="submit" size="sm" disabled={pending || rating === 0}>
           {t("submit")}
         </Button>
-        {error && (
-          <p role="alert" className="text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} />
       </div>
     </form>
   );

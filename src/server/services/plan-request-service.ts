@@ -1,9 +1,9 @@
 import type { PlanRequestStatus } from "@prisma/client";
 import type { z } from "zod";
 import { PLAN_LIMITS } from "@/config/plans";
-import { type TenantContext } from "@/server/auth/tenant-context";
-import { isUniqueViolation, prisma, runInTransaction } from "@/server/db/client";
-import { conflict, forbidden, invalid, notFound } from "@/server/errors";
+import { requireOwner, type TenantContext } from "@/server/auth/tenant-context";
+import { prisma, runInTransaction } from "@/server/db/client";
+import { conflict, invalid, notFound } from "@/server/errors";
 import { logActivity } from "@/server/repositories/activity-repository";
 import * as billing from "@/server/repositories/billing-repository";
 import * as money from "@/server/repositories/money-repository";
@@ -16,6 +16,7 @@ import type {
 } from "@/server/validation/schemas";
 import { type PlatformActor, requireSuperAdmin } from "./admin-service";
 import { recordAction } from "./audit";
+import { duplicateAsConflict } from "./constraint-errors";
 import { addPlanMonths } from "./billing-service";
 import { detectImageType } from "./photo-service";
 
@@ -68,12 +69,10 @@ export async function removePaymentOption(actor: PlatformActor, id: string) {
 
 // ---------- Host requests ----------
 
-function requireOwner(ctx: TenantContext) {
-  if (!ctx.isOwner) throw forbidden("Only an owner can change the plan");
-}
+const OWNER_ONLY = "Only an owner can change the plan";
 
 export async function listMyPlanRequests(ctx: TenantContext) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   return requests.listBusinessRequests(prisma, ctx.businessId);
 }
 
@@ -85,38 +84,35 @@ export async function requestPlan(
   ctx: TenantContext,
   input: z.infer<typeof planRequestFields> & { receipt: Uint8Array<ArrayBuffer> },
 ) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   const option = await requests.findPaymentOption(prisma, input.optionId);
   if (!option?.active) throw invalid("Choose one of the ways to pay listed on this page");
   const receiptMime = receiptType(input.receipt);
   const current = await billing.findBilling(prisma, ctx.businessId);
   if (!current) throw notFound("Business");
   if (current.stripeSubscriptionId) throw conflict("You pay by card. Change your plan from Manage billing.");
-  try {
-    const request = await requests.createPlanRequest(prisma, {
-      businessId: ctx.businessId,
-      requestedById: ctx.userId,
-      plan: input.plan,
-      months: input.months,
-      amountCents: PLAN_LIMITS[input.plan].monthlyUsd * 100 * input.months,
-      method: option.method,
-      payerReference: input.payerReference ?? null,
-      note: input.note ?? null,
-      receiptMime,
-      receiptBytes: input.receipt,
-    });
-    await recordAction(ctx, "plan.requested", "plan_request", request.id);
-    return request;
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw conflict("You already have a request waiting. Cancel it first to send a new one.");
-    }
-    throw error;
-  }
+  const request = await duplicateAsConflict(
+    "You already have a request waiting. Cancel it first to send a new one.",
+    () =>
+      requests.createPlanRequest(prisma, {
+        businessId: ctx.businessId,
+        requestedById: ctx.userId,
+        plan: input.plan,
+        months: input.months,
+        amountCents: PLAN_LIMITS[input.plan].monthlyUsd * 100 * input.months,
+        method: option.method,
+        payerReference: input.payerReference ?? null,
+        note: input.note ?? null,
+        receiptMime,
+        receiptBytes: input.receipt,
+      }),
+  );
+  await recordAction(ctx, "plan.requested", "plan_request", request.id);
+  return request;
 }
 
 export async function cancelPlanRequest(ctx: TenantContext, requestId: string) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   const closed = await requests.closeRequest(prisma, requestId, { status: "CANCELLED" }, ctx.businessId);
   if (!closed) throw conflict("This request is no longer waiting.");
   await recordAction(ctx, "plan.request_cancelled", "plan_request", requestId);
@@ -124,7 +120,7 @@ export async function cancelPlanRequest(ctx: TenantContext, requestId: string) {
 
 /** The receipt, for the business's owners or a platform admin only. */
 export async function getReceiptForBusiness(ctx: TenantContext, requestId: string) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   const receipt = await requests.findReceipt(prisma, requestId);
   if (!receipt || receipt.businessId !== ctx.businessId) throw notFound("Receipt");
   return receipt;

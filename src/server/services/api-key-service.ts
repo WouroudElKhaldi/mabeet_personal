@@ -1,7 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { addDays } from "@/lib/dates";
+import type { ToolCallListener } from "@/server/ai/run-tool";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma } from "@/server/db/client";
+import { inBackground } from "@/server/background";
 import { forbidden, notFound } from "@/server/errors";
 import * as keys from "@/server/repositories/api-key-repository";
 import { recordAction } from "./audit";
@@ -60,12 +62,28 @@ export async function authenticateKey(raw: string, now = new Date()) {
   if (!key) return null;
   const ctx = await resolveKeyContext(key.businessId, key.membershipId, key.canWrite);
   if (!ctx) return null;
-  await keys.touchKey(prisma, key.id, now);
+  inBackground("API key last-used", () => keys.touchKey(prisma, key.id, now));
   return { ctx, keyId: key.id };
 }
 
-export function recordToolCall(entry: Parameters<typeof keys.logToolCall>[1]) {
-  return keys.logToolCall(prisma, entry);
+const MAX_LOGGED_ERROR_LENGTH = 200;
+
+/** Writes each AI tool call to the business's audit log, after the response, so logging never slows an answer. */
+export function toolCallRecorder(caller: {
+  businessId: string;
+  userId: string;
+  channel: "mcp" | "chat";
+  apiKeyId?: string;
+}): ToolCallListener {
+  return (tool, outcome, latencyMs) =>
+    inBackground("AI tool call log", () =>
+      keys.logToolCall(prisma, {
+        ...caller,
+        tool,
+        outcome: outcome.ok ? "ok" : outcome.error.slice(0, MAX_LOGGED_ERROR_LENGTH),
+        latencyMs,
+      }),
+    );
 }
 
 export function listToolCalls(ctx: TenantContext, take = 50) {

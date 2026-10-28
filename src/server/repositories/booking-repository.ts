@@ -1,15 +1,10 @@
-import type { BookingStatus, Prisma, RefundPolicy } from "@prisma/client";
+import type { BookingStatus, RefundPolicy } from "@prisma/client";
+import { EXPIRING_BOOKING_STATUSES, isActiveBooking } from "@/config/enums";
 import type { DateRange } from "@/lib/dates";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 import { overlapsRange } from "./filters";
 
-const ACTIVE_STATUSES: readonly BookingStatus[] = ["HELD", "AWAITING_PAYMENT", "CONFIRMED"];
-
-function isActiveStatus(status: BookingStatus): boolean {
-  return ACTIVE_STATUSES.includes(status);
-}
-
-export interface NewHeldBooking {
+export interface NewBooking {
   businessId: string;
   roomId: string;
   guestUserId: string | null;
@@ -34,7 +29,7 @@ export interface NewHeldBooking {
 }
 
 /** Inserts the booking and its DIRECT occupancy row. The exclusion constraint rejects overlaps here. */
-export function createHeldBooking(tx: Prisma.TransactionClient, booking: NewHeldBooking) {
+export function createBooking(tx: Tx, booking: NewBooking) {
   const { range, ...fields } = booking;
   return tx.booking.create({
     data: {
@@ -54,14 +49,15 @@ export function createHeldBooking(tx: Prisma.TransactionClient, booking: NewHeld
   });
 }
 
-/** Statuses that end when their time runs out: a request nobody answered, a payment nobody made. */
-const EXPIRING: BookingStatus[] = ["HELD", "AWAITING_PAYMENT"];
-
 /** Expires holds the owner never answered, or bookings never paid, and frees their nights. Returns their ids. */
 export async function expireStaleHolds(db: Db, now: Date, roomId?: string): Promise<string[]> {
   // One UPDATE that re-checks status: a hold confirmed (or paid) a moment earlier is never touched.
   const expired = await db.booking.updateManyAndReturn({
-    where: { status: { in: EXPIRING }, holdExpiresAt: { lt: now }, ...(roomId && { roomId }) },
+    where: {
+      status: { in: [...EXPIRING_BOOKING_STATUSES] },
+      holdExpiresAt: { lt: now },
+      ...(roomId && { roomId }),
+    },
     data: { status: "EXPIRED" },
     select: { id: true },
   });
@@ -110,6 +106,14 @@ export function findBookingByReference(db: Db, businessId: string, reference: st
   return db.booking.findFirst({ where: { reference, businessId }, include: { room: true } });
 }
 
+/** Which of these businesses holds the booking with this reference, if any (references are unique site-wide). */
+export function findBookingBusiness(db: Db, reference: string, businessIds: string[]) {
+  return db.booking.findFirst({
+    where: { reference, businessId: { in: businessIds } },
+    select: { businessId: true },
+  });
+}
+
 export function findBookingByPublicToken(db: Db, publicToken: string) {
   return db.booking.findUnique({
     where: { publicToken },
@@ -156,26 +160,20 @@ export function listGuestBookings(db: Db, guestUserId: string) {
 
 export interface StatusChange {
   status: BookingStatus;
+  /** The team member who decided, and when; absent when the guest or the clock changed the status. */
   decidedById?: string;
+  decidedAt?: Date;
   cancelReason?: string;
   /** A new deadline, e.g. the time the guest has to pay once the host accepts. */
   holdExpiresAt?: Date | null;
 }
 
 /** Moves a booking to a new status and keeps its occupancy row's `active` flag in step. */
-export async function changeStatus(
-  tx: Prisma.TransactionClient,
-  businessId: string,
-  bookingId: string,
-  change: StatusChange,
-) {
-  const booking = await tx.booking.update({
-    where: { id: bookingId, businessId },
-    data: { ...change, decidedAt: change.decidedById ? new Date() : undefined },
-  });
+export async function changeStatus(tx: Tx, businessId: string, bookingId: string, change: StatusChange) {
+  const booking = await tx.booking.update({ where: { id: bookingId, businessId }, data: change });
   await tx.occupancy.updateMany({
     where: { bookingId, businessId },
-    data: { active: isActiveStatus(change.status) },
+    data: { active: isActiveBooking(change.status) },
   });
   return booking;
 }

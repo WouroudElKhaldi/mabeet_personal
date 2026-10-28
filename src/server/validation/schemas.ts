@@ -1,24 +1,30 @@
 import { z } from "zod";
-import {
-  BOOKING_STATUSES,
-  CURRENCIES,
-  HOST_CONTACT_OPTIONS,
-  FEED_SOURCES,
-  MANUAL_PAYMENT_METHODS,
-  PLAN_PAYMENT_METHODS,
-} from "@/config/enums";
 import { AMENITIES } from "@/config/amenities";
 import { PALETTES } from "@/config/appearance";
+import {
+  ANALYTICS_SCOPES,
+  BOOKING_STATUSES,
+  CURRENCIES,
+  FEED_SOURCES,
+  HOST_CONTACT_OPTIONS,
+  MANUAL_PAYMENT_METHODS,
+  ONLINE_PAYMENT_METHODS,
+  PLAN_PAYMENT_METHODS,
+  REPORT_TOPICS,
+} from "@/config/enums";
 import {
   ACCESSIBILITY,
   ACTIVITY_LEVELS,
   keepKnown,
   LANGUAGES,
+  LISTING_KINDS,
   LISTING_TABS,
+  OFFERING_KINDS,
   PRICE_UNITS,
   SKILL_LEVELS,
   TAGS,
 } from "@/config/listing";
+import { PAID_PLANS } from "@/config/plans";
 import { toDateRange } from "@/lib/dates";
 import { ALL_PERMISSIONS, type Permission } from "@/server/auth/permissions";
 import { isPushServiceUrl } from "@/server/push/send";
@@ -211,16 +217,13 @@ export const profileInput = z.object({
   phone: phone.nullish(),
 });
 
-export const analyticsQuery = windowFields.extend({ scope: z.enum(["place", "all"]).default("place") });
+export const analyticsQuery = windowFields.extend({ scope: z.enum(ANALYTICS_SCOPES).default("place") });
 
 export const reportInput = z.object({
   from: isoDate,
   to: isoDate,
-  scope: z.enum(["place", "all"]),
-  topics: z
-    .array(z.enum(["occupancy", "revenue", "channels", "requests", "reviews", "places"]))
-    .min(1)
-    .max(6),
+  scope: z.enum(ANALYTICS_SCOPES),
+  topics: z.array(z.enum(REPORT_TOPICS)).min(1).max(REPORT_TOPICS.length),
 });
 
 export const hostProfileInput = z.object({
@@ -283,7 +286,7 @@ export const payoutDecisionInput = z.object({
 export const refundSentInput = z.object({ reference: z.string().trim().max(120).nullish() });
 
 /** How a guest pays a booking online. */
-export const bookingCheckoutInput = z.object({ method: z.enum(["WHISH", "CARD"]) });
+export const bookingCheckoutInput = z.object({ method: z.enum(ONLINE_PAYMENT_METHODS) });
 
 export const whishCallbackQuery = z.object({
   payment: id.optional(),
@@ -358,12 +361,21 @@ export const chatInput = z.object({
       message: "The last message must be from the user",
     }),
   /** The saved chat this continues; none starts a new one. */
-  chatId: z.string().min(1).max(64).nullish(),
+  chatId: id.nullish(),
   /** A temporary chat is answered but never stored. */
   temporary: z.boolean().default(false),
 });
 
-export const chatParams = z.object({ chatId: z.string().min(1).max(64) });
+export const chatParams = z.object({ chatId: id });
+
+/**
+ * A change the team assistant proposed and the member confirmed. The tool's own schema checks `input` when it
+ * runs; this only bounds the envelope.
+ */
+export const assistantActionInput = z.object({
+  tool: z.string().min(1).max(64),
+  input: z.record(z.string(), z.unknown()),
+});
 
 export const keyInput = z.object({
   name: z.string().trim().min(2).max(60),
@@ -378,7 +390,7 @@ export const businessStatusInput = z.object({ status: z.enum(["ACTIVE", "SUSPEND
 export const siteSettingsInput = z.object({ palette: z.enum(PALETTES) });
 
 /** A paid plan to start through Stripe Checkout. */
-export const checkoutInput = z.object({ plan: z.enum(["PRO", "BUSINESS"]) });
+export const checkoutInput = z.object({ plan: z.enum(PAID_PLANS) });
 
 export const paymentOptionInput = z.object({
   method: z.enum(PLAN_PAYMENT_METHODS),
@@ -392,9 +404,9 @@ export const paymentOptionUpdate = paymentOptionInput.partial();
 
 /** The fields of a manual plan request; the receipt comes as the multipart `receipt` file. */
 export const planRequestFields = z.object({
-  plan: z.enum(["PRO", "BUSINESS"]),
+  plan: z.enum(PAID_PLANS),
   months: z.coerce.number().int().min(1).max(12),
-  optionId: z.string().min(1).max(64),
+  optionId: id,
   payerReference: z.string().trim().max(120).nullish(),
   note: z.string().trim().max(500).nullish(),
 });
@@ -418,7 +430,7 @@ export const categoryInput = categoryFields.extend({
     .trim()
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and dashes")
     .max(40),
-  kind: z.enum(["HOME", "EXPERIENCE", "SERVICE"]),
+  kind: z.enum(LISTING_KINDS),
 });
 export const categoryUpdate = categoryFields.partial();
 export const categoryParams = z.object({ slug: z.string().min(1).max(40) });
@@ -428,7 +440,7 @@ export const categoryParams = z.object({ slug: z.string().min(1).max(40) });
 const listItems = z.array(z.string().trim().min(1).max(160)).max(12);
 
 export const offeringInput = z.object({
-  kind: z.enum(["EXPERIENCE", "SERVICE"]),
+  kind: z.enum(OFFERING_KINDS),
   title: z.string().trim().min(3).max(100),
   description: z.string().trim().max(4000).nullish(),
   categorySlug: z.string().max(40).nullish(),

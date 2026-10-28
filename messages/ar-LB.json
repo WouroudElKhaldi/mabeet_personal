@@ -1025,7 +1025,33 @@
         "month": "قدّيش وفّرتلنا الحجوزات المباشرة هالشهر؟",
         "requests": "في طلبات ناطرتني؟"
       },
-      "speaker": "مساعدك"
+      "speaker": "مساعدك",
+      "actions": {
+        "title": "ناطر تأكيدك",
+        "hint": "ما رح يتغيّر شي قبل ما تأكّد.",
+        "confirm": "أكّد",
+        "cancel": "لا تعملها",
+        "done": "خلص",
+        "dismissed": "ما انعملت",
+        "tools": {
+          "confirm_booking": "أكّد الحجز",
+          "decline_booking": "ارفض الطلب",
+          "cancel_booking": "ألغي الحجز",
+          "close_dates": "سكّر التواريخ",
+          "reopen_dates": "رجّع افتح التواريخ"
+        },
+        "fields": {
+          "reference": "الحجز",
+          "reason": "السبب",
+          "room": "الغرفة",
+          "checkIn": "من",
+          "checkOut": "لـ (الصبح)",
+          "source": "محجوز على",
+          "note": "ملاحظة",
+          "blockId": "التواريخ المسكّرة",
+          "place": "المحل"
+        }
+      }
     },
     "keys": {
       "title": "اربط الذكاء الاصطناعي تبعك",

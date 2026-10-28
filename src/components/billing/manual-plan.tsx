@@ -8,6 +8,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CopyField } from "@/components/ui/copy-field";
 import { Field, inputClass, TextArea } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
+import { PAID_PLANS, type PaidPlan, type PlanName } from "@/config/plans";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -22,7 +24,7 @@ export interface PaymentOptionView {
 
 export interface PlanRequestView {
   id: string;
-  plan: "FREE" | "PRO" | "BUSINESS";
+  plan: PlanName;
   months: number;
   amountCents: number;
   currency: string;
@@ -48,13 +50,13 @@ export function ManualPlanRequest({
   businessId: string;
   options: PaymentOptionView[];
   requests: PlanRequestView[];
-  monthlyUsd: { PRO: number; BUSINESS: number };
+  monthlyUsd: Record<PaidPlan, number>;
 }) {
   const t = useTranslations("manualPlan");
   const tPlans = useTranslations("plans");
   const locale = useLocale();
   const { run, pending, error } = useAction();
-  const [plan, setPlan] = useState<"PRO" | "BUSINESS">("PRO");
+  const [plan, setPlan] = useState<PaidPlan>("PRO");
   const [months, setMonths] = useState(1);
   const [optionId, setOptionId] = useState(options[0]?.id ?? "");
   const [sent, setSent] = useState(false);
@@ -118,10 +120,10 @@ export function ManualPlanRequest({
               <select
                 aria-label={t("plan")}
                 value={plan}
-                onChange={(event) => setPlan(event.target.value as "PRO" | "BUSINESS")}
+                onChange={(event) => setPlan(event.target.value as PaidPlan)}
                 className={inputClass}
               >
-                {(["PRO", "BUSINESS"] as const).map((name) => (
+                {PAID_PLANS.map((name) => (
                   <option key={name} value={name}>
                     {tPlans(`names.${name}`)} · {usd(monthlyUsd[name] * 100)} {tPlans("perMonth")}
                   </option>
@@ -199,11 +201,7 @@ export function ManualPlanRequest({
             <TextArea label={t("note")} name="note" maxLength={500} rows={2} />
           </fieldset>
 
-          {error && (
-            <p role="alert" className="rounded-md bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
-              {error}
-            </p>
-          )}
+          <FormError message={error} className="rounded-md bg-danger/10 px-4 py-3" />
           <Button type="submit" disabled={pending || !optionId} className="w-full sm:w-fit">
             {pending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
             {t("send")}

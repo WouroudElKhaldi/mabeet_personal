@@ -6,15 +6,15 @@ import { CategoryIcon } from "@/components/place/category-icon";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { inputClass } from "@/components/ui/field";
+import { LISTING_KINDS } from "@/config/listing";
+import { FormError } from "@/components/ui/form-error";
 import { CATEGORY_ICONS } from "@/config/category-icons";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 
-const KINDS = ["HOME", "EXPERIENCE", "SERVICE"] as const;
-
 export interface AdminCategory {
   slug: string;
-  kind: (typeof KINDS)[number];
+  kind: (typeof LISTING_KINDS)[number];
   nameEn: string;
   nameAr: string;
   icon: string;
@@ -83,7 +83,7 @@ export function CategoryManager({ categories }: { categories: AdminCategory[] })
   return (
     <div className="grid gap-8">
       {confirmDialog}
-      {KINDS.map((kind) => (
+      {LISTING_KINDS.map((kind) => (
         <div key={kind}>
           <h3 className="mb-2 text-sm font-bold tracking-wide text-muted uppercase">{t(`kinds.${kind}`)}</h3>
           <ul className="grid gap-2">
@@ -149,7 +149,7 @@ export function CategoryManager({ categories }: { categories: AdminCategory[] })
         <p className="font-semibold sm:col-span-full">{t("new")}</p>
         <input name="slug" placeholder="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" className={field} />
         <select name="kind" aria-label={t("kind")} className={field}>
-          {KINDS.map((kind) => (
+          {LISTING_KINDS.map((kind) => (
             <option key={kind} value={kind}>
               {t(`kinds.${kind}`)}
             </option>
@@ -171,11 +171,7 @@ export function CategoryManager({ categories }: { categories: AdminCategory[] })
           {t("add")}
         </Button>
       </form>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </div>
   );
 }

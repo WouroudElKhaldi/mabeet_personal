@@ -1,13 +1,17 @@
 import type { Prisma, RoomKind } from "@prisma/client";
 import { type DateRange, toIsoDate } from "@/lib/dates";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 
 export function findRoom(db: Db, businessId: string, roomId: string) {
   return db.room.findFirst({ where: { id: roomId, businessId } });
 }
 
 export function listRooms(db: Db, businessId: string) {
-  return db.room.findMany({ where: { businessId }, orderBy: { createdAt: "asc" } });
+  return db.room.findMany({
+    where: { businessId },
+    include: { business: { select: { currency: true } } },
+    orderBy: { createdAt: "asc" },
+  });
 }
 
 export function createRoom(db: Db, data: Prisma.RoomUncheckedCreateInput) {
@@ -40,7 +44,7 @@ export const bookableRoom = {
  * Takes a row lock on an active room for the rest of the transaction. Every booking request
  * and iCal import for that room waits here, so checks against imported nights are race-free.
  */
-export async function lockActiveRoom(tx: Prisma.TransactionClient, businessId: string, roomId: string) {
+export async function lockActiveRoom(tx: Tx, businessId: string, roomId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT id FROM "Room"
     WHERE id = ${roomId} AND "businessId" = ${businessId} AND active
@@ -49,7 +53,7 @@ export async function lockActiveRoom(tx: Prisma.TransactionClient, businessId: s
 }
 
 /** Like lockActiveRoom, but only for a room guests can book right now (see bookableRoom). */
-export async function lockBookableRoom(tx: Prisma.TransactionClient, businessId: string, roomId: string) {
+export async function lockBookableRoom(tx: Tx, businessId: string, roomId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT r.id FROM "Room" r
     JOIN "Business" b ON b.id = r."businessId"
@@ -66,7 +70,7 @@ export async function hasWholePlaceUnit(db: Db, businessId: string) {
 }
 
 /** Locks the business row: bookings at a place with a whole-place unit take turns, across all its rooms. */
-export async function lockBusinessForBooking(tx: Prisma.TransactionClient, businessId: string) {
+export async function lockBusinessForBooking(tx: Tx, businessId: string) {
   await tx.$queryRaw`SELECT id FROM "Business" WHERE id = ${businessId} FOR UPDATE`;
 }
 
@@ -117,7 +121,7 @@ export function listRateOverrides(db: Db, businessId: string, roomId: string, fr
 
 /** Sets every night in `nights` to `rateCents`, or back to the base rate when it is null. Run in a transaction. */
 export async function setRateOverrides(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   businessId: string,
   roomId: string,
   nights: Date[],

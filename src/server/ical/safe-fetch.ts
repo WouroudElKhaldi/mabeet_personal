@@ -57,8 +57,28 @@ export async function fetchCalendarText(rawUrl: string): Promise<string> {
     headers: { accept: "text/calendar" },
   });
   if (!response.ok) throw invalid(`The calendar link answered with status ${response.status}`);
-  const text = await response.text();
-  if (text.length > MAX_BYTES) throw invalid("That calendar is too large");
+  const text = await readCapped(response, MAX_BYTES);
   if (!text.includes("BEGIN:VCALENDAR")) throw invalid("That link is not an iCal calendar");
   return text;
+}
+
+/** Reads a body but stops (and cancels the download) as soon as it passes the cap, so a huge feed never fills memory. */
+async function readCapped(response: Response, maxBytes: number): Promise<string> {
+  const tooLarge = () => invalid("That calendar is too large");
+  if (Number(response.headers.get("content-length") ?? 0) > maxBytes) throw tooLarge();
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel();
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }

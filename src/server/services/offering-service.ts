@@ -1,6 +1,5 @@
 import type { z } from "zod";
-import { slugify } from "@/lib/slug";
-import { secureToken } from "@/lib/tokens";
+import { uniqueSlug } from "@/lib/slug";
 import { zonedInstant } from "@/lib/zoned-time";
 import { can, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma } from "@/server/db/client";
@@ -26,14 +25,6 @@ async function assertCategoryFits(kind: OfferingInput["kind"], categorySlug: str
   if (!category || category.kind !== kind) throw invalid("Pick a category of the same type");
 }
 
-async function uniqueSlug(title: string): Promise<string> {
-  const base = slugify(title) || "experience";
-  if (!(await offerings.slugTaken(prisma, base))) return base;
-  return `${base}-${secureToken(4)
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")}`;
-}
-
 export async function createOffering(ctx: TenantContext, input: OfferingInput) {
   requirePermission(ctx, "offerings.manage");
   await assertPlanAllowsAnother(ctx.businessId, "offerings");
@@ -41,7 +32,7 @@ export async function createOffering(ctx: TenantContext, input: OfferingInput) {
   const offering = await offerings.createOffering(prisma, {
     ...input,
     businessId: ctx.businessId,
-    slug: await uniqueSlug(input.title),
+    slug: await uniqueSlug(input.title, "experience", (candidate) => offerings.slugTaken(prisma, candidate)),
   });
   await recordAction(ctx, "offering.created", "offering", offering.id);
   return offering;

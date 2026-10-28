@@ -2,40 +2,31 @@
 
 import { clsx } from "clsx";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ApiError, api } from "@/lib/api-client";
+import { FormError } from "@/components/ui/form-error";
+import { useRedirectAction } from "@/hooks/use-redirect-action";
+import { api } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 
 // The two screens between signing in and an AI app getting its token. The signed OAuth request rides
 // along in this page's address; authClient's oauthProviderClient plugin sends it with each step.
 
+type OAuthStepResult = { data: unknown; error: { message?: string } | null };
+
+/** Runs one OAuth step and follows the redirect Better Auth answers with (`url`, or `uri` on consent). */
 function useOAuthStep() {
   const t = useTranslations("oauth");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const run = (step: () => Promise<{ data: unknown; error: { message?: string } | null }>) =>
-    startTransition(async () => {
-      setError(null);
-      try {
-        const result = await step();
-        const next = (result.data as { url?: string; uri?: string } | null) ?? null;
-        const url = next?.url ?? next?.uri;
-        if (result.error || !url) throw new Error(result.error?.message);
-        window.location.assign(url);
-      } catch (caught) {
-        setError(caught instanceof ApiError ? caught.message : t("failed"));
-      }
+  const { go, pending, error } = useRedirectAction(t("failed"));
+  const run = (step: () => Promise<OAuthStepResult>) =>
+    go(async () => {
+      const result = await step();
+      const next = result.data as { url?: string; uri?: string } | null;
+      const url = next?.url ?? next?.uri;
+      if (result.error || !url) throw new Error(result.error?.message);
+      return url;
     });
   return { run, pending, error };
-}
-
-function ErrorLine({ error }: { error: string | null }) {
-  return error ? (
-    <p role="alert" className="text-sm font-semibold text-danger">
-      {error}
-    </p>
-  ) : null;
 }
 
 export function WorkspacePicker({
@@ -77,7 +68,7 @@ export function WorkspacePicker({
               value={workspace.id}
               checked={picked === workspace.id}
               onChange={() => setPicked(workspace.id)}
-              className="size-4 accent-(--accent)"
+              className="size-4 accent-accent"
             />
           </label>
         ))}
@@ -85,7 +76,7 @@ export function WorkspacePicker({
       <Button size="lg" disabled={!picked || pending} onClick={next}>
         {t("continue")}
       </Button>
-      <ErrorLine error={error} />
+      <FormError message={error} />
     </div>
   );
 }
@@ -110,7 +101,7 @@ export function ConsentButtons() {
       >
         {t("deny")}
       </Button>
-      <ErrorLine error={error} />
+      <FormError message={error} />
     </div>
   );
 }

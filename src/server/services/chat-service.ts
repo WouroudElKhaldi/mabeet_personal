@@ -44,6 +44,34 @@ export async function saveTurn(
   return id;
 }
 
+interface ChatRequest {
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  chatId?: string | null;
+  temporary: boolean;
+}
+
+/**
+ * One assistant turn for either surface: answers, then saves the turn unless the chat is temporary or nobody is
+ * signed in (`scope` null). A chat that isn't the caller's is refused before paying for an answer.
+ */
+export async function answerChat<Answer extends { reply: string }>(
+  scope: ChatScope | null,
+  { messages, chatId, temporary }: ChatRequest,
+  ask: (history: ChatRequest["messages"]) => Promise<Answer>,
+  savedData: (answer: Answer) => Prisma.InputJsonValue | null = () => null,
+): Promise<Answer & { chatId: string | null }> {
+  const saving = scope !== null && !temporary;
+  if (saving && chatId) await getChat(scope, chatId);
+  const answer = await ask(messages);
+  if (!saving) return { ...answer, chatId: null };
+  const question = messages.at(-1)!.content;
+  const savedId = await saveTurn(scope, chatId ?? null, question, {
+    content: answer.reply,
+    data: savedData(answer),
+  });
+  return { ...answer, chatId: savedId };
+}
+
 function titleFrom(question: string): string {
   const line = question.replace(/\s+/g, " ").trim();
   return line.length > TITLE_LENGTH ? `${line.slice(0, TITLE_LENGTH - 1)}…` : line;

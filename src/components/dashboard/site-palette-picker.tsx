@@ -3,6 +3,7 @@
 import { clsx } from "clsx";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { FormError } from "@/components/ui/form-error";
 import { type Palette, PALETTE_SWATCH, PALETTES } from "@/config/appearance";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
@@ -45,11 +46,7 @@ export function SitePalettePicker({ current }: { current: Palette }) {
           </button>
         ))}
       </div>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </div>
   );
 }

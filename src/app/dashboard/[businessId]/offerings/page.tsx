@@ -1,3 +1,4 @@
+import type { OfferingKind } from "@/config/listing";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -45,9 +46,7 @@ export default async function OfferingsPage({ params }: PageProps) {
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5">
             <span className="grid">
               <span className="font-semibold">{offering.title}</span>
-              <span className="text-sm text-muted">
-                {t(`kinds.${offering.kind as "EXPERIENCE" | "SERVICE"}`)}
-              </span>
+              <span className="text-sm text-muted">{t(`kinds.${offering.kind as OfferingKind}`)}</span>
             </span>
             <span className="text-sm text-muted">{offering.active ? t("live") : t("hidden")}</span>
           </summary>

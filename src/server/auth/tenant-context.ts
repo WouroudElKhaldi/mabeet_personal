@@ -27,3 +27,8 @@ export function can(ctx: TenantContext, permission: Permission): boolean {
 export function requirePermission(ctx: TenantContext, permission: Permission): void {
   if (!can(ctx, permission)) throw forbidden(`Missing permission: ${permission}`);
 }
+
+/** For what only an owner may do (spend the business's money, see payouts), whatever a role's permissions say. */
+export function requireOwner(ctx: TenantContext, refusal: string): void {
+  if (!ctx.isOwner) throw forbidden(refusal);
+}

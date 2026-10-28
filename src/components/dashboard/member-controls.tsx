@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
 
@@ -122,11 +123,7 @@ export function AddMemberForm({ businessId, roles }: { businessId: string; roles
       <Button type="submit" className="h-12" disabled={pending}>
         {t("add")}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger sm:col-span-3">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="sm:col-span-3" />
     </form>
   );
 }

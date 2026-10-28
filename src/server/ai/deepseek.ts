@@ -7,8 +7,9 @@ import type { AiTool } from "./tool";
 
 const ENDPOINT = "https://api.deepseek.com/chat/completions";
 const MODEL = "deepseek-chat";
-const TIMEOUT_MS = 45_000;
-const MAX_OUTPUT_TOKENS = 900;
+const CHAT_TIMEOUT_MS = 45_000;
+const JSON_TIMEOUT_MS = 90_000;
+const MAX_CHAT_OUTPUT_TOKENS = 900;
 
 interface ToolCall {
   id: string;
@@ -48,52 +49,28 @@ export interface TokenUsage {
   completionTokens: number;
 }
 
-function toFunction(tool: AiTool) {
-  return {
-    type: "function" as const,
-    function: { name: tool.name, description: tool.description, parameters: z.toJSONSchema(tool.input) },
-  };
-}
+// Tools are module-level constants, so each JSON Schema is built once per process, not on every model round.
+const toolSpecs = new WeakMap<AiTool, object>();
 
-/** One answer as a JSON object (DeepSeek's JSON mode), for reports that the app lays out itself. */
-export async function completeJson(messages: ChatMessage[], maxTokens: number) {
-  if (!env.DEEPSEEK_API_KEY) throw unavailable("The assistant is not set up yet.");
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    signal: AbortSignal.timeout(90_000),
-    headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      max_tokens: maxTokens,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-    }),
-  });
-  if (!response.ok) {
-    console.error("DeepSeek error", response.status, await response.text().catch(() => ""));
-    throw unavailable("The assistant is busy right now. Please try again in a moment.");
+function toToolSpec(tool: AiTool) {
+  let spec = toolSpecs.get(tool);
+  if (!spec) {
+    spec = {
+      type: "function",
+      function: { name: tool.name, description: tool.description, parameters: z.toJSONSchema(tool.input) },
+    };
+    toolSpecs.set(tool, spec);
   }
-  const { choices, usage } = completionSchema.parse(await response.json());
-  return {
-    content: choices[0]!.message.content ?? "{}",
-    usage: { promptTokens: usage?.prompt_tokens ?? 0, completionTokens: usage?.completion_tokens ?? 0 },
-  };
+  return spec;
 }
 
-export async function complete(messages: ChatMessage[], tools: readonly AiTool[]) {
+async function requestCompletion(body: Record<string, unknown>, timeoutMs: number) {
   if (!env.DEEPSEEK_API_KEY) throw unavailable("The assistant is not set up yet.");
   const response = await fetch(ENDPOINT, {
     method: "POST",
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
     headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      tools: tools.length > 0 ? tools.map(toFunction) : undefined,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.3,
-    }),
+    body: JSON.stringify({ model: MODEL, ...body }),
   });
   if (!response.ok) {
     console.error("DeepSeek error", response.status, await response.text().catch(() => ""));
@@ -102,6 +79,31 @@ export async function complete(messages: ChatMessage[], tools: readonly AiTool[]
   const { choices, usage } = completionSchema.parse(await response.json());
   return {
     message: choices[0]!.message,
-    usage: { promptTokens: usage?.prompt_tokens ?? 0, completionTokens: usage?.completion_tokens ?? 0 },
+    usage: {
+      promptTokens: usage?.prompt_tokens ?? 0,
+      completionTokens: usage?.completion_tokens ?? 0,
+    } satisfies TokenUsage,
   };
+}
+
+/** One chat round; the model may answer or ask for some of the offered tools. */
+export function complete(messages: ChatMessage[], tools: readonly AiTool[]) {
+  return requestCompletion(
+    {
+      messages,
+      tools: tools.length > 0 ? tools.map(toToolSpec) : undefined,
+      max_tokens: MAX_CHAT_OUTPUT_TOKENS,
+      temperature: 0.3,
+    },
+    CHAT_TIMEOUT_MS,
+  );
+}
+
+/** One answer as a JSON object (DeepSeek's JSON mode), for reports that the app lays out itself. */
+export async function completeJson(messages: ChatMessage[], maxTokens: number) {
+  const { message, usage } = await requestCompletion(
+    { messages, max_tokens: maxTokens, temperature: 0.2, response_format: { type: "json_object" } },
+    JSON_TIMEOUT_MS,
+  );
+  return { content: message.content ?? "{}", usage };
 }

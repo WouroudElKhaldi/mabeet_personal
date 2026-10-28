@@ -7,9 +7,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { GuestCounter } from "@/components/ui/guest-counter";
 import { SheetDialog } from "@/components/ui/sheet-dialog";
-import { api, ApiError } from "@/lib/api-client";
+import { api, errorMessage } from "@/lib/api-client";
 import { formatMoney } from "@/lib/format";
 
 export interface OpenSession {
@@ -134,7 +135,7 @@ export function SessionBookingCard(props: SessionBookingCardProps) {
       );
       router.push(`/b/${booking.publicToken}`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("genericError"));
+      setError(errorMessage(caught, t("genericError")));
       setSubmitting(false);
       router.refresh();
     }
@@ -222,11 +223,7 @@ export function SessionBookingCard(props: SessionBookingCardProps) {
         </>
       )}
 
-      {error && (
-        <p role="alert" className="rounded-md bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="rounded-md bg-danger/10 px-4 py-3" />
       <Button type="submit" size="lg" disabled={!selected || submitting} className="w-full">
         {submitting && <LoaderCircle className="size-5 animate-spin" aria-hidden />}
         {props.instant ? t("bookNow") : t("request")}

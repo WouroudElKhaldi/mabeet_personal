@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CopyField } from "@/components/ui/copy-field";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 
@@ -77,7 +78,7 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
           </select>
         </div>
         <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" name="canWrite" className="mt-0.5 size-4 accent-(--accent)" />
+          <input type="checkbox" name="canWrite" className="mt-0.5 size-4 accent-accent" />
           <span>
             <span className="font-semibold">{t("allowWrite")}</span>
             <span className="block text-muted">{t("allowWriteHint")}</span>
@@ -87,11 +88,7 @@ export function KeyManager({ businessId, mcpUrl, keys }: KeyManagerProps) {
           <Button type="submit" size="sm" disabled={pending}>
             {t("generate")}
           </Button>
-          {error && (
-            <p role="alert" className="text-sm font-semibold text-danger">
-              {error}
-            </p>
-          )}
+          <FormError message={error} />
         </div>
       </form>
 

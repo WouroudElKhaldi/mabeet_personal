@@ -10,6 +10,10 @@ export class ApiError extends Error {
   }
 }
 
+/** The API's message for a failed call, or the given fallback for anything else (network down, a bug). */
+export const errorMessage = (caught: unknown, fallback: string) =>
+  caught instanceof ApiError ? caught.message : fallback;
+
 interface ErrorBody {
   error?: { message?: string; details?: { fieldErrors?: Record<string, unknown> } };
 }

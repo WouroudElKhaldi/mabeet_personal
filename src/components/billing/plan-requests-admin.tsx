@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, TextArea } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { PLAN_PAYMENT_METHODS } from "@/config/enums";
@@ -30,11 +31,7 @@ export function PlanRequestDecision({ requestId }: { requestId: string }) {
       <Button size="sm" variant="ghost" disabled={pending} onClick={() => decide("reject")}>
         {t("reject")}
       </Button>
-      {error && (
-        <p role="alert" className="basis-full text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="basis-full" />
     </div>
   );
 }
@@ -120,11 +117,7 @@ function OptionForm({ option, onDone }: { option?: Option; onDone?: () => void }
         <input type="checkbox" name="active" defaultChecked={option?.active ?? true} />
         {t("active")}
       </label>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger sm:col-span-2">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="sm:col-span-2" />
       <Button type="submit" disabled={pending} className="w-fit">
         {option ? t("save") : t("add")}
       </Button>

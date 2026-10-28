@@ -1,5 +1,5 @@
-import type { Payment, PaymentMethod, PayoutMethod, Plan, Prisma } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import type { Payment, PaymentMethod, PayoutMethod, Plan } from "@prisma/client";
+import type { Db, Tx } from "@/server/db/client";
 
 // Money that passes through Mabeet: guests paying online, refunds, payouts to hosts, and hosts paying for plans.
 // Every team query filters by businessId; the admin queries are platform-wide on purpose.
@@ -42,7 +42,7 @@ export function findOnlinePayment(db: Db, paymentId: string) {
 
 /** Marks a pending payment paid. Returns false when it was already settled, so a repeated callback does nothing. */
 export async function markPaid(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   paymentId: string,
   data: { paidAt: Date; providerPaymentId?: string | null; note?: string | null },
 ): Promise<boolean> {
@@ -54,7 +54,7 @@ export async function markPaid(
 }
 
 /** Other paid online payments of the same booking: a second one means the guest paid twice. */
-export function countOtherPaidOnline(tx: Prisma.TransactionClient, payment: Payment) {
+export function countOtherPaidOnline(tx: Tx, payment: Payment) {
   return tx.payment.count({
     where: {
       id: { not: payment.id },
@@ -68,7 +68,7 @@ export function countOtherPaidOnline(tx: Prisma.TransactionClient, payment: Paym
 }
 
 /** The stay or session booking a payment is for, with its current status. */
-export async function findPaidFor(tx: Prisma.TransactionClient, payment: Payment) {
+export async function findPaidFor(tx: Tx, payment: Payment) {
   return payment.bookingId
     ? tx.booking.findUniqueOrThrow({ where: { id: payment.bookingId }, select: { id: true, status: true } })
     : tx.sessionBooking.findUniqueOrThrow({
@@ -78,7 +78,7 @@ export async function findPaidFor(tx: Prisma.TransactionClient, payment: Payment
 }
 
 /** A payment, locked while a refund is taken from it. */
-export async function findPaymentForRefund(tx: Prisma.TransactionClient, paymentId: string) {
+export async function findPaymentForRefund(tx: Tx, paymentId: string) {
   await tx.$queryRaw`SELECT id FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
   return tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
 }
@@ -88,13 +88,15 @@ export async function markFailed(db: Db, paymentId: string): Promise<void> {
 }
 
 /** Paid online payments of one booking, locked so two refunds can't both take the same money. */
-export async function lockPaidOnline(tx: Prisma.TransactionClient, payable: Payable) {
-  const column = payable.kind === "stay" ? "bookingId" : "sessionBookingId";
-  const id = payable.kind === "stay" ? payable.bookingId : payable.sessionBookingId;
-  const ids = await tx.$queryRawUnsafe<{ id: string }[]>(
-    `SELECT id FROM "Payment" WHERE "${column}" = $1 AND online AND status IN ('PAID', 'REFUNDED') FOR UPDATE`,
-    id,
-  );
+export async function lockPaidOnline(tx: Tx, payable: Payable) {
+  const ids =
+    payable.kind === "stay"
+      ? await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Payment" WHERE "bookingId" = ${payable.bookingId}
+            AND online AND status IN ('PAID', 'REFUNDED') FOR UPDATE`
+      : await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Payment" WHERE "sessionBookingId" = ${payable.sessionBookingId}
+            AND online AND status IN ('PAID', 'REFUNDED') FOR UPDATE`;
   return tx.payment.findMany({ where: { id: { in: ids.map((row) => row.id) } }, orderBy: { paidAt: "asc" } });
 }
 
@@ -113,7 +115,7 @@ export function listStalePending(db: Db, olderThan: Date, take: number) {
 }
 
 export async function recordRefund(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   refund: {
     businessId: string;
     paymentId: string;
@@ -183,8 +185,7 @@ export function allBalances(db: Db) {
 }
 
 async function balances(db: Db, businessId: string | null) {
-  return db.$queryRawUnsafe<Array<CurrencyBalance & { businessId: string }>>(
-    `WITH collected AS (
+  return db.$queryRaw<Array<CurrencyBalance & { businessId: string }>>`WITH collected AS (
        SELECT p."businessId", p.currency,
               SUM(CASE WHEN COALESCE(b."checkIn" <= current_date, s."startsAt" <= now())
                        THEN p."amountCents" - p."refundedCents" ELSE 0 END)::int AS earned,
@@ -194,14 +195,14 @@ async function balances(db: Db, businessId: string | null) {
        LEFT JOIN "Booking" b ON b.id = p."bookingId"
        LEFT JOIN "SessionBooking" sb ON sb.id = p."sessionBookingId"
        LEFT JOIN "OfferingSession" s ON s.id = sb."sessionId"
-       WHERE p.online AND p.status IN ('PAID', 'REFUNDED') AND ($1::text IS NULL OR p."businessId" = $1)
+       WHERE p.online AND p.status IN ('PAID', 'REFUNDED') AND (${businessId}::text IS NULL OR p."businessId" = ${businessId})
        GROUP BY 1, 2
      ), paid_out AS (
        SELECT "businessId", currency,
               SUM(CASE WHEN status = 'PAID' THEN "amountCents" ELSE 0 END)::int AS paid,
               SUM(CASE WHEN status = 'REQUESTED' THEN "amountCents" ELSE 0 END)::int AS requested
        FROM "Payout"
-       WHERE status IN ('PAID', 'REQUESTED') AND ($1::text IS NULL OR "businessId" = $1)
+       WHERE status IN ('PAID', 'REQUESTED') AND (${businessId}::text IS NULL OR "businessId" = ${businessId})
        GROUP BY 1, 2
      )
      SELECT COALESCE(c."businessId", o."businessId") AS "businessId",
@@ -212,20 +213,18 @@ async function balances(db: Db, businessId: string | null) {
             COALESCE(o.requested, 0) AS "requestedCents"
      FROM collected c
      FULL JOIN paid_out o ON o."businessId" = c."businessId" AND o.currency = c.currency
-     ORDER BY 1, 2`,
-    businessId,
-  );
+     ORDER BY 1, 2`;
 }
 
 /** Locks the business row so two payout requests can't both spend the same balance. */
-export async function lockBusiness(tx: Prisma.TransactionClient, businessId: string) {
+export async function lockBusiness(tx: Tx, businessId: string) {
   await tx.$queryRaw`SELECT id FROM "Business" WHERE id = ${businessId} FOR UPDATE`;
 }
 
 // ---------- Payouts ----------
 
 export function createPayout(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   payout: {
     businessId: string;
     amountCents: number;
@@ -356,7 +355,7 @@ export function setPlanCheckout(db: Db, id: string, checkoutUrl: string) {
   return db.planPayment.update({ where: { id }, data: { checkoutUrl }, select: { id: true } });
 }
 
-export async function markPlanPaid(tx: Prisma.TransactionClient, id: string, paidAt: Date): Promise<boolean> {
+export async function markPlanPaid(tx: Tx, id: string, paidAt: Date): Promise<boolean> {
   const { count } = await tx.planPayment.updateMany({
     where: { id, status: { in: ["PENDING", "FAILED"] } },
     data: { status: "PAID", paidAt },
@@ -396,7 +395,7 @@ export async function expireWhishPlans(db: Db, now: Date): Promise<number> {
   return count;
 }
 
-export function extendPlan(tx: Prisma.TransactionClient, businessId: string, plan: Plan, renewsAt: Date) {
+export function extendPlan(tx: Tx, businessId: string, plan: Plan, renewsAt: Date) {
   return tx.business.update({
     where: { id: businessId },
     data: { plan, planRenewsAt: renewsAt },

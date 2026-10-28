@@ -4,12 +4,22 @@
  * Everything is fictional. Deterministic (a seeded random), and skipped when the history is already there.
  */
 import type { BookingStatus, PaymentMethod } from "@prisma/client";
+import { isActiveBooking } from "../src/config/enums";
 import { prisma } from "../src/server/db/client";
 import { addDays, todayUtc } from "../src/lib/dates";
-import { secureToken } from "../src/lib/tokens";
+import { REFERENCE_ALPHABET, secureToken } from "../src/lib/tokens";
 
-/** Marks the demo bookings, so the seed knows it already ran and they're easy to spot. */
-const REFERENCE_PREFIX = "DEMO";
+/** The nth demo booking's reference, in the app's own SN-XXXXXX format, the same on every run. */
+function demoReference(n: number) {
+  let value = 100_000_000 + n * 7_919;
+  let code = "";
+  for (let digit = 0; digit < 6; digit++) {
+    code = REFERENCE_ALPHABET[value % REFERENCE_ALPHABET.length] + code;
+    value = Math.floor(value / REFERENCE_ALPHABET.length);
+  }
+  return `SN-${code}`;
+}
+
 const PAST_DAYS = 150;
 const FUTURE_DAYS = 60;
 
@@ -79,10 +89,9 @@ function planStays(next: () => number, today: Date): Stay[] {
   return stays;
 }
 
-const ACTIVE: BookingStatus[] = ["HELD", "AWAITING_PAYMENT", "CONFIRMED"];
-
 export async function seedHistory(): Promise<number> {
-  if ((await prisma.booking.count({ where: { reference: { startsWith: REFERENCE_PREFIX } } })) > 0) return 0;
+  // The main seed makes no bookings, so any booking in a demo place means the history is already there.
+  if ((await prisma.booking.count({ where: { business: { name: { endsWith: "(demo)" } } } })) > 0) return 0;
   const today = todayUtc();
   const host = await prisma.user.findUniqueOrThrow({ where: { email: "host@mabeet.test" } });
   const guestAccount = await prisma.user.findUnique({ where: { email: "guest@mabeet.test" } });
@@ -120,7 +129,7 @@ export async function seedHistory(): Promise<number> {
         const depositCents = Math.ceil((totalCents * business.depositPercent) / 100);
         const booking = await prisma.booking.create({
           data: {
-            reference: `${REFERENCE_PREFIX}${(created + 1).toString(36).toUpperCase().padStart(4, "0")}`,
+            reference: demoReference(created),
             publicToken: secureToken(),
             businessId: business.id,
             roomId: room.id,
@@ -149,7 +158,7 @@ export async function seedHistory(): Promise<number> {
                 checkIn: stay.checkIn,
                 checkOut,
                 kind: "DIRECT",
-                active: ACTIVE.includes(stay.status),
+                active: isActiveBooking(stay.status),
               },
             },
           },

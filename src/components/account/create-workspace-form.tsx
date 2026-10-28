@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { api, ApiError } from "@/lib/api-client";
+import { FormError } from "@/components/ui/form-error";
+import { api, errorMessage } from "@/lib/api-client";
 
 export function CreateWorkspaceForm() {
   const t = useTranslations("host");
@@ -26,7 +27,7 @@ export function CreateWorkspaceForm() {
       });
       router.push(`/dashboard/${business.id}/rooms`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t("error"));
+      setError(errorMessage(caught, t("error")));
       setPending(false);
     }
   };
@@ -35,11 +36,7 @@ export function CreateWorkspaceForm() {
     <form onSubmit={submit} className="grid gap-5">
       <Field label={t("placeName")} name="name" required minLength={2} maxLength={80} placeholder="Beit…" />
       <Field label={t("area")} name="area" maxLength={80} placeholder="Batroun" />
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
       <Button type="submit" size="lg" disabled={pending}>
         {pending && <LoaderCircle className="size-5 animate-spin" aria-hidden />}
         {t("create")}

@@ -1,10 +1,11 @@
+import type { AnalyticsScope } from "@/config/enums";
 import { countNights, type DateRange, toIsoDate, todayUtc } from "@/lib/dates";
 import { can, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma } from "@/server/db/client";
 import * as analytics from "@/server/repositories/analytics-repository";
+import { findBusinessSettings } from "@/server/repositories/business-repository";
 import { sumPlanRevenue } from "@/server/repositories/money-repository";
 import { listWorkspaces, resolveContext } from "./team-service";
-import { findBusinessSettings } from "@/server/repositories/business-repository";
 
 // One reporting layer for the dashboard, the owner AI and the MCP tools, so their numbers always match.
 
@@ -135,8 +136,6 @@ export async function getPlacesOverview(userId: string, today = todayUtc()) {
   }));
 }
 
-export type AnalyticsScope = "place" | "all";
-
 export interface PlaceAnalytics {
   businessId: string;
   name: string;
@@ -177,73 +176,65 @@ export async function getAnalytics(ctx: TenantContext, scope: AnalyticsScope, ra
   };
 }
 
+/** Adds up values that share a key (a currency, a month, a channel, a status). */
+function sumBy(rows: Array<{ key: string; value: number }>): Map<string, number> {
+  const sums = new Map<string, number>();
+  for (const row of rows) sums.set(row.key, (sums.get(row.key) ?? 0) + row.value);
+  return sums;
+}
+
+const total = (values: number[]) => values.reduce((sum, value) => sum + value, 0);
+
+const byKey = ([a]: [string, number], [b]: [string, number]) => a.localeCompare(b);
+
 function combine(places: PlaceAnalytics[]) {
-  /** Adds up values that share a key (a month, a channel). */
-  const sumBy = (rows: Array<{ key: string; value: number }>) => {
-    const sums = new Map<string, number>();
-    for (const row of rows) sums.set(row.key, (sums.get(row.key) ?? 0) + row.value);
-    return sums;
-  };
-  const nightsSold = places.reduce((sum, place) => sum + place.report.nightsSold, 0);
-  const nightsAvailable = places.reduce((sum, place) => sum + place.report.nightsAvailable, 0);
-  const revenue = new Map<string, number>();
-  const saved = new Map<string, number>();
-  for (const place of places) {
-    revenue.set(
-      place.report.currency,
-      (revenue.get(place.report.currency) ?? 0) + place.report.directRevenueCents,
-    );
-    saved.set(
-      place.report.currency,
-      (saved.get(place.report.currency) ?? 0) + place.report.commissionSavedCents,
-    );
-  }
-  const requests = new Map<string, number>();
-  for (const place of places) {
-    for (const [status, count] of Object.entries(place.report.requests)) {
-      requests.set(status, (requests.get(status) ?? 0) + count);
-    }
-  }
-  const ratingCount = places.reduce((sum, place) => sum + place.report.rating.count, 0);
-  const ratingSum = places.reduce(
-    (sum, place) => sum + place.report.rating.average * place.report.rating.count,
-    0,
+  const reports = places.map((place) => place.report);
+  const nightsSold = total(reports.map((report) => report.nightsSold));
+  const nightsAvailable = total(reports.map((report) => report.nightsAvailable));
+  const ratingCount = total(reports.map((report) => report.rating.count));
+  const ratingSum = total(reports.map((report) => report.rating.average * report.rating.count));
+  const responseTimes = reports
+    .map((report) => report.medianResponseMinutes)
+    .filter((minutes): minutes is number => minutes !== null);
+  // Monthly revenue is charted in one currency: the first place's. Other currencies stay in the per-place rows.
+  const revenueCurrency = reports[0]?.currency ?? "USD";
+  const revenueByMonth = sumBy(
+    places
+      .filter((place) => place.report.currency === revenueCurrency)
+      .flatMap((place) => place.revenueByMonth.map((row) => ({ key: row.month, value: row.cents }))),
   );
-  const responses = places
-    .map((place) => place.report.medianResponseMinutes)
-    .filter((value): value is number => value !== null);
   const nightsByMonth = sumBy(
-    places.flatMap((place) => place.report.monthly.map((row) => ({ key: row.month, value: row.nights }))),
+    reports.flatMap((report) => report.monthly.map((row) => ({ key: row.month, value: row.nights }))),
   );
   const channels = sumBy(
-    places.flatMap((place) => place.report.channels.map((row) => ({ key: row.channel, value: row.nights }))),
+    reports.flatMap((report) => report.channels.map((row) => ({ key: row.channel, value: row.nights }))),
   );
-  const revenueByMonth = new Map<string, number>();
-  const currency = places[0]?.report.currency ?? "USD";
-  for (const place of places.filter((candidate) => candidate.report.currency === currency)) {
-    for (const row of place.revenueByMonth)
-      revenueByMonth.set(row.month, (revenueByMonth.get(row.month) ?? 0) + row.cents);
-  }
   return {
     nightsSold,
     nightsAvailable,
     occupancyRate: nightsAvailable === 0 ? 0 : nightsSold / nightsAvailable,
-    revenue: Object.fromEntries(revenue),
-    commissionSaved: Object.fromEntries(saved),
-    requests: Object.fromEntries(requests),
+    revenue: Object.fromEntries(
+      sumBy(reports.map((report) => ({ key: report.currency, value: report.directRevenueCents }))),
+    ),
+    commissionSaved: Object.fromEntries(
+      sumBy(reports.map((report) => ({ key: report.currency, value: report.commissionSavedCents }))),
+    ),
+    requests: Object.fromEntries(
+      sumBy(
+        reports.flatMap((report) =>
+          Object.entries(report.requests).map(([status, count]) => ({ key: status, value: count })),
+        ),
+      ),
+    ),
     rating: { average: ratingCount === 0 ? 0 : ratingSum / ratingCount, count: ratingCount },
     medianResponseMinutes:
-      responses.length === 0 ? null : Math.round(responses.reduce((a, b) => a + b, 0) / responses.length),
-    nightsByMonth: [...nightsByMonth]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, nights]) => ({ month, nights })),
+      responseTimes.length === 0 ? null : Math.round(total(responseTimes) / responseTimes.length),
+    nightsByMonth: [...nightsByMonth].sort(byKey).map(([month, nights]) => ({ month, nights })),
     channels: [...channels]
       .map(([channel, nights]) => ({ channel, nights }))
       .sort((a, b) => b.nights - a.nights),
-    revenueCurrency: currency,
-    revenueByMonth: [...revenueByMonth]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, cents]) => ({ month, cents })),
+    revenueCurrency,
+    revenueByMonth: [...revenueByMonth].sort(byKey).map(([month, cents]) => ({ month, cents })),
   };
 }
 

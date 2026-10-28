@@ -33,7 +33,7 @@ export async function PlaceCard({ place, saved, signedIn, query = "", index = 0 
               alt={place.photo.alt ?? place.name}
               fill
               sizes="(min-width: 1536px) 16vw, (min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-              className="object-cover transition-transform duration-500 ease-(--ease-out) group-hover:scale-[1.04]"
+              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
             />
           ) : (
             <PlaceArt seed={place.slug} className="size-full" />

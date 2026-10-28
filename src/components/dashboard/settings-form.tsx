@@ -5,7 +5,8 @@ import { CURRENCIES } from "@/config/enums";
 import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { inputClass } from "@/components/ui/field";
+import { choiceChipClass, inputClass, LabeledControl, panelClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 import { ACCESSIBILITY, TAGS } from "@/config/listing";
 import { categoryName } from "@/config/appearance";
@@ -120,10 +121,7 @@ export function SettingsForm({ businessId, part, settings, categories }: Setting
               <legend className="mb-2 text-sm font-semibold">{t("categories")}</legend>
               <div className="flex flex-wrap gap-2">
                 {homeCategories.map((category) => (
-                  <label
-                    key={category.slug}
-                    className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm ring-1 ring-line has-checked:bg-accent-soft has-checked:font-semibold has-checked:ring-accent"
-                  >
+                  <label key={category.slug} className={choiceChipClass}>
                     <input
                       type="checkbox"
                       name="categories"
@@ -141,7 +139,7 @@ export function SettingsForm({ businessId, part, settings, categories }: Setting
                 type="checkbox"
                 name="listedPublicly"
                 defaultChecked={settings.listedPublicly}
-                className="size-4 accent-(--accent)"
+                className="size-4 accent-accent"
               />
               {t("listedPublicly")}
             </label>
@@ -320,11 +318,7 @@ export function SettingsForm({ businessId, part, settings, categories }: Setting
             {t("saved")}
           </p>
         )}
-        {error && (
-          <p role="alert" className="text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} />
       </div>
     </form>
   );
@@ -344,8 +338,7 @@ function Choice({
   hint?: string;
 }) {
   return (
-    <label className="grid gap-1 text-sm font-semibold">
-      {label}
+    <LabeledControl label={label} hint={hint}>
       <select name={name} defaultValue={defaultValue} className={inputClass}>
         {options.map(([value, text]) => (
           <option key={value} value={value}>
@@ -353,14 +346,13 @@ function Choice({
           </option>
         ))}
       </select>
-      {hint && <span className="text-xs font-normal text-muted">{hint}</span>}
-    </label>
+    </LabeledControl>
   );
 }
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="grid gap-4 rounded-xl bg-surface p-5 ring-1 ring-line sm:grid-cols-2">
+    <fieldset className={clsx(panelClass, "grid gap-4 sm:grid-cols-2")}>
       <legend className="float-start mb-1 font-display text-xl font-semibold sm:col-span-2">{title}</legend>
       {children}
     </fieldset>
@@ -426,10 +418,7 @@ function ChipGroup({
       {hint && <p className="mb-2 text-xs text-muted">{hint}</p>}
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
-          <label
-            key={option.value}
-            className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm ring-1 ring-line has-checked:bg-accent-soft has-checked:font-semibold has-checked:ring-accent"
-          >
+          <label key={option.value} className={choiceChipClass}>
             <input
               type="checkbox"
               name={name}

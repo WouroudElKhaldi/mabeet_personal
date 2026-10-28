@@ -1,10 +1,10 @@
 import type { BookingStatus, ListingKind, Prisma, RefundPolicy } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import { ACTIVE_BOOKING_STATUSES, EXPIRING_BOOKING_STATUSES } from "@/config/enums";
+import { OFFERING_KINDS } from "@/config/listing";
+import type { Db, Tx } from "@/server/db/client";
 
 // Experiences and services, their sessions, and the bookings made on those sessions.
 // Team queries always filter by businessId; public queries only return listed, active businesses.
-
-const ACTIVE_STATUSES: BookingStatus[] = ["HELD", "AWAITING_PAYMENT", "CONFIRMED"];
 
 const publicOfferingFields = {
   id: true,
@@ -74,7 +74,7 @@ export function findListedOfferings(db: Db, filters: OfferingFilters, take: numb
   return db.offering.findMany({
     where: {
       active: true,
-      kind: filters.kind ?? { in: ["EXPERIENCE", "SERVICE"] },
+      kind: filters.kind ?? { in: [...OFFERING_KINDS] },
       business: listedBusiness,
       categorySlug: filters.categories?.length ? { in: filters.categories } : undefined,
       tags: filters.tags?.length ? { hasSome: filters.tags } : undefined,
@@ -137,7 +137,7 @@ async function seatsTaken(db: Db, sessionIds: string[]): Promise<Map<string, num
   if (sessionIds.length === 0) return new Map();
   const rows = await db.sessionBooking.groupBy({
     by: ["sessionId"],
-    where: { sessionId: { in: sessionIds }, status: { in: ACTIVE_STATUSES } },
+    where: { sessionId: { in: sessionIds }, status: { in: [...ACTIVE_BOOKING_STATUSES] } },
     _sum: { seats: true },
   });
   return new Map(rows.map((row) => [row.sessionId, row._sum.seats ?? 0]));
@@ -191,7 +191,7 @@ export async function deactivateSession(db: Db, businessId: string, sessionId: s
 }
 
 export function countActiveSessionBookings(db: Db, sessionId: string) {
-  return db.sessionBooking.count({ where: { sessionId, status: { in: ACTIVE_STATUSES } } });
+  return db.sessionBooking.count({ where: { sessionId, status: { in: [...ACTIVE_BOOKING_STATUSES] } } });
 }
 
 /** A business's sessions in a window, with how many seats are taken, for the schedule screen. */
@@ -214,7 +214,7 @@ export async function listBusinessSessions(db: Db, businessId: string, from: Dat
  * Locks an active, future session of an active offering for the rest of the transaction.
  * The seat trigger takes the same lock, so requests for the same session queue here.
  */
-export async function lockOpenSession(tx: Prisma.TransactionClient, offeringId: string, sessionId: string) {
+export async function lockOpenSession(tx: Tx, offeringId: string, sessionId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT s.id FROM "OfferingSession" s
     JOIN "Offering" o ON o.id = s."offeringId"
@@ -223,7 +223,7 @@ export async function lockOpenSession(tx: Prisma.TransactionClient, offeringId: 
   return rows.length > 0;
 }
 
-export interface NewHeldSessionBooking {
+export interface NewSessionBooking {
   businessId: string;
   offeringId: string;
   sessionId: string;
@@ -246,7 +246,15 @@ export interface NewHeldSessionBooking {
   locale?: string;
 }
 
-export function createHeldSessionBooking(tx: Prisma.TransactionClient, booking: NewHeldSessionBooking) {
+/** The session a booking is for, with how long the business holds requests. Call after locking it. */
+export function findSessionForBooking(tx: Tx, sessionId: string) {
+  return tx.offeringSession.findUniqueOrThrow({
+    where: { id: sessionId },
+    include: { business: { select: { holdHours: true } } },
+  });
+}
+
+export function createSessionBooking(tx: Tx, booking: NewSessionBooking) {
   return tx.sessionBooking.create({ data: booking });
 }
 
@@ -302,26 +310,24 @@ export function listGuestSessionBookings(db: Db, guestUserId: string) {
 }
 
 export function changeSessionBookingStatus(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   businessId: string,
   bookingId: string,
   change: {
     status: BookingStatus;
     decidedById?: string;
+    decidedAt?: Date;
     cancelReason?: string;
     holdExpiresAt?: Date | null;
   },
 ) {
-  return tx.sessionBooking.update({
-    where: { id: bookingId, businessId },
-    data: { ...change, decidedAt: change.decidedById ? new Date() : undefined },
-  });
+  return tx.sessionBooking.update({ where: { id: bookingId, businessId }, data: change });
 }
 
 /** Expires unanswered session holds in one UPDATE that re-checks status. Returns the expired ids. */
 export async function expireStaleSessionHolds(db: Db, now: Date): Promise<string[]> {
   const expired = await db.sessionBooking.updateManyAndReturn({
-    where: { status: { in: ["HELD", "AWAITING_PAYMENT"] }, holdExpiresAt: { lt: now } },
+    where: { status: { in: [...EXPIRING_BOOKING_STATUSES] }, holdExpiresAt: { lt: now } },
     data: { status: "EXPIRED" },
     select: { id: true },
   });

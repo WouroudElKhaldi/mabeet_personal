@@ -1,9 +1,9 @@
-import type { Booking, BookingStatus, Prisma } from "@prisma/client";
+import type { Booking, BookingStatus } from "@prisma/client";
 import { addDays, countNights, type DateRange, todayUtc } from "@/lib/dates";
 import { maskEmail, maskPhone } from "@/lib/privacy";
 import { bookingReference, secureToken } from "@/lib/tokens";
 import { can, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isOverlapError, prisma, runInTransaction } from "@/server/db/client";
+import { prisma, runInTransaction, type Tx } from "@/server/db/client";
 import { conflict, invalid, notFound } from "@/server/errors";
 import { logActivity } from "@/server/repositories/activity-repository";
 import * as bookings from "@/server/repositories/booking-repository";
@@ -18,6 +18,7 @@ import {
 } from "@/server/repositories/room-repository";
 import { assertTransition } from "./booking-status";
 import { recordAction } from "./audit";
+import { overlapAsConflict } from "./constraint-errors";
 import {
   PAY_AFTER_ACCEPT_HOURS,
   holdUntil,
@@ -31,7 +32,7 @@ import {
   notifyGuestCancelled,
   notifyHostsNewBooking,
 } from "./notification-service";
-import { refundForEndedBooking } from "./online-payment-service";
+import { type EndedBooking, refundForEndedBooking } from "./online-payment-service";
 import { refreshRoomFeeds } from "./calendar-service";
 import { quoteStay } from "./pricing";
 
@@ -75,8 +76,8 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
   if (!business) throw notFound("Place");
 
   let expiredIds: string[] = [];
-  try {
-    const booking = await runInTransaction(async (tx) => {
+  const booking = await overlapAsConflict(DATES_TAKEN, () =>
+    runInTransaction(async (tx) => {
       // A place that can be booked whole or by room: bookings take turns across all its units.
       if (await hasWholePlaceUnit(tx, business.id)) await lockBusinessForBooking(tx, business.id);
       const room = await lockRoomForBooking(tx, business.id, request.roomId);
@@ -94,7 +95,7 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
       });
 
       const status = initialStatus(business);
-      const held = await bookings.createHeldBooking(tx, {
+      const created = await bookings.createBooking(tx, {
         ...stay,
         businessId: business.id,
         roomId: room.id,
@@ -114,25 +115,22 @@ export async function requestBooking(request: BookingRequest, now = new Date()):
         businessId: business.id,
         action: "booking.requested",
         entity: "booking",
-        entityId: held.id,
+        entityId: created.id,
       });
-      return held;
-    });
-    if (booking.status === "HELD") {
-      notifyBookingRequested(booking.id);
-    } else {
-      notifyBookingStatus(booking.id);
-      notifyHostsNewBooking(booking.id);
-    }
-    expiredIds.forEach((id) => notifyBookingStatus(id));
-    return booking;
-  } catch (error) {
-    if (isOverlapError(error)) throw conflict(DATES_TAKEN);
-    throw error;
+      return created;
+    }),
+  );
+  if (booking.status === "HELD") {
+    notifyBookingRequested(booking.id);
+  } else {
+    notifyBookingStatus(booking.id);
+    notifyHostsNewBooking(booking.id);
   }
+  expiredIds.forEach((id) => notifyBookingStatus(id));
+  return booking;
 }
 
-async function lockRoomForBooking(tx: Prisma.TransactionClient, businessId: string, roomId: string) {
+async function lockRoomForBooking(tx: Tx, businessId: string, roomId: string) {
   const locked = await lockBookableRoom(tx, businessId, roomId);
   const room = locked ? await findRoom(tx, businessId, roomId) : null;
   if (!room) throw notFound("Room");
@@ -147,7 +145,7 @@ function assertRoomFits(room: { capacity: number; minNights: number }, request: 
 }
 
 /** Imported nights are outside the DB constraint (platforms may overlap each other), so they are checked here under the room lock. */
-async function assertNoImportedOverlap(tx: Prisma.TransactionClient, roomId: string, range: DateRange) {
+async function assertNoImportedOverlap(tx: Tx, roomId: string, range: DateRange) {
   if (await bookings.findOverlappingImported(tx, roomId, range)) throw conflict(DATES_TAKEN);
 }
 
@@ -170,26 +168,23 @@ export async function confirmBooking(ctx: TenantContext, { bookingId }: Decision
 
 export async function declineBooking(ctx: TenantContext, { bookingId, reason }: Decision, now = new Date()) {
   const booking = await decide(ctx, bookingId, "DECLINED", now, reason);
-  await refundAfterHostEnded(booking, now);
+  await refundForEndedBooking(endedStay(booking), "host", now);
   return booking;
 }
 
 export async function cancelBooking(ctx: TenantContext, { bookingId, reason }: Decision, now = new Date()) {
   const booking = await decide(ctx, bookingId, "CANCELLED", now, reason);
-  await refundAfterHostEnded(booking, now);
+  await refundForEndedBooking(endedStay(booking), "host", now);
   return booking;
 }
 
-/** The host ended a booking the guest may have paid online for: they get all of it back. */
-function refundAfterHostEnded(booking: Booking, now: Date) {
-  if (booking.onlineDueCents === null) return;
-  return refundForEndedBooking(
-    { kind: "stay", id: booking.id, refundPolicy: booking.refundPolicy, startsAt: booking.checkIn },
-    "host",
-    "Cancelled by the host",
-    now,
-  );
-}
+const endedStay = (booking: Booking): EndedBooking => ({
+  kind: "stay",
+  id: booking.id,
+  refundPolicy: booking.refundPolicy,
+  startsAt: booking.checkIn,
+  onlineDueCents: booking.onlineDueCents,
+});
 
 async function decide(
   ctx: TenantContext,
@@ -209,6 +204,7 @@ async function decide(
     return bookings.changeStatus(tx, ctx.businessId, bookingId, {
       status,
       decidedById: ctx.userId,
+      decidedAt: now,
       cancelReason: reason,
       // Accepted with online payment: the guest gets the host's answer time again to pay.
       ...(status === "AWAITING_PAYMENT" && {
@@ -221,7 +217,7 @@ async function decide(
   return booking;
 }
 
-async function assertStillConfirmable(tx: Prisma.TransactionClient, booking: Booking, now: Date) {
+async function assertStillConfirmable(tx: Tx, booking: Booking, now: Date) {
   if (booking.holdExpiresAt && booking.holdExpiresAt < now) {
     throw conflict("This hold has expired. Ask the guest to request again.");
   }
@@ -288,14 +284,7 @@ export async function cancelStayAsGuest(publicToken: string, reason: string | nu
   if (booking) {
     notifyBookingStatus(booking.id);
     notifyGuestCancelled(booking.id);
-    if (booking.onlineDueCents !== null) {
-      await refundForEndedBooking(
-        { kind: "stay", id: booking.id, refundPolicy: booking.refundPolicy, startsAt: booking.checkIn },
-        "guest",
-        "Cancelled by the guest",
-        now,
-      );
-    }
+    await refundForEndedBooking(endedStay(booking), "guest", now);
   }
   return booking;
 }

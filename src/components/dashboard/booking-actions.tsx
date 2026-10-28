@@ -8,7 +8,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { inputClass } from "@/components/ui/field";
+import { inputClass, labelledControlClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
 
@@ -101,7 +102,7 @@ export function BookingActions({
             exit={{ opacity: 0, height: 0 }}
             className="flex flex-wrap items-end gap-2 overflow-hidden"
           >
-            <label className="grid gap-1 text-xs font-semibold text-muted">
+            <label className={labelledControlClass}>
               {t("amount")}
               <input
                 name="amount"
@@ -113,7 +114,7 @@ export function BookingActions({
                 className={`${inputClass} h-10 w-28`}
               />
             </label>
-            <label className="grid gap-1 text-xs font-semibold text-muted">
+            <label className={labelledControlClass}>
               {t("method")}
               <select name="method" className={`${inputClass} h-10 w-40`}>
                 {MANUAL_PAYMENT_METHODS.map((method) => (
@@ -129,11 +130,7 @@ export function BookingActions({
           </motion.form>
         )}
       </AnimatePresence>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
-      )}
+      <FormError message={error} />
     </div>
   );
 }

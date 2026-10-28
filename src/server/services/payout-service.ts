@@ -1,7 +1,7 @@
 import type { z } from "zod";
-import type { TenantContext } from "@/server/auth/tenant-context";
+import { requireOwner, type TenantContext } from "@/server/auth/tenant-context";
 import { prisma, runInTransaction } from "@/server/db/client";
-import { conflict, forbidden, notFound } from "@/server/errors";
+import { conflict, notFound } from "@/server/errors";
 import { logActivity } from "@/server/repositories/activity-repository";
 import * as money from "@/server/repositories/money-repository";
 import type { payoutDecisionInput, payoutRequestInput } from "@/server/validation/schemas";
@@ -23,12 +23,10 @@ const withAvailable = (row: money.CurrencyBalance): Balance => ({
 });
 
 /** Only owners see and move the business's money. */
-function requireOwner(ctx: TenantContext): void {
-  if (!ctx.isOwner) throw forbidden("Only an owner can see payouts");
-}
+const OWNER_ONLY = "Only an owner can see payouts";
 
 export async function getPayouts(ctx: TenantContext) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   const [balances, payouts, payments, last] = await Promise.all([
     money.businessBalances(prisma, ctx.businessId),
     money.listBusinessPayouts(prisma, ctx.businessId),
@@ -54,7 +52,7 @@ export async function getPayouts(ctx: TenantContext) {
  * so two requests sent at once can never add up to more than what is available.
  */
 export async function requestPayout(ctx: TenantContext, input: z.infer<typeof payoutRequestInput>) {
-  requireOwner(ctx);
+  requireOwner(ctx, OWNER_ONLY);
   const payout = await runInTransaction(async (tx) => {
     await money.lockBusiness(tx, ctx.businessId);
     const balance = (await money.businessBalances(tx, ctx.businessId)).find(

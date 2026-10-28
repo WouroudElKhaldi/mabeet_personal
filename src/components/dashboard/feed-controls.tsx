@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { type ConfirmOptions, useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { api } from "@/lib/api-client";
 import { useAction } from "@/hooks/use-action";
 
@@ -92,11 +93,7 @@ export function AddFeedForm({ businessId, roomId }: { businessId: string; roomId
       <Button type="submit" size="sm" className="h-11" disabled={pending}>
         {t("add")}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger sm:col-span-3">
-          {error}
-        </p>
-      )}
+      <FormError message={error} className="sm:col-span-3" />
     </form>
   );
 }

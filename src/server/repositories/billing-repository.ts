@@ -1,5 +1,5 @@
 import type { Plan, Prisma } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 
 // A business's plan, its Stripe ids, what it uses against the plan's limits, and processed webhooks.
 
@@ -44,7 +44,7 @@ export function setBilling(
 
 /** Records a webhook event. Run inside the transaction that applies it: a failure rolls both back. */
 export function recordWebhookEvent(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   event: { provider: string; eventId: string; payload: Prisma.InputJsonValue },
 ) {
   return tx.webhookEvent.create({ data: event, select: { id: true } });

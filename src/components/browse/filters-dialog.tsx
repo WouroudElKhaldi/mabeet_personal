@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useRef, useState } from "react";
 import { AMENITIES } from "@/config/amenities";
 import { ACCESSIBILITY, TAGS } from "@/config/listing";
-import { inputClass } from "@/components/ui/field";
+import { inputClass, labelledControlClass } from "@/components/ui/field";
 import { categoryName } from "@/config/appearance";
 import { activeFilterCount, searchHref, type SearchState } from "@/lib/search-url";
 
@@ -81,7 +81,7 @@ export function FiltersDialog({ state, categories }: { state: SearchState; categ
         ref={dialog}
         aria-labelledby="filters-title"
         onClick={(event) => event.target === dialog.current && dialog.current?.close()}
-        className="m-auto max-h-[90dvh] w-[min(42rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-surface p-0 text-ink shadow-lift backdrop:bg-black/50"
+        className="m-auto max-h-[90dvh] w-[min(42rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-surface p-0 text-ink shadow-lift backdrop:bg-scrim"
       >
         <div className="flex max-h-[90dvh] flex-col">
           <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-line">
@@ -102,7 +102,7 @@ export function FiltersDialog({ state, categories }: { state: SearchState; categ
             <Section title={t("price")} hint={t("priceHint")}>
               <div className="grid grid-cols-2 gap-3">
                 {(["minPrice", "maxPrice"] as const).map((key) => (
-                  <label key={key} className="grid gap-1 text-xs font-semibold text-muted">
+                  <label key={key} className={labelledControlClass}>
                     {t(key === "minPrice" ? "min" : "max")}
                     <input
                       type="number"

@@ -1,9 +1,11 @@
 "use client";
 
+import { clsx } from "clsx";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Field, inputClass } from "@/components/ui/field";
+import { Field, inputClass, panelClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { formatMoney } from "@/lib/format";
@@ -59,7 +61,7 @@ export function PayoutRequestForm({ businessId, balances, last }: PayoutRequestF
   };
 
   return (
-    <form onSubmit={submit} className="grid gap-4 rounded-xl bg-surface p-5 ring-1 ring-line sm:grid-cols-2">
+    <form onSubmit={submit} className={clsx(panelClass, "grid gap-4 sm:grid-cols-2")}>
       <h2 className="font-display text-xl font-semibold sm:col-span-2">{t("requestTitle")}</h2>
       <label className="grid gap-1 text-sm font-semibold">
         {t("currency")}
@@ -125,11 +127,7 @@ export function PayoutRequestForm({ businessId, balances, last }: PayoutRequestF
             {t("requested")}
           </p>
         )}
-        {error && (
-          <p role="alert" className="text-sm font-semibold text-danger">
-            {error}
-          </p>
-        )}
+        <FormError message={error} />
       </div>
     </form>
   );

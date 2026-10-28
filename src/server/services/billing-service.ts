@@ -1,5 +1,6 @@
 import type { Plan } from "@prisma/client";
-import { PLAN_LIMITS, type PlanLimits } from "@/config/plans";
+import { type PaidPlan, PLAN_LIMITS, type PlanLimits } from "@/config/plans";
+import { secureToken } from "@/lib/tokens";
 import {
   createCheckoutSession,
   createPortalSession,
@@ -8,14 +9,13 @@ import {
   stripeEvent,
   verifyWebhookSignature,
 } from "@/server/billing/stripe";
-import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isUniqueViolation, prisma, runInTransaction } from "@/server/db/client";
+import { requireOwner, requirePermission, type TenantContext } from "@/server/auth/tenant-context";
+import { isUniqueViolation, prisma, runInTransaction, type Tx } from "@/server/db/client";
 import { env } from "@/server/env";
 import { conflict, forbidden, invalid, notFound, unavailable } from "@/server/errors";
 import { createWhishPayment, getWhishStatus, whishEnabled } from "@/server/payments/whish";
 import * as billing from "@/server/repositories/billing-repository";
 import * as money from "@/server/repositories/money-repository";
-import { secureToken } from "@/lib/tokens";
 import { recordAction } from "./audit";
 import { settleOnlinePayment } from "./online-payment-service";
 
@@ -23,6 +23,9 @@ import { settleOnlinePayment } from "./online-payment-service";
 // and Stripe's webhooks keeping the plan true. Plan payments are Mabeet's only revenue.
 
 const PLAN_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+/** A Whish plan payment still pending this long has probably lost its callback, so housekeeping asks Whish. */
+const STALE_PLAN_PAYMENT_AGE_MS = 2 * 60_000;
+const HOUSEKEEPING_BATCH_SIZE = 25;
 
 type Counted = "rooms" | "offerings" | "members";
 
@@ -70,8 +73,9 @@ export async function getBilling(ctx: TenantContext) {
   };
 }
 
-const priceFor = (plan: "PRO" | "BUSINESS") =>
-  plan === "PRO" ? env.STRIPE_PRICE_PRO : env.STRIPE_PRICE_BUSINESS;
+const priceFor = (plan: PaidPlan) => (plan === "PRO" ? env.STRIPE_PRICE_PRO : env.STRIPE_PRICE_BUSINESS);
+
+const OWNER_ONLY = "Only an owner can change the plan";
 
 function planForPrice(priceId: string | undefined): Plan | null {
   if (priceId && priceId === env.STRIPE_PRICE_PRO) return "PRO";
@@ -82,9 +86,9 @@ function planForPrice(priceId: string | undefined): Plan | null {
 const dashboardUrl = (businessId: string, query = "") =>
   new URL(`/dashboard/${businessId}/billing${query}`, env.BETTER_AUTH_URL).toString();
 
-/** Only owners spend the business's money. Returns the Stripe Checkout page to send them to. */
-export async function startCheckout(ctx: TenantContext, plan: "PRO" | "BUSINESS") {
-  if (!ctx.isOwner) throw forbidden("Only an owner can change the plan");
+/** Returns the Stripe Checkout page to send the owner to. */
+export async function startCheckout(ctx: TenantContext, plan: PaidPlan) {
+  requireOwner(ctx, OWNER_ONLY);
   const priceId = priceFor(plan);
   if (!stripeEnabled() || !priceId) throw unavailable("Payments are not set up yet.");
   const row = await loadBilling(ctx.businessId);
@@ -106,8 +110,8 @@ export async function startCheckout(ctx: TenantContext, plan: "PRO" | "BUSINESS"
  * Pays one month of a plan with Whish. Whish has no subscriptions, so each payment adds a month; when the month
  * runs out without a new payment, the business goes back to Free. Businesses paying by card use Stripe instead.
  */
-export async function startWhishPlanCheckout(ctx: TenantContext, plan: "PRO" | "BUSINESS") {
-  if (!ctx.isOwner) throw forbidden("Only an owner can change the plan");
+export async function startWhishPlanCheckout(ctx: TenantContext, plan: PaidPlan) {
+  requireOwner(ctx, OWNER_ONLY);
   if (!whishEnabled()) throw unavailable("Whish payments are not set up yet.");
   const row = await loadBilling(ctx.businessId);
   if (row.stripeSubscriptionId) throw conflict("You pay by card. Change your plan from Manage billing.");
@@ -171,7 +175,11 @@ export async function handleWhishCallback(query: { payment?: string; plan?: stri
 
 /** Scheduled: plan months that ran out go back to Free, and Whish plan payments whose callback was missed are checked. */
 export async function runPlanHousekeeping(now = new Date()) {
-  const stale = await money.listStalePlanPayments(prisma, new Date(now.getTime() - 2 * 60_000), 25);
+  const stale = await money.listStalePlanPayments(
+    prisma,
+    new Date(now.getTime() - STALE_PLAN_PAYMENT_AGE_MS),
+    HOUSEKEEPING_BATCH_SIZE,
+  );
   for (const payment of stale) {
     await settlePlanPayment(payment.id, now).catch((error: unknown) =>
       console.error("[plans] check failed", error),
@@ -182,7 +190,7 @@ export async function runPlanHousekeeping(now = new Date()) {
 
 /** Stripe's billing portal: change plan, update the card, see invoices, cancel. */
 export async function openBillingPortal(ctx: TenantContext) {
-  if (!ctx.isOwner) throw forbidden("Only an owner can change the plan");
+  requireOwner(ctx, OWNER_ONLY);
   const row = await loadBilling(ctx.businessId);
   if (!row.stripeCustomerId) throw invalid("Choose a plan first");
   return (await createPortalSession(row.stripeCustomerId, dashboardUrl(ctx.businessId))).url;
@@ -190,8 +198,6 @@ export async function openBillingPortal(ctx: TenantContext) {
 
 /** Statuses in which the business keeps what it pays for. past_due gives the card a chance to be fixed. */
 const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
-
-type Tx = Parameters<Parameters<typeof runInTransaction>[0]>[0];
 
 async function applyEvent(tx: Tx, event: StripeEvent): Promise<void> {
   const object = event.data.object;
@@ -263,7 +269,7 @@ async function recordInvoice(tx: Tx, event: StripeEvent) {
   });
 }
 
-/** A card payment for a booking finished on Stripe Checkout: check it and confirm the booking. */
+/** The guest payment behind a finished Stripe Checkout for a booking, or null for any other event. */
 function paymentCheckoutId(event: StripeEvent): string | null {
   const object = event.data.object;
   if (event.type !== "checkout.session.completed" || object.mode !== "payment") return null;

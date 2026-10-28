@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { BOOKING_STATUSES } from "@/config/enums";
+import { ANALYTICS_SCOPES, BLOCK_SOURCES, BOOKING_STATUSES } from "@/config/enums";
 import { addDays, parseIsoDate, rangesOverlap, toDateRange, toIsoDate, todayUtc } from "@/lib/dates";
-import type { TenantContext } from "@/server/auth/tenant-context";
+import { formatMoney } from "@/lib/format";
+import { can, type TenantContext } from "@/server/auth/tenant-context";
 import { getAnalytics, getBusinessReport } from "@/server/services/analytics-service";
 import { getBusinessNotifications } from "@/server/services/notification-feed-service";
 import { getPayouts } from "@/server/services/payout-service";
 import { getBookingSetup } from "@/server/services/settings-service";
 import {
+  cancelBooking,
   confirmBooking,
   declineBooking,
   getBookingByReference,
@@ -16,7 +18,7 @@ import { addBlock, getCalendarBoard, getChannelSetup, removeBlock } from "@/serv
 import { getSchedule } from "@/server/services/offering-service";
 import { listReviewsForTeam } from "@/server/services/review-service";
 import { listSessionBookings } from "@/server/services/session-booking-service";
-import { listRooms } from "@/server/services/room-service";
+import { findRoomByNameOrId, listRooms } from "@/server/services/room-service";
 import { listMyPlaces, resolvePlaceContext } from "@/server/services/team-service";
 import { type AiTool, defineTool } from "./tool";
 
@@ -26,8 +28,13 @@ import { type AiTool, defineTool } from "./tool";
 const isoDate = z.iso.date().describe("YYYY-MM-DD");
 const reference = z
   .string()
-  .regex(/^SN-[A-Z2-9]{6}$/i)
+  .regex(/^[A-Z0-9-]{4,20}$/i)
   .describe("Booking reference, e.g. SN-7KX3P9");
+
+const inEachCurrency = (amounts: Record<string, number>) =>
+  Object.fromEntries(
+    Object.entries(amounts).map(([currency, cents]) => [currency, formatMoney(cents, currency, "en-US")]),
+  );
 
 /** Marks text written by strangers, so the model treats it as data and never as instructions. */
 const guestWritten = (text: string | null) => (text ? { guestWritten: text } : null);
@@ -39,7 +46,7 @@ const team = <Input extends z.ZodObject>(tool: AiTool<Input, TenantContext>) => 
 const SINGLE_PLACE_TOOLS = [
   team({
     name: "list_rooms",
-    description: "The business's rooms with capacity, nightly base rate (cents) and amenities.",
+    description: "The business's rooms with capacity, nightly base rate and amenities.",
     input: z.object({}),
     requires: "rooms.read",
     mutates: false,
@@ -48,6 +55,7 @@ const SINGLE_PLACE_TOOLS = [
         id: room.id,
         name: room.name,
         capacity: room.capacity,
+        currency: room.business.currency,
         baseRateCents: room.baseRateCents,
         amenities: room.amenities,
         /** ROOM, or the single unit used when the place is booked as a whole. */
@@ -67,15 +75,25 @@ const SINGLE_PLACE_TOOLS = [
   team({
     name: "get_analytics",
     description:
-      "Analytics for a period from the database: occupancy, nights sold, direct revenue and commission saved per currency, requests by outcome, response time, rating, nights and revenue by month, channels, and a per-place breakdown. scope 'all' covers every place the member can see (only in the dashboard assistant, not through an AI key). Money is in cents.",
-    input: z.object({ from: isoDate, to: isoDate, scope: z.enum(["place", "all"]).default("place") }),
+      "Analytics for a period from the database: occupancy, nights sold, direct revenue and commission saved per currency, requests by outcome, response time, rating, nights and revenue by month, channels, and a per-place breakdown. scope 'all' covers every place the member can see (only in the dashboard assistant, not through an AI key).",
+    input: z.object({ from: isoDate, to: isoDate, scope: z.enum(ANALYTICS_SCOPES).default("place") }),
     requires: "analytics.read",
     mutates: false,
     run: async ({ from, to, scope }, ctx) => {
       const data = await getAnalytics(ctx, scope, toDateRange({ checkIn: from, checkOut: to }));
+      const { revenue, commissionSaved, revenueCurrency, revenueByMonth, ...totals } = data.totals;
       return {
         range: data.range,
-        totals: data.totals,
+        totals: {
+          ...totals,
+          // Keyed by currency, so the money is formatted here rather than by the `...Cents` rule.
+          revenue: inEachCurrency(revenue),
+          commissionSaved: inEachCurrency(commissionSaved),
+          revenueByMonth: revenueByMonth.map(({ month, cents }) => ({
+            month,
+            revenue: formatMoney(cents, revenueCurrency, "en-US"),
+          })),
+        },
         places: data.places.map((place) => ({
           name: place.name,
           currency: place.report.currency,
@@ -91,7 +109,7 @@ const SINGLE_PLACE_TOOLS = [
   team({
     name: "get_payouts",
     description:
-      "Money guests paid online through Mabeet for this business: available to pay out, upcoming (stays not started yet), already paid out and requested, plus recent payouts. Owners only. Mabeet takes no commission. Money is in cents.",
+      "Money guests paid online through Mabeet for this business: available to pay out, upcoming (stays not started yet), already paid out and requested, plus recent payouts. Owners only. Mabeet takes no commission.",
     input: z.object({}),
     requires: "analytics.read",
     mutates: false,
@@ -216,6 +234,7 @@ const SINGLE_PLACE_TOOLS = [
         guestPhone: booking.guestPhone,
         guestEmail: booking.guestEmail,
         guestNote: guestWritten(booking.guestNote),
+        currency: booking.currency,
         totalCents: booking.totalCents,
         depositCents: booking.depositCents,
         holdExpiresAt: booking.holdExpiresAt,
@@ -328,25 +347,40 @@ const SINGLE_PLACE_TOOLS = [
     },
   }),
   team({
+    name: "cancel_booking",
+    description:
+      "Cancel a confirmed booking or a waiting request. If the guest paid online, they are refunded in full. Ask the user before calling this.",
+    input: z.object({ reference, reason: z.string().max(300).optional() }),
+    requires: "bookings.decide",
+    mutates: true,
+    run: async ({ reference: ref, reason }, ctx) => {
+      const booking = await getBookingByReference(ctx, ref);
+      const cancelled = await cancelBooking(ctx, { bookingId: booking.id, reason });
+      return { reference: ref, status: cancelled.status };
+    },
+  }),
+  team({
     name: "close_dates",
-    description: "Block nights in one room (maintenance, or a booking taken by phone or on Kazderni).",
+    description:
+      "Block nights in one room (maintenance, or a booking taken by phone or on Kazderni). checkOut is the morning after the last closed night.",
     input: z.object({
-      roomId: z.string().max(64),
+      room: z.string().max(80).describe("The room's name (as list_rooms shows it) or its id"),
       checkIn: isoDate,
       checkOut: isoDate,
-      source: z.enum(["KAZDERNI", "OTHER"]).optional(),
+      source: z.enum(BLOCK_SOURCES).optional(),
       note: z.string().max(200).optional(),
     }),
     requires: "blocks.manage",
     mutates: true,
-    run: async ({ roomId, checkIn, checkOut, source, note }, ctx) => {
+    run: async ({ room, checkIn, checkOut, source, note }, ctx) => {
+      const target = await findRoomByNameOrId(ctx, room);
       const block = await addBlock(ctx, {
-        roomId,
+        roomId: target.id,
         range: toDateRange({ checkIn, checkOut }),
         source: source ?? null,
         note: note ?? null,
       });
-      return { blockId: block.id };
+      return { blockId: block.id, room: target.name, checkIn, checkOut };
     },
   }),
   team({
@@ -362,7 +396,7 @@ const SINGLE_PLACE_TOOLS = [
   }),
 ];
 
-/** Only the tools this member's permissions allow; their AI never learns the others exist. */
+/** The optional argument every place-specific tool gains, so an AI can work in any of the member's places. */
 const placeArgument = z
   .string()
   .max(80)
@@ -373,15 +407,16 @@ const placeArgument = z
 
 /**
  * Every team tool works in any of the member's places: it takes an optional `place`, and runs as the member in
- * that place, with their role there. Without it, the place of the key, token or dashboard.
+ * that place, with their role there. Without it, the place that holds the booking `reference` (if the tool takes
+ * one), else the place of the key, token or dashboard.
  */
 function inAnyPlace(tool: AiTool<z.ZodObject, TenantContext>): AiTool<z.ZodObject, TenantContext> {
   return {
     ...tool,
     input: tool.input.extend({ place: placeArgument }),
     run: async (input, ctx) => {
-      const { place, ...rest } = input as { place?: string };
-      return tool.run(rest, await resolvePlaceContext(ctx, place));
+      const { place, ...rest } = input as { place?: string; reference?: string };
+      return tool.run(rest, await resolvePlaceContext(ctx, place, rest.reference));
     },
   };
 }
@@ -395,9 +430,10 @@ const TEAM_TOOLS = [
     mutates: false,
     run: (_input, ctx) => listMyPlaces(ctx),
   }),
-  ...SINGLE_PLACE_TOOLS.map((tool) => inAnyPlace(tool as unknown as AiTool<z.ZodObject, TenantContext>)),
+  ...SINGLE_PLACE_TOOLS.map(inAnyPlace),
 ];
 
+/** Only the tools this member's permissions allow; their AI never learns the others exist. */
 export function teamToolsFor(ctx: TenantContext) {
-  return TEAM_TOOLS.filter((tool) => !tool.requires || ctx.permissions.has(tool.requires));
+  return TEAM_TOOLS.filter((tool) => !tool.requires || can(ctx, tool.requires));
 }

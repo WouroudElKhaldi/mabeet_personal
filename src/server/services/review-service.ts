@@ -1,11 +1,12 @@
 import type { ReviewStatus } from "@prisma/client";
 import { todayUtc } from "@/lib/dates";
 import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
-import { isUniqueViolation, prisma } from "@/server/db/client";
+import { prisma } from "@/server/db/client";
 import { conflict, invalid, notFound } from "@/server/errors";
 import { logActivity } from "@/server/repositories/activity-repository";
 import * as reviews from "@/server/repositories/review-repository";
 import { recordAction } from "./audit";
+import { duplicateAsConflict } from "./constraint-errors";
 
 export interface ReviewInput {
   bookingId?: string;
@@ -36,8 +37,8 @@ async function reviewTarget(userId: string, input: ReviewInput, now: Date) {
 /** Only the guest who stayed or took part may review, once, afterwards. That keeps ratings honest. */
 export async function submitReview(userId: string, input: ReviewInput, now = new Date()) {
   const target = await reviewTarget(userId, input, now);
-  try {
-    const review = await reviews.createReview(prisma, {
+  const review = await duplicateAsConflict("You already reviewed this", () =>
+    reviews.createReview(prisma, {
       rating: input.rating,
       cleanliness: input.cleanliness,
       location: input.location,
@@ -45,19 +46,16 @@ export async function submitReview(userId: string, input: ReviewInput, now = new
       comment: input.comment,
       ...target,
       authorId: userId,
-    });
-    await logActivity(prisma, {
-      userId,
-      businessId: target.businessId,
-      action: "review.submitted",
-      entity: "review",
-      entityId: review.id,
-    });
-    return review;
-  } catch (error) {
-    if (isUniqueViolation(error)) throw conflict("You already reviewed this");
-    throw error;
-  }
+    }),
+  );
+  await logActivity(prisma, {
+    userId,
+    businessId: target.businessId,
+    action: "review.submitted",
+    entity: "review",
+    entityId: review.id,
+  });
+  return review;
 }
 
 export function listPublicReviews(businessId: string, take = 20) {

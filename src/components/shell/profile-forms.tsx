@@ -1,21 +1,17 @@
 "use client";
 
+import { clsx } from "clsx";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
+import { Field, panelClass } from "@/components/ui/field";
+import { FormError } from "@/components/ui/form-error";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 
 function Status({ saved, error, label }: { saved: boolean; error: string | null; label: string }) {
-  if (error) {
-    return (
-      <p role="alert" className="text-sm font-semibold text-danger">
-        {error}
-      </p>
-    );
-  }
+  if (error) return <FormError message={error} />;
   return saved ? (
     <p role="status" className="text-sm font-semibold text-success">
       {label}
@@ -43,7 +39,7 @@ export function ProfileForm({ profile }: { profile: { name: string; email: strin
           () => setSaved(true),
         );
       }}
-      className="grid gap-4 rounded-xl bg-surface p-5 ring-1 ring-line sm:grid-cols-2"
+      className={clsx(panelClass, "grid gap-4 sm:grid-cols-2")}
     >
       <h2 className="text-xl font-semibold sm:col-span-2">{t("details")}</h2>
       <Field
@@ -100,7 +96,7 @@ export function PasswordForm() {
         form.reset();
         setSaved(true);
       }}
-      className="grid gap-4 rounded-xl bg-surface p-5 ring-1 ring-line sm:grid-cols-2"
+      className={clsx(panelClass, "grid gap-4 sm:grid-cols-2")}
     >
       <h2 className="text-xl font-semibold sm:col-span-2">{t("password")}</h2>
       <Field

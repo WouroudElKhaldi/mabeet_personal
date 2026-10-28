@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { panelClass } from "@/components/ui/field";
 
 /** The title block every dashboard and admin page starts with. */
 export function PageHeader({
@@ -35,7 +36,7 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl bg-surface p-5 ring-1 ring-line">
+    <section className={panelClass}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold">{title}</h2>

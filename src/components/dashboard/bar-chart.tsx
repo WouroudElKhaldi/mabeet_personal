@@ -44,7 +44,7 @@ export function ShareBar({ shares }: { shares: Share[] }) {
         {shares.map((share) => (
           <div
             key={share.label}
-            className={`${share.className} h-full transition-[width] duration-700 ease-(--ease-out)`}
+            className={`${share.className} h-full transition-[width] duration-700 ease-out`}
             style={{ width: `${(share.value / total) * 100}%` }}
           />
         ))}

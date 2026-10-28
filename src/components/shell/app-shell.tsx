@@ -39,7 +39,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AppearanceMenu } from "@/components/theme/appearance-menu";
-import { authClient } from "@/lib/auth-client";
+import { signOutAndLeave } from "@/lib/auth-client";
 import { NotificationBell } from "./notification-bell";
 
 /** Icons by name, so server layouts can describe their navigation in plain data. */
@@ -360,16 +360,11 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-async function signOut() {
-  await authClient.signOut();
-  window.location.assign("/");
-}
-
 function SignOutButton({ label }: { label: string }) {
   return (
     <button
       type="button"
-      onClick={() => void signOut()}
+      onClick={() => void signOutAndLeave()}
       aria-label={label}
       title={label}
       className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-danger"
@@ -455,7 +450,7 @@ function UserMenu({
             <button
               type="button"
               role="menuitem"
-              onClick={() => void signOut()}
+              onClick={() => void signOutAndLeave()}
               className="flex h-10 w-full items-center gap-3 rounded-lg border-t border-line px-3 text-sm text-danger transition-colors hover:bg-surface-2"
             >
               <LogOut className="size-4 rtl:rotate-180" aria-hidden />

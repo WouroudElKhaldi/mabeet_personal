@@ -19,7 +19,7 @@ export default async function TeamPage({ params }: PageProps) {
     canManageTeam ? listRoleOptions(ctx) : [],
     canManageRoles ? listRoles(ctx) : [],
   ]);
-  const grantable = ALL_PERMISSIONS.filter((permission) => ctx.permissions.has(permission));
+  const grantable = ALL_PERMISSIONS.filter((permission) => can(ctx, permission));
 
   return (
     <div className="grid gap-12">

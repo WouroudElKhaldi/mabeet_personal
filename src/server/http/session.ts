@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "@/server/auth/better-auth";
 import type { Permission } from "@/server/auth/permissions";
-import type { TenantContext } from "@/server/auth/tenant-context";
+import { can, type TenantContext } from "@/server/auth/tenant-context";
 import { resolveContext } from "@/server/services/team-service";
 
 /** The signed-in user for server components, resolved once per request. */
@@ -33,6 +33,6 @@ export const requirePageTenant = cache(async (businessId: string): Promise<Tenan
  */
 export async function requirePageAccess(businessId: string, anyOf: readonly Permission[]) {
   const ctx = await requirePageTenant(businessId);
-  if (!anyOf.some((permission) => ctx.permissions.has(permission))) notFound();
+  if (!anyOf.some((permission) => can(ctx, permission))) notFound();
   return ctx;
 }

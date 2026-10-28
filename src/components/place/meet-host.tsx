@@ -128,8 +128,8 @@ export async function MeetHost({
                   title={t("whatsapp")}
                   className={
                     messageable
-                      ? "grid size-12 place-items-center rounded-xl bg-[#25d366] text-white transition-opacity hover:opacity-90"
-                      : "inline-flex h-12 items-center gap-2 rounded-xl bg-[#25d366] px-6 font-semibold text-white transition-opacity hover:opacity-90"
+                      ? "grid size-12 place-items-center rounded-xl bg-brand-whatsapp text-white transition-opacity hover:opacity-90"
+                      : "inline-flex h-12 items-center gap-2 rounded-xl bg-brand-whatsapp px-6 font-semibold text-white transition-opacity hover:opacity-90"
                   }
                 >
                   <MessageCircle className="size-5" aria-hidden />

@@ -1,18 +1,15 @@
 import { z } from "zod";
-import { completeJson } from "@/server/ai/deepseek";
-import type { TenantContext } from "@/server/auth/tenant-context";
-import { requirePermission } from "@/server/auth/tenant-context";
+import type { AnalyticsScope, ReportTopic } from "@/config/enums";
+import { askForJson } from "@/server/ai/output";
 import type { DateRange } from "@/lib/dates";
-import { unavailable } from "@/server/errors";
+import { requirePermission, type TenantContext } from "@/server/auth/tenant-context";
+import { invalid } from "@/server/errors";
 import { assertWithinBudget, recordAiUsage } from "./ai-usage-service";
-import { type AnalyticsScope, getAnalytics } from "./analytics-service";
+import { getAnalytics } from "./analytics-service";
 import { assertPlanAllowsAi } from "./billing-service";
 
 // The AI analytics report. The numbers come from the database (getAnalytics) and are shown by the app as charts
 // and tables; DeepSeek only reads them and writes the analysis. It is told to use no number it wasn't given.
-
-/** What a report can cover; the request schema lists the same values. */
-type ReportTopic = "occupancy" | "revenue" | "channels" | "requests" | "reviews" | "places";
 
 const LANGUAGES: Record<string, string> = {
   en: "English",
@@ -20,18 +17,32 @@ const LANGUAGES: Record<string, string> = {
   "ar-LB": "Lebanese Arabic",
 };
 
-const reportShape = z.object({
-  title: z.string().max(200).catch("Report"),
-  summary: z.string().max(3000).catch(""),
-  highlights: z.array(z.string().max(400)).max(8).catch([]),
-  sections: z
-    .array(z.object({ topic: z.string().max(40), title: z.string().max(200), body: z.string().max(4000) }))
-    .max(8)
-    .catch([]),
-  recommendations: z.array(z.string().max(500)).max(8).catch([]),
-});
+const text = (max: number) => z.string().trim().min(1).max(max);
 
-export type AiReport = z.infer<typeof reportShape>;
+/** The report's exact shape: sent to the model as JSON Schema, and every answer is checked against it. */
+const reportShape = (topics: readonly [ReportTopic, ...ReportTopic[]]) =>
+  z.object({
+    title: text(200),
+    summary: text(3_000).describe("2-4 sentences"),
+    highlights: z
+      .array(text(400))
+      .min(1)
+      .max(6)
+      .describe("3-6 short facts, each with a number from the data"),
+    sections: z
+      .array(
+        z.object({
+          topic: z.enum(topics),
+          title: text(200),
+          body: text(4_000).describe("2-5 short paragraphs, plain text with optional **bold**"),
+        }),
+      )
+      .min(1)
+      .max(topics.length),
+    recommendations: z.array(text(500)).min(1).max(6).describe("3-6 concrete actions"),
+  });
+
+export type AiReport = z.infer<ReturnType<typeof reportShape>>;
 
 /**
  * Builds the report for one place or all the person's places over a period. Pro and Business plans only, within
@@ -66,28 +77,17 @@ export async function generateReport(
       rating: place.report.rating,
     })),
   };
-  const { content, usage } = await completeJson(
-    [
-      {
-        role: "system",
-        content: `You are a hospitality analyst for Mabeet, a direct-booking platform for Lebanese guesthouses that charges no commission.
-Write a report for the host in ${LANGUAGES[input.locale] ?? "English"} about ONLY these topics: ${input.topics.join(", ")}.
+  const [firstTopic, ...otherTopics] = input.topics;
+  if (!firstTopic) throw invalid("Choose at least one topic");
+  const report = await askForJson({
+    system: `You are a hospitality analyst for Mabeet, a direct-booking platform for Lebanese guesthouses that charges no commission.
+Write a report for the host in ${LANGUAGES[input.locale] ?? "English"} about ONLY these topics: ${input.topics.join(", ")}, one section each.
 Rules: use only numbers present in the data; never invent or estimate a figure; amounts are in each place's currency (already in whole units, not cents);
-say plainly when there is too little data. Be concrete and practical. Return JSON:
-{"title": string, "summary": string, "highlights": string[] (3-6 short facts with numbers),
-"sections": [{"topic": one of the requested topics, "title": string, "body": string (2-5 short paragraphs)}],
-"recommendations": string[] (3-6 concrete actions)}`,
-      },
-      { role: "user", content: JSON.stringify(facts) },
-    ],
-    2_000,
-  );
-  await recordAiUsage("report", ctx.businessId, usage);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw unavailable("The report couldn't be written this time. Please try again.");
-  }
-  return { report: reportShape.parse(parsed), data };
+say plainly when there is too little data. Be concrete and practical. No HTML, no headings, no links inside the text.`,
+    input: facts,
+    schema: reportShape([firstTopic, ...otherTopics]),
+    maxTokens: 2_000,
+    onUsage: (usage) => recordAiUsage("report", ctx.businessId, usage),
+  });
+  return { report, data };
 }

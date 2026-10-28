@@ -1,5 +1,5 @@
 import type { PhotoArea, Prisma } from "@prisma/client";
-import type { Db } from "@/server/db/client";
+import type { Db, Tx } from "@/server/db/client";
 
 // Photos of a place (offeringId and roomId empty), of one room, or of an experience or service, and their bytes.
 
@@ -30,7 +30,7 @@ export function countPhotos(db: Db, owner: PhotoOwner) {
 
 /** Stores the bytes and adds the photo at the end of the gallery, in one transaction. */
 export async function addUploadedPhoto(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   owner: PhotoOwner,
   image: { mimeType: string; bytes: Uint8Array<ArrayBuffer>; alt: string | null; area: PhotoArea | null },
 ) {
@@ -74,7 +74,7 @@ export function findPhoto(db: Db, businessId: string, photoId: string) {
 }
 
 /** Deletes a photo, and its stored bytes when the photo was uploaded here. */
-export async function deletePhoto(tx: Prisma.TransactionClient, businessId: string, photoId: string) {
+export async function deletePhoto(tx: Tx, businessId: string, photoId: string) {
   const photo = await tx.photo.findFirst({ where: { id: photoId, businessId } });
   if (!photo) return false;
   await tx.photo.delete({ where: { id: photo.id } });
@@ -84,7 +84,7 @@ export async function deletePhoto(tx: Prisma.TransactionClient, businessId: stri
 }
 
 /** Puts a photo first in its gallery: the cover shown on cards. */
-export async function makeCover(tx: Prisma.TransactionClient, owner: PhotoOwner, photoId: string) {
+export async function makeCover(tx: Tx, owner: PhotoOwner, photoId: string) {
   const first = await tx.photo.aggregate({ where: ownerWhere(owner), _min: { position: true } });
   const { count } = await tx.photo.updateMany({
     where: { ...ownerWhere(owner), id: photoId },

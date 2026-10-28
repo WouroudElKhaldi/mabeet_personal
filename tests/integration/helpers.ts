@@ -3,6 +3,7 @@ import type { Plan } from "@prisma/client";
 import { addDays, todayUtc } from "@/lib/dates";
 import { toPermissions, type Permission } from "@/server/auth/permissions";
 import type { TenantContext } from "@/server/auth/tenant-context";
+import { settleBackgroundWork } from "@/server/background";
 import { prisma } from "@/server/db/client";
 import { createWorkspace } from "@/server/services/onboarding-service";
 import { createRoom } from "@/server/services/room-service";
@@ -11,6 +12,8 @@ import { resolveContext } from "@/server/services/team-service";
 export { prisma };
 
 export async function resetDatabase(): Promise<void> {
+  // A previous test's emails may still be reading; truncating under them deadlocks Postgres.
+  await settleBackgroundWork();
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   const list = tables.map(({ tablename }) => `"${tablename}"`).join(", ");

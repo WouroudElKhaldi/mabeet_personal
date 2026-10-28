@@ -10,7 +10,9 @@ import {
 import { ReportGenerator } from "@/components/dashboard/report-generator";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { PageHeader, Panel } from "@/components/shell/page-header";
+import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
+import { ANALYTICS_SCOPES } from "@/config/enums";
 import { addDays, toIsoDate, todayUtc } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { can } from "@/server/auth/tenant-context";
@@ -92,16 +94,16 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps)
         <label className="grid gap-1 text-xs font-semibold">
           {t("scope")}
           <select name="scope" defaultValue={query.scope} className={clsx(inputClass, "h-9")}>
-            <option value="place">{t("scopes.place")}</option>
-            <option value="all">{t("scopes.all")}</option>
+            {ANALYTICS_SCOPES.map((scope) => (
+              <option key={scope} value={scope}>
+                {t(`scopes.${scope}`)}
+              </option>
+            ))}
           </select>
         </label>
-        <button
-          type="submit"
-          className="h-9 rounded-full bg-accent px-4 text-sm font-semibold text-accent-ink hover:bg-accent-strong"
-        >
+        <Button type="submit" size="sm">
           {t("apply")}
-        </button>
+        </Button>
       </form>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">

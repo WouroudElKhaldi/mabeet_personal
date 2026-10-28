@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
-import { api, ApiError } from "@/lib/api-client";
+import { api, ApiError, errorMessage } from "@/lib/api-client";
 
 interface GuestDetailsFormProps {
   slug: string;
@@ -43,13 +43,7 @@ export function GuestDetailsForm({ slug, stay, defaults, instant }: GuestDetails
     } catch (caught) {
       const fields = caught instanceof ApiError ? caught.invalidFields : [];
       setInvalidFields(fields);
-      setError(
-        fields.length > 0
-          ? t("checkFields")
-          : caught instanceof ApiError
-            ? caught.message
-            : t("genericError"),
-      );
+      setError(fields.length > 0 ? t("checkFields") : errorMessage(caught, t("genericError")));
       setSubmitting(false);
     }
   };
