@@ -21,6 +21,10 @@ interface RoomOffer {
   roomId: string;
   name: string;
   capacity: number;
+  bedrooms: number;
+  bathrooms: number;
+  beds: number;
+  amenities: string[];
   nightlyFromCents: number;
   stayTotalCents: number | null;
 }
@@ -73,6 +77,10 @@ function offersFor(
       roomId: room.id,
       name: room.name,
       capacity: room.capacity,
+      bedrooms: room.bedrooms,
+      bathrooms: room.bathrooms,
+      beds: room.beds,
+      amenities: room.amenities,
       nightlyFromCents: room.baseRateCents,
       stayTotalCents: null,
     }));
@@ -85,6 +93,10 @@ function offersFor(
         roomId: room.id,
         name: room.name,
         capacity: room.capacity,
+        bedrooms: room.bedrooms,
+        bathrooms: room.bathrooms,
+        beds: room.beds,
+        amenities: room.amenities,
         nightlyFromCents: Math.min(...quote.nights.map((night) => night.rateCents)),
         stayTotalCents: quote.totalCents,
       };

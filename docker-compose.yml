@@ -1,0 +1,58 @@
+# The production shape on one machine: the website, the job worker and Postgres. Settings come from .env
+# (DATABASE_URL is overridden to point at the db service).
+#   docker compose up --build
+#   docker compose up --scale worker=2   # more workers share the queues
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mabeet
+      POSTGRES_PASSWORD: mabeet
+      POSTGRES_DB: mabeet
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mabeet"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["pnpm", "exec", "prisma", "migrate", "deploy"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://mabeet:mabeet@db:5432/mabeet
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build: .
+    command: ["pnpm", "start"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://mabeet:mabeet@db:5432/mabeet
+      JOBS_MODE: queue
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Must always run beside the website in production: without it, AI answers, emails and scheduled jobs wait in
+  # the queue. Comes back by itself after a crash or a reboot.
+  worker:
+    build: .
+    command: ["pnpm", "worker"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://mabeet:mabeet@db:5432/mabeet
+      JOBS_MODE: queue
+    # Lets in-flight jobs finish on a deploy (the worker waits up to 60s).
+    stop_grace_period: 70s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  db-data:

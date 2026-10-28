@@ -99,6 +99,27 @@ The remaining tables (`Session`, `Account`, `Verification`, `Oauth*`, `Jwks`) be
 Better Auth. `Category`, `Photo`, `StoredImage`, `RateLimitWindow`, `SiteSetting` and `WebhookEvent` are
 supporting tables.
 
+## Job queues (the `pgboss` schema)
+
+The worker's queues live in the same database, in a separate `pgboss` schema owned by
+[pg-boss](https://github.com/timgit/pg-boss). It is not in `prisma/schema.prisma` and has no migrations of ours:
+pg-boss creates and upgrades it when it starts.
+
+| Table             | Holds                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `pgboss.job`      | One row per job: queue, `{ job, data }` payload, state (created → active → completed / failed), output |
+| `pgboss.queue`    | The three queues (`ai`, `notify`, `cron`) with their retry and retention settings                      |
+| `pgboss.schedule` | The worker's schedules: calendar sync every 15 minutes, housekeeping every 5                           |
+
+Beside it, in our own schema, `JobProgress` holds what a running AI job has written so far (the tool in use and
+the reply so far), so the person watches the answer arrive. The worker writes it at most every 300 ms and deletes
+it when the job ends; housekeeping removes leftovers older than an hour.
+
+What a job stores is kept small and short-lived. It holds ids and plain values, never a permission set. A
+queued chat holds the conversation it answers. Finished AI jobs, with their answers, are deleted after an hour,
+other jobs after a day. So a temporary chat, which is never saved in `AiChat`, also leaves the database within
+the hour.
+
 ## The rules the database enforces itself
 
 Prisma can't describe these, so they live in hand-written SQL migrations, and tests fail if one goes missing.

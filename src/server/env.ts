@@ -9,6 +9,14 @@ const schema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
   CRON_SECRET: z.string().min(24),
+  // "queue" when a worker runs beside the website (`pnpm worker`, production): slow AI work and notices go on
+  // Postgres queues. "inline" (the default: local development, tests) runs them in the web process, no worker.
+  JOBS_MODE: z.enum(["inline", "queue"]).default("inline"),
+  // In "queue" mode: AI work expected to take longer than this many seconds goes to the queue. 0 queues it all.
+  JOBS_SYNC_LIMIT_SECONDS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().nonnegative().default(5),
+  ),
   DEEPSEEK_API_KEY: z.string().optional(),
   // DeepSeek prices in US dollars per million tokens (check api-docs.deepseek.com/quick_start/pricing).
   AI_INPUT_USD_PER_M: z.coerce.number().nonnegative().default(0.28),

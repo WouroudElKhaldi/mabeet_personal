@@ -45,7 +45,7 @@ export function ReportGenerator({
     setPending(true);
     setError(null);
     try {
-      setResult(await api.post(`/api/workspaces/${businessId}/analytics/report`, { ...period, topics }));
+      setResult(await api.run(`/api/workspaces/${businessId}/analytics/report`, { ...period, topics }));
     } catch (caught) {
       setError(errorMessage(caught, t("error")));
     } finally {

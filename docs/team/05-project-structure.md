@@ -19,6 +19,7 @@ folder. Generated folders (`node_modules`, `.next`) and private notes are not li
 | A part of the screen used in many places            | `src/components/ui/`                                                                             | copied into each screen                          |
 | A small helper (dates, money, slugs)                | `src/lib/`                                                                                       | a service or a component                         |
 | An AI tool                                          | `src/server/ai/team-tools.ts` (owners) or `guest-tools.ts` (guests), calling an existing service | its own database code                            |
+| Slow or must-happen work (AI, email, schedules)     | a job: `defineJob(...)`, its module listed in `src/server/jobs/registry.ts`                      | awaited on the request path                      |
 | Text on screen                                      | `messages/en.json`, `ar.json`, `ar-LB.json` (same key in all three)                              | written inside a component                       |
 | A test                                              | `tests/unit/<area>.test.ts` or `tests/integration/<area>.test.ts`                                | next to the code file                            |
 
@@ -34,7 +35,7 @@ Names:
 
 | Folder                            | What goes there                                                                                            |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `.github/workflows/`              | The checks that run on every pull request, the deploy, and the job that runs every 15 minutes              |
+| `.github/workflows/`              | The checks that run on every pull request, the deploy, and the scheduled jobs (until the worker runs them) |
 | `docs/`                           | Documents for reviewers: architecture, requirements, data model, database diagram, API contract            |
 | `messages/`                       | All text on screen, in English, Arabic and Lebanese Arabic. Every key must be in all three (a test checks) |
 | `prisma/`                         | The database tables, the migrations (including hand-written database rules), and the demo data             |
@@ -59,6 +60,7 @@ Names:
 | `src/server/services/`            | Business rules: permissions, transactions, notifications. One file per area                                |
 | `src/server/repositories/`        | The only code that talks to the database. Every business query filters by businessId                       |
 | `src/server/ai/`                  | The AI: tools, the tool runner, the chat loop, the MCP server, the DeepSeek client                         |
+| `src/server/jobs/`                | Queues and the worker: job definitions, answer-now-or-queue, schedules, `worker.ts` (`pnpm worker`)        |
 | `src/server/auth/`                | Sign-in setup, permissions, TenantContext, AI key checks                                                   |
 | `src/server/http/`                | Route wrappers, error answers, rate limits, page sign-in helpers                                           |
 | `src/server/validation/`          | The Zod input checks for every API route (schemas.ts)                                                      |
@@ -71,7 +73,7 @@ Names:
 | `tests/unit/`                     | Fast tests with no database                                                                                |
 | `tests/integration/`              | Tests with a real database: services, database rules, races, business isolation                            |
 
-## All files (569)
+## All files (592)
 
 ```
 .env.example
@@ -80,13 +82,18 @@ Names:
   workflows/
     ci.yml
     scheduled-jobs.yml
+.dockerignore
 .gitignore
 .prettierignore
 .prettierrc.json
 README.md
+Dockerfile
+docker-compose.yml
 docs/
   architecture.md
   data-model.md
+  erd-ai-mcp.md
+  erd-platform.md
   erd.md
   functional-requirements.md
   non-functional-requirements.md
@@ -157,6 +164,8 @@ prisma/
       migration.sql
     20261023000700_host_contact/
       migration.sql
+    20261028000100_job_progress/
+      migration.sql
     migration_lock.toml
   schema.prisma
   seed-history.ts
@@ -165,6 +174,7 @@ prisma/
 public/
   sw.js
 scripts/
+  dev.ts
   edge-cases.ts
   erd.ts
   lib/
@@ -333,6 +343,9 @@ src/
           route.ts
       images/
         [imageId]/
+          route.ts
+      jobs/
+        [jobId]/
           route.ts
       mcp/
         guest/
@@ -727,6 +740,7 @@ src/
     enums.ts
     listing.ts
     plans.ts
+    regions.ts
   global.d.ts
   hooks/
     use-action.ts
@@ -783,6 +797,13 @@ src/
       build-feed.ts
       parse-feed.ts
       safe-fetch.ts
+    jobs/
+      ai-jobs.ts
+      cron-jobs.ts
+      progress.ts
+      queue.ts
+      registry.ts
+      worker.ts
     payments/
       whish.ts
     push/
@@ -803,6 +824,7 @@ src/
       favorite-repository.ts
       filters.ts
       host-repository.ts
+      job-progress-repository.ts
       money-repository.ts
       notification-repository.ts
       offering-repository.ts
@@ -836,6 +858,7 @@ src/
       directory-service.ts
       favorite-service.ts
       host-service.ts
+      housekeeping-service.ts
       mcp-oauth-service.ts
       notification-feed-service.ts
       notification-service.ts
@@ -874,6 +897,7 @@ tests/
     mcp-isolation.test.ts
     money.test.ts
     occupancy-constraint.test.ts
+    place-search.test.ts
     plan-requests.test.ts
     rate-limit.test.ts
     reviews-and-prices.test.ts
@@ -887,12 +911,15 @@ tests/
     ai-usage.test.ts
     assistant.test.ts
     background.test.ts
+    concierge-cards.test.ts
     booking-policy.test.ts
     booking-status.test.ts
     dates.test.ts
+    deepseek-stream.test.ts
     email.test.ts
     error-i18n.test.ts
     ical.test.ts
+    jobs.test.ts
     locale.test.ts
     mcp-server.test.ts
     messages.test.ts
@@ -901,6 +928,7 @@ tests/
     permissions.test.ts
     photos.test.ts
     pricing.test.ts
+    regions.test.ts
     privacy.test.ts
     push.test.ts
     send-email.test.ts

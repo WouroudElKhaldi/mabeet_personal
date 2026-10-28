@@ -7,3 +7,5 @@ if (!testDatabaseUrl) throw new Error("TEST_DATABASE_URL is not set (see .env.ex
 process.env.DATABASE_URL = testDatabaseUrl;
 // Tests never send real email, even when a Resend key is configured for development.
 process.env.RESEND_API_KEY = "";
+// No worker runs during tests: jobs run in the test process, so each test can wait for them.
+process.env.JOBS_MODE = "inline";

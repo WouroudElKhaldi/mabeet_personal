@@ -1,15 +1,23 @@
-import { json, parseBody, tenantRoute } from "@/server/http/route";
+import { jobResponse, parseBody, tenantRoute } from "@/server/http/route";
 import { enforceRateLimit } from "@/server/http/rate-limit";
-import { askTeamAssistant } from "@/server/services/assistant-service";
-import { answerChat } from "@/server/services/chat-service";
+import { chatSeconds, teamAssistantJob } from "@/server/jobs/ai-jobs";
+import { runOrQueue } from "@/server/jobs/queue";
+import { requirePermission } from "@/server/auth/tenant-context";
+import { assertAiAvailable } from "@/server/services/assistant-service";
 import { chatInput, workspaceParams } from "@/server/validation/schemas";
 
 const MESSAGES_PER_MINUTE = 15;
 
-/** Asks the team assistant. Saved to the member's chat history unless the chat is temporary. */
+/**
+ * Asks the team assistant. Saved to the member's chat history unless the chat is temporary. Answered at once
+ * (200) when short and the server is quiet, otherwise queued (202 + jobId).
+ */
 export const POST = tenantRoute(workspaceParams, async ({ request, ctx }) => {
   await enforceRateLimit(`assistant:${ctx.userId}:${ctx.businessId}`, MESSAGES_PER_MINUTE, 60_000);
-  const input = await parseBody(request, chatInput);
-  const scope = { userId: ctx.userId, surface: "team" as const, businessId: ctx.businessId };
-  return json(await answerChat(scope, input, (history) => askTeamAssistant(ctx, history)));
+  // Refused here, before queueing, as well as in the job itself.
+  requirePermission(ctx, "ai.use");
+  await assertAiAvailable(ctx.businessId);
+  const chat = await parseBody(request, chatInput);
+  const job = { userId: ctx.userId, businessId: ctx.businessId, chat };
+  return jobResponse(await runOrQueue(teamAssistantJob, job, chatSeconds("team", chat.messages)));
 });

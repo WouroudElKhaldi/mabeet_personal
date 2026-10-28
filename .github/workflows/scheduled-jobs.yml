@@ -1,7 +1,9 @@
 name: Scheduled jobs
 
-# Calls the app's two background jobs on the live site. Set the repository secrets APP_URL
-# (e.g. https://mabeet.example) and CRON_SECRET (the same value as the app's). Without them this does nothing.
+# Calls the app's two scheduled jobs on the live site. Needed while the site runs on Vercel, where there is no job
+# worker. Once the worker (`pnpm worker`) runs beside the site on DigitalOcean, it runs both on its own schedule:
+# delete the `schedule:` lines then and keep this as a manual fallback (running both is harmless, only wasteful).
+# Needs the repository secrets APP_URL (e.g. https://mabeet.example) and CRON_SECRET (the same value as the app's).
 on:
   schedule:
     - cron: "*/15 * * * *"

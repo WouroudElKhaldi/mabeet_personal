@@ -32,6 +32,9 @@ interface DemoPlace {
     name: string;
     capacity: number;
     beds: number;
+    /** 1 unless given. */
+    bedrooms?: number;
+    bathrooms?: number;
     rate: number;
     amenities: string[];
     description: string;
@@ -121,9 +124,11 @@ const PLACES: DemoPlace[] = [
         name: "The cabin",
         capacity: 4,
         beds: 2,
+        bedrooms: 2,
+        bathrooms: 1,
         rate: 11000,
-        amenities: ["fireplace", "kitchen", "parking", "pets"],
-        description: "Whole cabin, sleeps four.",
+        amenities: ["fireplace", "jacuzzi", "kitchen", "parking", "pets"],
+        description: "Whole cabin, sleeps four: two bedrooms, a bathroom and an indoor jacuzzi.",
       },
     ],
   },
@@ -249,9 +254,27 @@ async function ensurePhotoAreas() {
   }
 }
 
+/** Brings an already seeded demo place's rooms up to date (layout, amenities), so reseeding applies changes here. */
+async function ensureRoomLayouts(businessId: string, place: DemoPlace) {
+  for (const room of place.rooms) {
+    await prisma.room.updateMany({
+      where: { businessId, name: room.name },
+      data: {
+        bedrooms: room.bedrooms ?? 1,
+        bathrooms: room.bathrooms ?? 1,
+        amenities: room.amenities,
+        description: room.description,
+      },
+    });
+  }
+}
+
 async function seedPlace(place: DemoPlace, ownerId: string) {
   const existing = await prisma.business.findFirst({ where: { name: place.name } });
-  if (existing) return ensurePhotos(existing.id, place);
+  if (existing) {
+    await ensureRoomLayouts(existing.id, place);
+    return ensurePhotos(existing.id, place);
+  }
   const business = await createWorkspace(ownerId, { name: place.name, area: place.area });
   await prisma.business.update({
     where: { id: business.id },
@@ -271,6 +294,8 @@ async function seedPlace(place: DemoPlace, ownerId: string) {
           description: room.description,
           capacity: room.capacity,
           beds: room.beds,
+          bedrooms: room.bedrooms ?? 1,
+          bathrooms: room.bathrooms ?? 1,
           baseRateCents: room.rate,
           amenities: room.amenities,
           exportToken: secureToken(),

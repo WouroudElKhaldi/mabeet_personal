@@ -86,17 +86,114 @@ async function requestCompletion(body: Record<string, unknown>, timeoutMs: numbe
   };
 }
 
-/** One chat round; the model may answer or ask for some of the offered tools. */
-export function complete(messages: ChatMessage[], tools: readonly AiTool[]) {
-  return requestCompletion(
-    {
-      messages,
-      tools: tools.length > 0 ? tools.map(toToolSpec) : undefined,
-      max_tokens: MAX_CHAT_OUTPUT_TOKENS,
-      temperature: 0.3,
-    },
-    CHAT_TIMEOUT_MS,
-  );
+/**
+ * One chat round; the model may answer or ask for some of the offered tools. With `onText`, the answer is
+ * streamed and `onText` gets the text written so far after each piece, so a person can watch it arrive.
+ */
+export function complete(
+  messages: ChatMessage[],
+  tools: readonly AiTool[],
+  onText?: (textSoFar: string) => void,
+) {
+  const body = {
+    messages,
+    tools: tools.length > 0 ? tools.map(toToolSpec) : undefined,
+    max_tokens: MAX_CHAT_OUTPUT_TOKENS,
+    temperature: 0.3,
+  };
+  return onText ? streamCompletion(body, onText) : requestCompletion(body, CHAT_TIMEOUT_MS);
+}
+
+const chunkSchema = z.object({
+  choices: z
+    .array(
+      z.object({
+        delta: z
+          .object({
+            content: z.string().nullish(),
+            tool_calls: z
+              .array(
+                z.object({
+                  index: z.number(),
+                  id: z.string().nullish(),
+                  function: z
+                    .object({ name: z.string().nullish(), arguments: z.string().nullish() })
+                    .nullish(),
+                }),
+              )
+              .nullish(),
+          })
+          .nullish(),
+      }),
+    )
+    .default([]),
+  usage: z.object({ prompt_tokens: z.number(), completion_tokens: z.number() }).nullish(),
+});
+
+/**
+ * The same round as requestCompletion, read as Server-Sent Events. Text pieces are added up; tool calls arrive
+ * in pieces too (id and name first, then the arguments a few characters at a time) and are put back together.
+ */
+async function streamCompletion(body: Record<string, unknown>, onText: (textSoFar: string) => void) {
+  if (!env.DEEPSEEK_API_KEY) throw unavailable("The assistant is not set up yet.");
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
+    body: JSON.stringify({ model: MODEL, ...body, stream: true, stream_options: { include_usage: true } }),
+  });
+  if (!response.ok || !response.body) {
+    console.error("DeepSeek error", response.status, await response.text().catch(() => ""));
+    throw unavailable("The assistant is busy right now. Please try again in a moment.");
+  }
+
+  let content = "";
+  const calls: ToolCall[] = [];
+  const usage: TokenUsage = { promptTokens: 0, completionTokens: 0 };
+  for await (const data of serverSentEvents(response.body)) {
+    if (data === "[DONE]") break;
+    const chunk = chunkSchema.parse(JSON.parse(data));
+    if (chunk.usage) {
+      usage.promptTokens = chunk.usage.prompt_tokens;
+      usage.completionTokens = chunk.usage.completion_tokens;
+    }
+    const delta = chunk.choices[0]?.delta;
+    for (const piece of delta?.tool_calls ?? []) {
+      const call = (calls[piece.index] ??= {
+        id: "",
+        type: "function",
+        function: { name: "", arguments: "" },
+      });
+      if (piece.id) call.id = piece.id;
+      call.function.name += piece.function?.name ?? "";
+      call.function.arguments += piece.function?.arguments ?? "";
+    }
+    if (delta?.content) {
+      content += delta.content;
+      onText(content);
+    }
+  }
+  const toolCalls = calls.filter(Boolean);
+  return {
+    message: { content: content || null, tool_calls: toolCalls.length > 0 ? toolCalls : undefined },
+    usage,
+  };
+}
+
+/** The `data:` payloads of an event stream, one per event. */
+async function* serverSentEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const decoder = new TextDecoder();
+  const reader = body.getReader();
+  let buffer = "";
+  for (let read = await reader.read(); !read.done; read = await reader.read()) {
+    buffer += decoder.decode(read.value, { stream: true });
+    let end: number;
+    while ((end = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, end).trim();
+      buffer = buffer.slice(end + 1);
+      if (line.startsWith("data:")) yield line.slice(5).trim();
+    }
+  }
 }
 
 /** One answer as a JSON object (DeepSeek's JSON mode), for reports that the app lays out itself. */

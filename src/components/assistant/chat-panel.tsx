@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { FormError } from "@/components/ui/form-error";
-import { api, errorMessage } from "@/lib/api-client";
+import { api, errorMessage, type JobProgress } from "@/lib/api-client";
 import { RichText } from "./rich-text";
 
 type Role = "user" | "assistant";
@@ -68,6 +68,8 @@ export function ChatPanel<Response extends { reply: string }>({
   const t = useTranslations("assistant");
   const [messages, setMessages] = useState<ChatMessage<Response>[]>([]);
   const [thinking, setThinking] = useState(false);
+  /** What a queued answer has shown so far: the tool in use, then the reply as it is written. */
+  const [live, setLive] = useState<JobProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [temporary, setTemporary] = useState(false);
@@ -93,7 +95,7 @@ export function ChatPanel<Response extends { reply: string }>({
 
   useEffect(() => {
     if (messages.length > 0 || thinking) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, thinking]);
+  }, [messages, thinking, live]);
 
   const newChat = (asTemporary = false) => {
     setMessages([]);
@@ -143,11 +145,17 @@ export function ChatPanel<Response extends { reply: string }>({
     setThinking(true);
     setError(null);
     try {
-      const response = await api.post<Response & { chatId: string | null }>(endpoint, {
-        messages: next.slice(-MAX_SENT_MESSAGES).map(({ role, content: body }) => ({ role, content: body })),
-        chatId,
-        temporary,
-      });
+      const response = await api.run<Response & { chatId: string | null }>(
+        endpoint,
+        {
+          messages: next
+            .slice(-MAX_SENT_MESSAGES)
+            .map(({ role, content: body }) => ({ role, content: body })),
+          chatId,
+          temporary,
+        },
+        setLive,
+      );
       if (response.chatId) {
         setChatId(response.chatId);
         void refreshHistory();
@@ -157,6 +165,7 @@ export function ChatPanel<Response extends { reply: string }>({
       setError(errorMessage(caught, t("error")));
     } finally {
       setThinking(false);
+      setLive(null);
     }
   };
 
@@ -199,7 +208,17 @@ export function ChatPanel<Response extends { reply: string }>({
         <Note speaker={speaker}>{greeting}</Note>
         {messages.length === 0 && <Ideas suggestions={suggestions} onPick={(idea) => void send(idea)} />}
         <MessageList messages={messages} speaker={speaker} renderAttachment={renderAttachment} />
-        {thinking && <ThinkingDots label={t("thinking")} />}
+        {thinking &&
+          (live?.text ? (
+            <Note speaker={speaker}>
+              <RichText text={live.text} />
+            </Note>
+          ) : (
+            <ThinkingDots
+              label={live?.step ? t(stepMessage(live.step)) : t("thinking")}
+              visible={!!live?.step}
+            />
+          ))}
         <FormError message={error} />
         <div ref={end} />
       </div>
@@ -344,7 +363,15 @@ const MessageList = memo(function MessageList<Response>({
   renderAttachment?: RenderAttachment<Response>;
 }) => ReactNode;
 
-function ThinkingDots({ label }: { label: string }) {
+/** The status line for a tool the assistant is using; tools without their own line share a general one. */
+function stepMessage(step: string) {
+  if (step === "search_places" || step === "search_experiences") return "progress.searching" as const;
+  if (step === "write_report") return "progress.report" as const;
+  return "progress.checking" as const;
+}
+
+/** The dots while an answer is on its way; `visible` shows the label too, once there is something specific to say. */
+function ThinkingDots({ label, visible = false }: { label: string; visible?: boolean }) {
   return (
     <div className="flex items-center gap-3 text-sm text-muted" role="status">
       <Monogram />
@@ -357,7 +384,7 @@ function ThinkingDots({ label }: { label: string }) {
           />
         ))}
       </span>
-      <span className="sr-only">{label}</span>
+      <span className={visible ? undefined : "sr-only"}>{label}</span>
     </div>
   );
 }

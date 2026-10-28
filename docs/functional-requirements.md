@@ -39,7 +39,9 @@ Instagram and WhatsApp. Hosts who juggle several calendars sometimes sell the sa
 - **F5. Keep an account.** Trips, favourites, an activity history, and one review per stay, written only after
   check-out by the guest who actually stayed.
 - **F6. Ask the concierge.** Describe a trip in English, Arabic or Arabizi and get places that are really free on
-  those dates.
+  those dates. Every part of the wish is searched for, not guessed: a town or a whole region ("North Lebanon",
+  "الشمال"), bedrooms, bathrooms and beds, amenities such as a jacuzzi, pool or fireplace, and the place's style.
+  What can't be checked (a home's total number of rooms) is said plainly.
 
 ## Hosts and their staff
 
@@ -73,6 +75,10 @@ Instagram and WhatsApp. Hosts who juggle several calendars sometimes sell the sa
   12 to 15 November"), but never on its own: in the dashboard the person confirms a card showing the exact action,
   and in Claude, ChatGPT, Cursor or Codex the app asks before any change. Chats are saved for later, or kept
   unsaved and never stored.
+- **F14b. Never stuck waiting on the AI.** A short question is answered straight away. A long one, a long
+  conversation, an analytics report, or any question while others are being answered is put in line, without the
+  page or anyone else's request being held up. The chat says what it is doing ("Searching what's free…") and
+  then shows the answer word by word as it is written, the first words within a few seconds. Leaving the chat open is all it takes; nothing has to be resent.
 - **F14a. Notifications.** A bell shows the latest five things that happened (requests, payments, cancellations,
   reviews, team changes); "View all" opens the full, paged list.
 - **F15. Choose a plan.** Free, Pro or Business, each with its limits (rooms, experiences, team members, AI).

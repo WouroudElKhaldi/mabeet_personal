@@ -991,6 +991,21 @@ model RateLimitWindow {
   @@index([resetAt])
 }
 
+/// What a queued AI job has written so far, so the person sees it live. The worker writes it a few times a second
+/// and deletes it when the job ends; the finished answer is the job's own output (pg-boss). Leftovers of a crashed
+/// worker are removed by housekeeping.
+model JobProgress {
+  /// pg-boss's job id.
+  jobId     String   @id
+  /// The tool the model is using right now (e.g. "search_places"), or null while it writes the reply.
+  step      String?
+  /// The reply so far.
+  text      String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 /// Tokens and cost of one assistant answer (all its model calls), for the monthly AI budget.
 model AiUsage {
   id               String   @id @default(cuid())

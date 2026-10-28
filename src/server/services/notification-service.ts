@@ -4,7 +4,7 @@ import { parseIsoDate } from "@/lib/dates";
 import { formatMoney, formatStayDates } from "@/lib/format";
 import { formatSessionTime } from "@/lib/zoned-time";
 import { prisma } from "@/server/db/client";
-import { inBackground } from "@/server/background";
+import { defineJob } from "@/server/jobs/queue";
 import { sendEmail } from "@/server/email/send";
 import { isArabic } from "@/config/appearance";
 import { type Detail, type Message, render } from "@/server/email/templates";
@@ -17,11 +17,20 @@ import {
 } from "@/server/repositories/notification-repository";
 import { pushToGuest, pushToPeople } from "./push-service";
 
-// Who hears about what. Every notify* function queues its emails and push notifications in the background and
-// never throws: a mail or push outage must not undo or slow down a booking. Guests get emails in the language they booked in;
-// each host gets them in their account's language. Lebanese readers get the Arabic emails.
+// Who hears about what. Every notify* function puts a job on the "notify" queue and never throws: a mail or push
+// outage must not undo or slow down a booking, and the worker retries a failed delivery. Jobs carry only ids and
+// amounts; the worker loads the booking fresh. Guests get emails in the language they booked in; each host gets
+// them in their account's language. Lebanese readers get the Arabic emails.
 
 type Lang = "en" | "ar";
+
+/** Queues a notice. Failing to queue it is logged, never thrown at the booking that caused it. */
+function queueNotice<Data extends object>(
+  job: { kind: string; enqueue(data: Data): Promise<unknown> },
+  data: Data,
+) {
+  job.enqueue(data).catch((error: unknown) => console.error(`[jobs] could not queue ${job.kind}`, error));
+}
 const lang = (locale: string | null | undefined): Lang => (locale && isArabic(locale) ? "ar" : "en");
 const url = (path: string) => new URL(path, env.BETTER_AUTH_URL).toString();
 
@@ -216,7 +225,13 @@ async function tellGuest(notice: Notice, { subject, idempotencyKey, message }: L
 
 /** A guest asked for a booking: the guest gets a receipt, the people who can confirm get a nudge. */
 export function notifyBookingRequested(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("booking requested notices", async () => {
+  queueNotice(bookingRequested, { bookingId, kind });
+}
+
+const bookingRequested = defineJob(
+  "notify",
+  "notify.booking-requested",
+  async ({ bookingId, kind }: { bookingId: string; kind: Notice["kind"] }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     const l = notice.locale;
@@ -286,8 +301,8 @@ export function notifyBookingRequested(bookingId: string, kind: Notice["kind"] =
         },
       })),
     ]);
-  });
-}
+  },
+);
 
 type StatusCopy = { subject: string; title: string; body: string };
 
@@ -350,7 +365,13 @@ const STATUS_COPY: Record<Lang, Partial<Record<BookingStatus, StatusCopy>>> = {
 
 /** Tells the guest their booking moved: confirmed, declined, cancelled or expired. */
 export function notifyBookingStatus(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("booking status notice", async () => {
+  queueNotice(bookingStatus, { bookingId, kind });
+}
+
+const bookingStatus = defineJob(
+  "notify",
+  "notify.booking-status",
+  async ({ bookingId, kind }: { bookingId: string; kind: Notice["kind"] }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     const l = notice.locale;
@@ -374,12 +395,18 @@ export function notifyBookingStatus(bookingId: string, kind: Notice["kind"] = "s
             : { label: l === "ar" ? "ابحث عن غيره" : "Find something else", url: url("/search") },
       },
     });
-  });
-}
+  },
+);
 
 /** The guest cancelled from their booking page: the people who can confirm bookings are told. */
 export function notifyGuestCancelled(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("guest cancelled notice", async () => {
+  queueNotice(guestCancelled, { bookingId, kind });
+}
+
+const guestCancelled = defineJob(
+  "notify",
+  "notify.guest-cancelled",
+  async ({ bookingId, kind }: { bookingId: string; kind: Notice["kind"] }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     await tellHosts(notice.businessId, (l) => ({
@@ -406,8 +433,8 @@ export function notifyGuestCancelled(bookingId: string, kind: Notice["kind"] = "
         },
       },
     }));
-  });
-}
+  },
+);
 
 /** A receipt when the host records a deposit or payment. */
 export function notifyPaymentRecorded(
@@ -416,7 +443,23 @@ export function notifyPaymentRecorded(
   paymentId: string,
   kind: Notice["kind"] = "stay",
 ): void {
-  inBackground("payment receipt", async () => {
+  queueNotice(paymentReceipt, { bookingId, amountCents, paymentId, kind });
+}
+
+const paymentReceipt = defineJob(
+  "notify",
+  "notify.payment-receipt",
+  async ({
+    bookingId,
+    amountCents,
+    paymentId,
+    kind,
+  }: {
+    bookingId: string;
+    amountCents: number;
+    paymentId: string;
+    kind: Notice["kind"];
+  }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     const l = notice.locale;
@@ -445,12 +488,18 @@ export function notifyPaymentRecorded(
         },
       },
     });
-  });
-}
+  },
+);
 
 /** An instant booking: nobody has to answer it, but the people who handle bookings should know at once. */
 export function notifyHostsNewBooking(bookingId: string, kind: Notice["kind"] = "stay"): void {
-  inBackground("instant booking notice", async () => {
+  queueNotice(hostsNewBooking, { bookingId, kind });
+}
+
+const hostsNewBooking = defineJob(
+  "notify",
+  "notify.hosts-new-booking",
+  async ({ bookingId, kind }: { bookingId: string; kind: Notice["kind"] }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     await tellHosts(notice.businessId, (l) => ({
@@ -478,8 +527,8 @@ export function notifyHostsNewBooking(bookingId: string, kind: Notice["kind"] = 
         },
       },
     }));
-  });
-}
+  },
+);
 
 /** The guest paid online: a receipt for them, and a note for the hosts (the money waits in their payouts). */
 export function notifyOnlinePayment(
@@ -489,7 +538,23 @@ export function notifyOnlinePayment(
   kind: Notice["kind"] = "stay",
 ): void {
   notifyPaymentRecorded(bookingId, amountCents, paymentId, kind);
-  inBackground("online payment host notice", async () => {
+  queueNotice(onlinePaymentHosts, { bookingId, amountCents, paymentId, kind });
+}
+
+const onlinePaymentHosts = defineJob(
+  "notify",
+  "notify.online-payment-hosts",
+  async ({
+    bookingId,
+    amountCents,
+    paymentId,
+    kind,
+  }: {
+    bookingId: string;
+    amountCents: number;
+    paymentId: string;
+    kind: Notice["kind"];
+  }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     await tellHosts(notice.businessId, (l) => {
@@ -516,12 +581,26 @@ export function notifyOnlinePayment(
         },
       };
     });
-  });
-}
+  },
+);
 
 /** Money going back to the guest after a cancellation, a decline or a late payment. */
 export function notifyRefund(bookingId: string, amountCents: number, kind: Notice["kind"] = "stay"): void {
-  inBackground("refund notice", async () => {
+  queueNotice(refund, { bookingId, amountCents, kind });
+}
+
+const refund = defineJob(
+  "notify",
+  "notify.refund",
+  async ({
+    bookingId,
+    amountCents,
+    kind,
+  }: {
+    bookingId: string;
+    amountCents: number;
+    kind: Notice["kind"];
+  }) => {
     const notice = await load(kind, bookingId);
     if (!notice) return;
     const l = notice.locale;
@@ -547,8 +626,8 @@ export function notifyRefund(bookingId: string, amountCents: number, kind: Notic
         },
       },
     });
-  });
-}
+  },
+);
 
 /** A guest's question from the Contact host page, as the host will read it. */
 export interface HostMessage {
@@ -565,7 +644,13 @@ export interface HostMessage {
 /** A guest wrote from the Contact host page: the people who handle bookings get it, and replying reaches the guest. */
 export function notifyHostMessage(question: HostMessage): void {
   const id = randomUUID();
-  inBackground("host message", async () => {
+  queueNotice(hostMessage, { question, id });
+}
+
+const hostMessage = defineJob(
+  "notify",
+  "notify.host-message",
+  async ({ question, id }: { question: HostMessage; id: string }) => {
     const when = (l: Lang) =>
       question.checkIn && question.checkOut
         ? formatStayDates(parseIsoDate(question.checkIn), parseIsoDate(question.checkOut), l)
@@ -601,8 +686,8 @@ export function notifyHostMessage(question: HostMessage): void {
         },
       };
     });
-  });
-}
+  },
+);
 
 const firstName = (name: string) => name.split(" ")[0] ?? name;
 

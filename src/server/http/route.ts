@@ -6,6 +6,7 @@ import type { TenantContext } from "@/server/auth/tenant-context";
 import type { Locale } from "@/config/appearance";
 import { env } from "@/server/env";
 import { AppError, forbidden, invalid, notFound, unauthenticated } from "@/server/errors";
+import type { Dispatched } from "@/server/jobs/queue";
 import { localizeError, requestLocale } from "./error-i18n";
 import { resolveContext } from "@/server/services/team-service";
 
@@ -65,6 +66,16 @@ function errorResponse(error: unknown, locale: Locale): Response {
 
 export function json(body: unknown, status = 200): Response {
   return NextResponse.json(body, { status });
+}
+
+/**
+ * Work done in the request answers 200 with its result. Queued work answers 202 with the job's id, which the
+ * client follows at GET /api/jobs/{jobId} until it is done.
+ */
+export function jobResponse(dispatched: Dispatched<unknown>): Response {
+  return dispatched.status === "done"
+    ? json(dispatched.result)
+    : json({ status: "queued", jobId: dispatched.jobId }, 202);
 }
 
 export async function parseBody<T extends z.ZodType>(request: Request, schema: T): Promise<z.infer<T>> {

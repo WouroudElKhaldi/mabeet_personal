@@ -1,4 +1,5 @@
 import {
+  Bath,
   Car,
   Coffee,
   Flame,
@@ -22,6 +23,7 @@ const ICONS: Record<AmenityKey, LucideIcon> = {
   ac: Snowflake,
   heating: Sun,
   fireplace: Flame,
+  jacuzzi: Bath,
   pool: WavesLadder,
   kitchen: Utensils,
   view: Mountain,
